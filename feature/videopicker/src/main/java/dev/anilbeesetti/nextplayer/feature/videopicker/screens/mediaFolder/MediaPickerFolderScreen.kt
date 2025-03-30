@@ -1,24 +1,31 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediaFolder
 
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,6 +65,7 @@ fun MediaPickerFolderRoute(
         onRenameVideoClick = viewModel::renameVideo,
         onRefreshClicked = viewModel::onRefreshClicked,
         onDeleteFolderClick = { viewModel.deleteFolders(listOf(it)) },
+        viewModel = viewModel
     )
 }
 
@@ -76,7 +84,10 @@ internal fun MediaPickerFolderScreen(
     onAddToSync: (Uri) -> Unit,
     onRefreshClicked: () -> Unit = {},
     onDeleteFolderClick: (Folder) -> Unit = {},
+    viewModel: MediaPickerFolderViewModel
 ) {
+    val prefs = viewModel.preferences.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val pullToRefreshState = rememberPullToRefreshState()
 
     Scaffold(
@@ -95,20 +106,29 @@ internal fun MediaPickerFolderScreen(
             )
         },
         floatingActionButton = {
-            if (!preferences.showFloatingPlayButton) return@Scaffold
-            FloatingActionButton(
-                onClick = {
-                    val state = mediaState as? MediaState.Success
-                    val videoToPlay = state?.data?.recentlyPlayedVideo ?: state?.data?.firstVideo
-                    if (videoToPlay != null) {
-                        onPlayVideo(Uri.parse(videoToPlay.uriString))
-                    }
-                },
-            ) {
-                Icon(
-                    imageVector = NextIcons.Play,
-                    contentDescription = null,
-                )
+            FloatingActionButton(onClick = {
+                if (prefs.value.isShuffleOn) {
+                    Toast.makeText(context, R.string.shuffle_disabled, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, R.string.shuffle_enabled, Toast.LENGTH_SHORT).show()
+                }
+                viewModel.toggleShuffle()
+            }) {
+                if (prefs.value.isShuffleOn) {
+                    Icon(
+                        imageVector = NextIcons.ShuffleOn,
+                        contentDescription = stringResource(id = R.string.shuffle_enabled),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(48.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = NextIcons.Shuffle,
+                        contentDescription = stringResource(id = R.string.shuffle_disabled),
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
             }
         },
     ) { paddingValues ->

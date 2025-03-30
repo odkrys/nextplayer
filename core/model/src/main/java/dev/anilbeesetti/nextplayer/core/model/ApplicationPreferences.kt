@@ -13,6 +13,7 @@ data class ApplicationPreferences(
     val showFloatingPlayButton: Boolean = true,
     val excludeFolders: List<String> = emptyList(),
     val mediaViewMode: MediaViewMode = MediaViewMode.FOLDERS,
+    val isShuffleOn: Boolean = false,
 
     // Fields
     val showDurationField: Boolean = true,

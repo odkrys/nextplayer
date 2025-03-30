@@ -212,4 +212,6 @@
     <string name="stop_player_session">Stop player session</string>
     <string name="background_play">Background play</string>
     <string name="background_play_description">Play in background when tapped on home or screen is locked.</string>
+    <string name="shuffle_enabled">Shuffle enabled</string>
+    <string name="shuffle_disabled">Shuffle disabled</string>
 </resources>

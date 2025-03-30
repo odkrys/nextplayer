@@ -91,6 +91,16 @@ class MediaPickerFolderViewModel @Inject constructor(
             uiStateInternal.update { it.copy(refreshing = false) }
         }
     }
+
+    fun toggleShuffle() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(
+                    isShuffleOn = !it.isShuffleOn
+                )
+            }
+        }
+    }
 }
 
 data class MediaPickerFolderUiState(

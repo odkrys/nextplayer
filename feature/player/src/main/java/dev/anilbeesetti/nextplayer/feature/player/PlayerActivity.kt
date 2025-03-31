@@ -69,6 +69,7 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.getMediaContentUri
 import dev.anilbeesetti.nextplayer.core.common.extensions.isDeviceTvBox
 import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
 import dev.anilbeesetti.nextplayer.core.model.ThemeConfig
+import dev.anilbeesetti.nextplayer.core.model.VideoLoop
 import dev.anilbeesetti.nextplayer.core.model.VideoZoom
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.databinding.ActivityPlayerBinding
@@ -170,6 +171,7 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var backButton: ImageButton
     private lateinit var exoContentFrameLayout: AspectRatioFrameLayout
     private lateinit var lockControlsButton: ImageButton
+    private lateinit var loopVideoButton: ImageButton
     private lateinit var playbackSpeedButton: ImageButton
     private lateinit var playerLockControls: FrameLayout
     private lateinit var playerUnlockControls: FrameLayout
@@ -233,6 +235,7 @@ class PlayerActivity : AppCompatActivity() {
         backButton = binding.playerView.findViewById(R.id.back_button)
         exoContentFrameLayout = binding.playerView.findViewById(R.id.exo_content_frame)
         lockControlsButton = binding.playerView.findViewById(R.id.btn_lock_controls)
+        loopVideoButton = binding.playerView.findViewById(R.id.btn_loop_video)
         playbackSpeedButton = binding.playerView.findViewById(R.id.btn_playback_speed)
         playerLockControls = binding.playerView.findViewById(R.id.player_lock_controls)
         playerUnlockControls = binding.playerView.findViewById(R.id.player_unlock_controls)
@@ -349,6 +352,7 @@ class PlayerActivity : AppCompatActivity() {
             subtitleFileLauncherLaunchedForMediaItem = null
         }
         initializePlayerView()
+        setVideoLoop(playerPreferences.videoLoop, false)
     }
 
     override fun onStop() {
@@ -597,6 +601,10 @@ class PlayerActivity : AppCompatActivity() {
             playerLockControls.visibility = View.VISIBLE
             isControlsLocked = true
             toggleSystemBars(showBars = false)
+        }
+        loopVideoButton.setOnClickListener {
+            val videoLoop = playerPreferences.videoLoop.next()
+            setVideoLoop(videoLoop = videoLoop, showInfo = true)
         }
         unlockControlsButton.setOnClickListener {
             playerLockControls.visibility = View.INVISIBLE
@@ -1051,6 +1059,34 @@ class PlayerActivity : AppCompatActivity() {
         exoContentFrameLayout.requestLayout()
     }
 
+    private fun setVideoLoop(videoLoop: VideoLoop, showInfo: Boolean) {
+        viewModel.setVideoLoop(videoLoop)
+        when (videoLoop) {
+            VideoLoop.LOOP_OFF -> {
+                mediaController?.setRepeatMode(Player.REPEAT_MODE_OFF)
+                loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_off)
+            }
+
+            VideoLoop.LOOP_ONE -> {
+                mediaController?.setRepeatMode(Player.REPEAT_MODE_ONE)
+                loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_one)
+            }
+
+            VideoLoop.LOOP_ALL -> {
+                mediaController?.setRepeatMode(Player.REPEAT_MODE_ALL)
+                loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_on)
+            }
+        }
+        if (showInfo) {
+            lifecycleScope.launch {
+                binding.infoLayout.visibility = View.VISIBLE
+                binding.infoText.text = getString(videoLoop.nameRes())
+                delay(HIDE_DELAY_MILLIS)
+                binding.infoLayout.visibility = View.GONE
+            }
+        }
+    }
+
     private fun applyVideoScale(videoScale: Float) {
         exoContentFrameLayout.scaleX = videoScale
         exoContentFrameLayout.scaleY = videoScale
@@ -1105,6 +1141,16 @@ class PlayerActivity : AppCompatActivity() {
         const val PIP_ACTION_NEXT = 3
         const val PIP_ACTION_PREVIOUS = 4
     }
+}
+
+private fun VideoLoop.nameRes(): Int {
+    val stringRes = when (this) {
+        VideoLoop.LOOP_OFF -> coreUiR.string.loop_off
+        VideoLoop.LOOP_ONE -> coreUiR.string.loop_current
+        VideoLoop.LOOP_ALL -> coreUiR.string.loop_all
+    }
+
+    return stringRes
 }
 
 @RequiresApi(Build.VERSION_CODES.O)

@@ -161,7 +161,7 @@
     <string name="extension">파일 형식</string>
     <string name="path">경로</string>
     <string name="resolution">해상도</string>
-    <string name="long_press_gesture_desc">길게 눌렀을 때 %.1f배 속도로 재생</string>
+    <string name="long_press_gesture_desc">화면을 길게 눌러 동영상 재생 또는 정지</string>
     <string name="long_press_gesture">길게 누르기 제스처</string>
     <string name="fast_playback_speed">속도 %.1fx</string>
     <string name="require_audio_focus">오디오 포커스 요청</string>

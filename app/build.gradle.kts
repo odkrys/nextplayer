@@ -13,7 +13,7 @@ android {
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        applicationId = "dev.anilbeesetti.nextplayer"
+        applicationId = "test.anilbeesetti.nextplayer"
         versionCode = 31
         versionName = "0.13.0"
     }

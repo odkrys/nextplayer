@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class PlayerPreferences(
-    val resume: Resume = Resume.YES,
-    val rememberPlayerBrightness: Boolean = false,
+    val resume: Resume = Resume.NO,
+    val rememberPlayerBrightness: Boolean = true,
     val playerBrightness: Float = 0.5f,
     val fastSeek: FastSeek = FastSeek.AUTO,
     val minDurationForFastSeek: Long = 120000L,
@@ -14,19 +14,19 @@ data class PlayerPreferences(
     val controlButtonsPosition: ControlButtonsPosition = ControlButtonsPosition.LEFT,
     val playerVideoZoom: VideoZoom = VideoZoom.BEST_FIT,
     val defaultPlaybackSpeed: Float = 1.0f,
-    val controllerAutoHideTimeout: Int = 2,
-    val seekIncrement: Int = 10,
+    val controllerAutoHideTimeout: Int = 3,
+    val seekIncrement: Int = 5,
     val autoplay: Boolean = true,
     val videoLoop: VideoLoop = VideoLoop.LOOP_OFF,
-    val autoPip: Boolean = true,
+    val autoPip: Boolean = false,
     val autoBackgroundPlay: Boolean = false,
 
     // Controls (Gestures)
     val useSwipeControls: Boolean = true,
     val useSeekControls: Boolean = true,
     val useZoomControls: Boolean = true,
-    val doubleTapGesture: DoubleTapGesture = DoubleTapGesture.BOTH,
-    val useLongPressControls: Boolean = false,
+    val doubleTapGesture: DoubleTapGesture = DoubleTapGesture.FAST_FORWARD_AND_REWIND,
+    val useLongPressControls: Boolean = true,
     val longPressControlsSpeed: Float = 2.0f,
 
     // Audio Preferences

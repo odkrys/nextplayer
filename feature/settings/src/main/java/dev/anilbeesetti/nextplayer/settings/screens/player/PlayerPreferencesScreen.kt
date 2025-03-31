@@ -110,9 +110,7 @@ fun PlayerPreferencesScreen(
             )
             LongPressGesture(
                 isChecked = preferences.useLongPressControls,
-                onChecked = viewModel::toggleUseLongPressControls,
-                playbackSpeed = preferences.longPressControlsSpeed,
-                onClick = { viewModel.showDialog(PlayerPreferenceDialog.LongPressControlsSpeedDialog) },
+                onClick = viewModel::toggleUseLongPressControls,
             )
             SeekIncrementPreference(
                 currentValue = preferences.seekIncrement,
@@ -445,15 +443,12 @@ fun DoubleTapGestureSetting(
 @Composable
 fun LongPressGesture(
     isChecked: Boolean,
-    onChecked: () -> Unit,
-    playbackSpeed: Float,
     onClick: () -> Unit,
 ) {
-    PreferenceSwitchWithDivider(
+    PreferenceSwitch(
         title = stringResource(id = R.string.long_press_gesture),
-        description = stringResource(id = R.string.long_press_gesture_desc, playbackSpeed),
+        description = stringResource(id = R.string.long_press_gesture_desc),
         isChecked = isChecked,
-        onChecked = onChecked,
         icon = NextIcons.Tap,
         onClick = onClick,
     )

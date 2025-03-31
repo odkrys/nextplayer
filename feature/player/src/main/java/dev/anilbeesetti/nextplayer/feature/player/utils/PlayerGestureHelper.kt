@@ -62,19 +62,9 @@ class PlayerGestureHelper(
 
             override fun onLongPress(e: MotionEvent) {
                 if (!prefs.useLongPressControls) return
-                if (playerView.player?.isPlaying == false) return
                 if (activity.isControlsLocked) return
-
-                if (currentGestureAction == null) {
-                    currentGestureAction = GestureAction.FAST_PLAYBACK
-                    currentPlaybackSpeed = playerView.player?.playbackParameters?.speed
-                }
-                if (currentGestureAction != GestureAction.FAST_PLAYBACK) return
-                if (pointerCount >= 3) return
-
-                playerView.hideController()
-                activity.showTopInfo(activity.getString(coreUiR.string.fast_playback_speed, prefs.longPressControlsSpeed))
-                playerView.player?.setPlaybackSpeed(prefs.longPressControlsSpeed)
+                
+                playerView.togglePlayPause()
             }
 
             override fun onDoubleTap(event: MotionEvent): Boolean {

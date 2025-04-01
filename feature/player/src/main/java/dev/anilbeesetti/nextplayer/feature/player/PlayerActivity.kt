@@ -336,7 +336,11 @@ class PlayerActivity : AppCompatActivity() {
 
             mediaController?.run {
                 binding.playerView.player = this
-                binding.playerView.keepScreenOn = isPlaying
+                if (mediaController?.playWhenReady == true && mediaController?.playbackState == Player.STATE_READY) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
                 toggleSystemBars(showBars = binding.playerView.isControllerFullyVisible)
                 videoTitleTextView.text = currentMediaItem?.mediaMetadata?.title
                 if (playerPreferences.shouldUseVolumeBoost) {
@@ -742,7 +746,11 @@ class PlayerActivity : AppCompatActivity() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             super.onIsPlayingChanged(isPlaying)
-            binding.playerView.keepScreenOn = isPlaying
+            if (mediaController?.playWhenReady == true && mediaController?.playbackState == Player.STATE_READY) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPipSupported) {
                 updatePictureInPictureParams()
             }

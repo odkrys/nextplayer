@@ -337,9 +337,9 @@ class PlayerActivity : AppCompatActivity() {
             mediaController?.run {
                 binding.playerView.player = this
                 if (mediaController?.playWhenReady == true && mediaController?.playbackState == Player.STATE_READY) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 }
                 toggleSystemBars(showBars = binding.playerView.isControllerFullyVisible)
                 videoTitleTextView.text = currentMediaItem?.mediaMetadata?.title
@@ -599,7 +599,6 @@ class PlayerActivity : AppCompatActivity() {
                 mediaController = mediaController ?: return@setOnClickListener,
             ).show(supportFragmentManager, "PlaybackSpeedSelectionDialog")
         }
-
         lockControlsButton.setOnClickListener {
             playerUnlockControls.visibility = View.INVISIBLE
             playerLockControls.visibility = View.VISIBLE
@@ -621,7 +620,6 @@ class PlayerActivity : AppCompatActivity() {
             val videoZoom = playerPreferences.playerVideoZoom.next()
             applyVideoZoom(videoZoom = videoZoom, showInfo = true)
         }
-
         videoZoomButton.setOnLongClickListener {
             VideoZoomOptionsDialogFragment(
                 currentVideoZoom = playerPreferences.playerVideoZoom,
@@ -681,25 +679,25 @@ class PlayerActivity : AppCompatActivity() {
         val useShuffledPlaylist = mediaContentUri == null || applicationPreferences.isShuffleOn
 		val playlist = if (useShuffledPlaylist) {
             viewModel.getShuffledPlaylist(uri)
-            .map { it.uriString }
-            .toMutableList()
-            .apply {
-                if (!contains(uri.toString())) {
-                    add(index = 0, element = uri.toString())
-                }
-            }
-        } else {
-            mediaContentUri?.let { mediaUri ->
-                viewModel.getPlaylistFromUri(mediaUri)
                 .map { it.uriString }
                 .toMutableList()
                 .apply {
-                    if (!contains(mediaUri.toString())) {
-                        add(index = 0, element = mediaUri.toString())
+                    if (!contains(uri.toString())) {
+                        add(index = 0, element = uri.toString())
                     }
                 }
-        } ?: listOf(uri.toString())
-    }
+        } else {
+            mediaContentUri?.let { mediaUri ->
+                viewModel.getPlaylistFromUri(mediaUri)
+                    .map { it.uriString }
+                    .toMutableList()
+                    .apply {
+                        if (!contains(mediaUri.toString())) {
+                            add(index = 0, element = mediaUri.toString())
+                        }
+                    }
+            } ?: listOf(uri.toString())
+        }
 
         val mediaItemIndexToPlay = playlist.indexOfFirst {
             it == (mediaContentUri ?: uri).toString()
@@ -747,9 +745,9 @@ class PlayerActivity : AppCompatActivity() {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             super.onIsPlayingChanged(isPlaying)
             if (mediaController?.playWhenReady == true && mediaController?.playbackState == Player.STATE_READY) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPipSupported) {
                 updatePictureInPictureParams()

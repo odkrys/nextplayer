@@ -373,11 +373,13 @@ class PlayerActivity : AppCompatActivity() {
         }
         if (subtitleFileLauncherLaunchedForMediaItem != null) {
             mediaController?.pause()
-        } else if (!playerPreferences.autoBackgroundPlay && !playInBackground) {
+        } else if ((isInPictureInPictureMode) && (!playerPreferences.autoBackgroundPlay && !playInBackground)) {
             mediaController?.run {
                 clearMediaItems()
                 stop()
             }
+        } else if (!playerPreferences.autoBackgroundPlay && !playInBackground) {
+            mediaController?.pause()
         }
         controllerFuture?.run {
             MediaController.releaseFuture(this)

@@ -358,6 +358,7 @@ class PlayerActivity : AppCompatActivity() {
             subtitleFileLauncherLaunchedForMediaItem = null
         }
         initializePlayerView()
+        setShuffleModeEnabled(playerPreferences.isShuffleOn)
     }
 
     override fun onStop() {

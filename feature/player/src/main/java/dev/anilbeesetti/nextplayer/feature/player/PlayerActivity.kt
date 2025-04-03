@@ -360,6 +360,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         initializePlayerView()
         setVideoLoop(playerPreferences.videoLoop, false)
+        setShuffleModeEnabled(playerPreferences.isShuffleOn)
     }
 
     override fun onStop() {

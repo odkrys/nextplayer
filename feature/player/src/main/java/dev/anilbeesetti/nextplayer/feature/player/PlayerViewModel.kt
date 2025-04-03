@@ -8,6 +8,7 @@ import dev.anilbeesetti.nextplayer.core.data.models.VideoState
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedPlaylistUseCase
+import dev.anilbeesetti.nextplayer.core.model.Shuffle
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoLoop
 import dev.anilbeesetti.nextplayer.core.model.VideoZoom
@@ -61,6 +62,14 @@ class PlayerViewModel @Inject constructor(
     fun setVideoZoom(videoZoom: VideoZoom) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { it.copy(playerVideoZoom = videoZoom) }
+        }
+    }
+
+    fun setShuffleModeEnabled(isShuffleOn: Shuffle) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(isShuffleOn = isShuffleOn)
+            }
         }
     }
 

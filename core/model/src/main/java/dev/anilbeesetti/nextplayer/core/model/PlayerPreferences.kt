@@ -20,6 +20,7 @@ data class PlayerPreferences(
     val videoLoop: VideoLoop = VideoLoop.LOOP_OFF,
     val autoPip: Boolean = false,
     val autoBackgroundPlay: Boolean = false,
+    val isShuffleOn: Shuffle = Shuffle.SHUFFLE_OFF,
 
     // Controls (Gestures)
     val useSwipeControls: Boolean = true,

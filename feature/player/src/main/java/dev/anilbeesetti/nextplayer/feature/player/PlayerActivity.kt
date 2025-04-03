@@ -68,6 +68,7 @@ import dev.anilbeesetti.nextplayer.core.common.Utils
 import dev.anilbeesetti.nextplayer.core.common.extensions.getMediaContentUri
 import dev.anilbeesetti.nextplayer.core.common.extensions.isDeviceTvBox
 import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
+import dev.anilbeesetti.nextplayer.core.model.Shuffle
 import dev.anilbeesetti.nextplayer.core.model.ThemeConfig
 import dev.anilbeesetti.nextplayer.core.model.VideoLoop
 import dev.anilbeesetti.nextplayer.core.model.VideoZoom
@@ -177,6 +178,7 @@ class PlayerActivity : AppCompatActivity() {
     private lateinit var playerUnlockControls: FrameLayout
     private lateinit var playerCenterControls: LinearLayout
     private lateinit var screenRotateButton: ImageButton
+    private lateinit var shuffleButton: ImageButton
     private lateinit var pipButton: ImageButton
     private lateinit var seekBar: TimeBar
     private lateinit var subtitleTrackButton: ImageButton
@@ -241,6 +243,7 @@ class PlayerActivity : AppCompatActivity() {
         playerUnlockControls = binding.playerView.findViewById(R.id.player_unlock_controls)
         playerCenterControls = binding.playerView.findViewById(R.id.player_center_controls)
         screenRotateButton = binding.playerView.findViewById(R.id.screen_rotate)
+        shuffleButton = binding.playerView.findViewById(R.id.btn_shuffle)
         pipButton = binding.playerView.findViewById(R.id.btn_pip)
         seekBar = binding.playerView.findViewById(R.id.exo_progress)
         subtitleTrackButton = binding.playerView.findViewById(R.id.btn_subtitle_track)
@@ -640,6 +643,10 @@ class PlayerActivity : AppCompatActivity() {
                 else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             }
         }
+        shuffleButton.setOnClickListener {
+            val isShuffleOn = playerPreferences.isShuffleOn.next()
+            setShuffleModeEnabled(isShuffleOn = isShuffleOn)
+        }
         pipButton.setOnClickListener {
             if (isPipSupported && !isPipEnabled) {
                 Toast.makeText(this, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
@@ -721,8 +728,8 @@ class PlayerActivity : AppCompatActivity() {
         withContext(Dispatchers.Main) {
             mediaController?.run {
                 setMediaItems(mediaItems, mediaItemIndexToPlay, playerApi.position?.toLong() ?: C.TIME_UNSET)
-                playWhenReady = viewModel.playWhenReady
                 prepare()
+                playWhenReady = viewModel.playWhenReady
             }
         }
     }
@@ -1060,6 +1067,22 @@ class PlayerActivity : AppCompatActivity() {
         exoContentFrameLayout.scaleX = 1.0f
         exoContentFrameLayout.scaleY = 1.0f
         exoContentFrameLayout.requestLayout()
+    }
+
+    private fun setShuffleModeEnabled(isShuffleOn: Shuffle) {
+        viewModel.setShuffleModeEnabled(isShuffleOn)
+
+        when (isShuffleOn) {
+            Shuffle.SHUFFLE_OFF -> {
+                mediaController?.setShuffleModeEnabled(false)
+                shuffleButton.setImageResource(coreUiR.drawable.ic_shuffle_off)
+            }
+
+            Shuffle.SHUFFLE_ON -> {
+                mediaController?.setShuffleModeEnabled(true)
+                shuffleButton.setImageResource(coreUiR.drawable.ic_shuffle_on)
+            }
+        }
     }
 
     private fun setVideoLoop(videoLoop: VideoLoop, showInfo: Boolean) {

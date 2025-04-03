@@ -44,10 +44,6 @@ class PlayerViewModel @Inject constructor(
         return getSortedPlaylistUseCase.invoke(uri)
     }
 
-    suspend fun getShuffledPlaylist(uri: Uri): List<Video> {
-        return getPlaylistFromUri(uri).shuffled()
-    }
-
     suspend fun getVideoState(uri: String): VideoState? {
         return mediaRepository.getVideoState(uri)
     }

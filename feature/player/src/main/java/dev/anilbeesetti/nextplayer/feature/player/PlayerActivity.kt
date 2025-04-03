@@ -99,7 +99,6 @@ import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerApi
 import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerGestureHelper
 import dev.anilbeesetti.nextplayer.feature.player.utils.VolumeManager
 import dev.anilbeesetti.nextplayer.feature.player.utils.toMillis
-import java.util.Collections
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -686,9 +685,8 @@ class PlayerActivity : AppCompatActivity() {
 
     private suspend fun playVideo(uri: Uri) = withContext(Dispatchers.Default) {
         val mediaContentUri = getMediaContentUri(uri)
-        val useShuffledPlaylist = mediaContentUri == null || applicationPreferences.isShuffleOn
-		val playlist = if (useShuffledPlaylist) {
-            viewModel.getShuffledPlaylist(uri)
+        val playlist = mediaContentUri?.let { mediaUri ->
+            viewModel.getPlaylistFromUri(mediaUri)
                 .map { it.uriString }
                 .toMutableList()
                 .apply {
@@ -696,18 +694,7 @@ class PlayerActivity : AppCompatActivity() {
                         add(index = 0, element = uri.toString())
                     }
                 }
-        } else {
-            mediaContentUri?.let { mediaUri ->
-                viewModel.getPlaylistFromUri(mediaUri)
-                    .map { it.uriString }
-                    .toMutableList()
-                    .apply {
-                        if (!contains(mediaUri.toString())) {
-                            add(index = 0, element = mediaUri.toString())
-                        }
-                    }
-            } ?: listOf(uri.toString())
-        }
+        } ?: listOf(uri.toString())
 
         val mediaItemIndexToPlay = playlist.indexOfFirst {
             it == (mediaContentUri ?: uri).toString()

@@ -630,6 +630,9 @@ class PlayerActivity : AppCompatActivity() {
         videoZoomButton.setOnClickListener {
             val videoZoom = playerPreferences.playerVideoZoom.next()
             applyVideoZoom(videoZoom = videoZoom, showInfo = true)
+            mediaController?.currentMediaItem?.mediaId?.let {
+                viewModel.updateMediumZoom(uri = it, 1f)
+            }
         }
         videoZoomButton.setOnLongClickListener {
             VideoZoomOptionsDialogFragment(

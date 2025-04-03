@@ -133,6 +133,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private var playInBackground: Boolean = false
     private var isIntentNew: Boolean = true
+    private var wasPlaying = false
 
     private val shouldFastSeek: Boolean
         get() = playerPreferences.shouldFastSeek(mediaController?.duration ?: C.TIME_UNSET)
@@ -365,6 +366,11 @@ class PlayerActivity : AppCompatActivity() {
         binding.brightnessGestureLayout.visibility = View.GONE
         currentOrientation = requestedOrientation
         mediaController?.run {
+            if (mediaController?.isPlaying == true) {
+                wasPlaying = true
+            } else {
+                wasPlaying = false
+            }
             viewModel.playWhenReady = playWhenReady
             lifecycleScope.launch {
                 viewModel.skipSilenceEnabled = getSkipSilenceEnabled()
@@ -663,9 +669,11 @@ class PlayerActivity : AppCompatActivity() {
     private fun startPlayback() {
         val uri = intent.data ?: return
 
+        if (!isIntentNew && (mediaController?.currentMediaItem != null && wasPlaying == true)) { mediaController?.play()
+        } else
         // If the intent is not new and the current media item is not null, return
-        if (!isIntentNew && mediaController?.currentMediaItem != null) return
-
+        if (!isIntentNew && mediaController?.currentMediaItem != null) { return
+        }
         // If the current media item is not null and the current media item's uri is the same as the intent's data, return
         if (mediaController?.currentMediaItem?.localConfiguration?.uri.toString() == uri.toString()) return
 

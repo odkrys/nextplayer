@@ -20,6 +20,7 @@ data class PlayerPreferences(
     val autoPip: Boolean = false,
     val autoBackgroundPlay: Boolean = false,
     val loopMode: LoopMode = LoopMode.OFF,
+    val isShuffleOn: Shuffle = Shuffle.SHUFFLE_OFF,
 
     // Controls (Gestures)
     val useSwipeControls: Boolean = true,

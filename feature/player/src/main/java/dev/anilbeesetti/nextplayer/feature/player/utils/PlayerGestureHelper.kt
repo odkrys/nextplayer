@@ -63,6 +63,9 @@ class PlayerGestureHelper(
             override fun onLongPress(e: MotionEvent) {
                 if (!prefs.useLongPressControls) return
                 if (activity.isControlsLocked) return
+
+                if (currentGestureAction != null) return
+                if (pointerCount >= 3) return
                 
                 playerView.togglePlayPause()
             }

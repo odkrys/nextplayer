@@ -757,7 +757,7 @@ class PlayerActivity : AppCompatActivity() {
             } else {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
-            if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPipSupported) && isInPictureInPictureMode) {
+            if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPipSupported) && (playerPreferences.autoPip || isInPictureInPictureMode)) {
                 updatePictureInPictureParams()
             }
         }
@@ -779,7 +779,7 @@ class PlayerActivity : AppCompatActivity() {
             super.onVideoSizeChanged(videoSize)
             applyVideoZoom(videoZoom = playerPreferences.playerVideoZoom, showInfo = false)
             if (videoSize.width != 0 && videoSize.height != 0) {
-                if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPipSupported) && isInPictureInPictureMode) {
+                if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isPipSupported) && (playerPreferences.autoPip || isInPictureInPictureMode)) {
                     updatePictureInPictureParams()
                 }
                 setOrientation()

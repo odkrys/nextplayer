@@ -357,10 +357,10 @@ class PlayerActivity : AppCompatActivity() {
                 startPlayback()
             }
             subtitleFileLauncherLaunchedForMediaItem = null
+            setVideoLoop(playerPreferences.videoLoop)
+            setShuffleModeEnabled(playerPreferences.isShuffleOn)
         }
         initializePlayerView()
-        setVideoLoop(playerPreferences.videoLoop)
-        setShuffleModeEnabled(playerPreferences.isShuffleOn)
     }
 
     override fun onStop() {

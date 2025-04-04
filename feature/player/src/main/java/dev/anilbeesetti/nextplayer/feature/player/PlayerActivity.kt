@@ -621,6 +621,7 @@ class PlayerActivity : AppCompatActivity() {
         videoZoomButton.setOnClickListener {
             val videoZoom = playerPreferences.playerVideoZoom.next()
             changeAndSaveVideoZoom(videoZoom = videoZoom)
+            binding.playerView.showController()
         }
 
         videoZoomButton.setOnLongClickListener {
@@ -635,6 +636,7 @@ class PlayerActivity : AppCompatActivity() {
                 Configuration.ORIENTATION_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             }
+            binding.playerView.showController()
         }
         shuffleButton.setOnClickListener {
             val shuffle = playerPreferences.shuffle.next()
@@ -677,6 +679,7 @@ class PlayerActivity : AppCompatActivity() {
             viewModel.setLoopMode(nextLoopMode)
             updateLoopModeIcon(nextLoopMode)
             applyLoopMode(nextLoopMode)
+            binding.playerView.showController()
 /*
             showPlayerInfo(
                 info = when (nextLoopMode) {

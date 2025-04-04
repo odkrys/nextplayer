@@ -385,7 +385,7 @@ class PlayerActivity : AppCompatActivity() {
         } else if ((isInPictureInPictureMode) && (!playerPreferences.autoBackgroundPlay && !playInBackground)) {
             mediaController?.run {
                 clearMediaItems()
-                stop()
+                finish()
             }
         } else if (!playerPreferences.autoBackgroundPlay && !playInBackground) {
             mediaController?.pause()
@@ -545,6 +545,7 @@ class PlayerActivity : AppCompatActivity() {
     private fun initializePlayerView() {
         binding.playerView.apply {
             setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+            setControllerAutoShow(false)
             controllerShowTimeoutMs = playerPreferences.controllerAutoHideTimeout.toMillis
             setControllerVisibilityListener(
                 PlayerView.ControllerVisibilityListener { visibility ->

@@ -620,6 +620,7 @@ class PlayerActivity : AppCompatActivity() {
         loopVideoButton.setOnClickListener {
             val videoLoop = playerPreferences.videoLoop.next()
             setVideoLoop(videoLoop = videoLoop)
+            binding.playerView.showController()
         }
         unlockControlsButton.setOnClickListener {
             playerLockControls.visibility = View.INVISIBLE
@@ -634,6 +635,7 @@ class PlayerActivity : AppCompatActivity() {
             mediaController?.currentMediaItem?.mediaId?.let {
                 viewModel.updateMediumZoom(uri = it, 1f)
             }
+            binding.playerView.showController()
         }
         videoZoomButton.setOnLongClickListener {
             VideoZoomOptionsDialogFragment(
@@ -647,10 +649,12 @@ class PlayerActivity : AppCompatActivity() {
                 Configuration.ORIENTATION_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
                 else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
             }
+            binding.playerView.showController()
         }
         shuffleButton.setOnClickListener {
             val isShuffleOn = playerPreferences.isShuffleOn.next()
             setShuffleModeEnabled(isShuffleOn = isShuffleOn)
+            binding.playerView.showController()
         }
         pipButton.setOnClickListener {
             if (isPipSupported && !isPipEnabled) {

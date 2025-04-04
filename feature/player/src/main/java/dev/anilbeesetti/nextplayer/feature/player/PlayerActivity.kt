@@ -359,7 +359,7 @@ class PlayerActivity : AppCompatActivity() {
             subtitleFileLauncherLaunchedForMediaItem = null
         }
         initializePlayerView()
-        setVideoLoop(playerPreferences.videoLoop, false)
+        setVideoLoop(playerPreferences.videoLoop)
         setShuffleModeEnabled(playerPreferences.isShuffleOn)
     }
 
@@ -618,7 +618,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         loopVideoButton.setOnClickListener {
             val videoLoop = playerPreferences.videoLoop.next()
-            setVideoLoop(videoLoop = videoLoop, showInfo = true)
+            setVideoLoop(videoLoop = videoLoop)
         }
         unlockControlsButton.setOnClickListener {
             playerLockControls.visibility = View.INVISIBLE
@@ -1089,7 +1089,7 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun setVideoLoop(videoLoop: VideoLoop, showInfo: Boolean) {
+    private fun setVideoLoop(videoLoop: VideoLoop) {
         viewModel.setVideoLoop(videoLoop)
         when (videoLoop) {
             VideoLoop.LOOP_OFF -> {
@@ -1105,14 +1105,6 @@ class PlayerActivity : AppCompatActivity() {
             VideoLoop.LOOP_ALL -> {
                 mediaController?.setRepeatMode(Player.REPEAT_MODE_ALL)
                 loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_on)
-            }
-        }
-        if (showInfo) {
-            lifecycleScope.launch {
-                binding.infoLayout.visibility = View.VISIBLE
-                binding.infoText.text = getString(videoLoop.nameRes())
-                delay(HIDE_DELAY_MILLIS)
-                binding.infoLayout.visibility = View.GONE
             }
         }
     }
@@ -1171,16 +1163,6 @@ class PlayerActivity : AppCompatActivity() {
         const val PIP_ACTION_NEXT = 3
         const val PIP_ACTION_PREVIOUS = 4
     }
-}
-
-private fun VideoLoop.nameRes(): Int {
-    val stringRes = when (this) {
-        VideoLoop.LOOP_OFF -> coreUiR.string.loop_off
-        VideoLoop.LOOP_ONE -> coreUiR.string.loop_current
-        VideoLoop.LOOP_ALL -> coreUiR.string.loop_all
-    }
-
-    return stringRes
 }
 
 @RequiresApi(Build.VERSION_CODES.O)

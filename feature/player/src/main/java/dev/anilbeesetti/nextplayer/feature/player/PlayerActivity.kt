@@ -133,7 +133,7 @@ class PlayerActivity : AppCompatActivity() {
 
     private var playInBackground: Boolean = false
     private var isIntentNew: Boolean = true
-    private var wasPlaying = false
+    private var wasPlaying: Boolean = false
 
     private val shouldFastSeek: Boolean
         get() = playerPreferences.shouldFastSeek(mediaController?.duration ?: C.TIME_UNSET)
@@ -363,17 +363,19 @@ class PlayerActivity : AppCompatActivity() {
         initializePlayerView()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (playInBackground) {
+            playInBackground = false
+        }
+    }
+
     override fun onStop() {
         binding.playerView.player = null
         binding.volumeGestureLayout.visibility = View.GONE
         binding.brightnessGestureLayout.visibility = View.GONE
         currentOrientation = requestedOrientation
         mediaController?.run {
-            if (mediaController?.isPlaying == true) {
-                wasPlaying = true
-            } else {
-                wasPlaying = false
-            }
             viewModel.playWhenReady = playWhenReady
             lifecycleScope.launch {
                 viewModel.skipSilenceEnabled = getSkipSilenceEnabled()
@@ -382,14 +384,22 @@ class PlayerActivity : AppCompatActivity() {
         }
         if (subtitleFileLauncherLaunchedForMediaItem != null) {
             mediaController?.pause()
-        } else if ((isInPictureInPictureMode) && (!playerPreferences.autoBackgroundPlay && !playInBackground)) {
-            mediaController?.run {
-                clearMediaItems()
+        }
+        if (isInPictureInPictureMode) {
+            if (playerPreferences.autoBackgroundPlay && mediaController?.isPlaying == true) {
+                playInBackground = true
                 finish()
+            } else {
+                mediaController?.run {
+                    clearMediaItems()
+                    finish()
+                }
             }
-        } else if (!playerPreferences.autoBackgroundPlay && !playInBackground) {
+        } else if (!playerPreferences.autoBackgroundPlay || mediaController?.isPlaying == false) {
             mediaController?.pause()
         }
+        if(playInBackground) mediaController?.play()
+
         controllerFuture?.run {
             MediaController.releaseFuture(this)
             controllerFuture = null
@@ -674,7 +684,7 @@ class PlayerActivity : AppCompatActivity() {
         }
         playInBackgroundButton.setOnClickListener {
             playInBackground = true
-            finish()
+            moveTaskToBack(true)
         }
         backButton.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
@@ -683,19 +693,40 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun startPlayback() {
         val uri = intent.data ?: return
+        val currentUri = mediaController?.currentMediaItem?.localConfiguration?.uri
 
-        if (!isIntentNew && (mediaController?.currentMediaItem != null && wasPlaying == true)) { mediaController?.play()
-        } else
-        // If the intent is not new and the current media item is not null, return
-        if (!isIntentNew && mediaController?.currentMediaItem != null) { return
+        // When pressing the exit button in the media notification
+        if (!isIntentNew && uri != currentUri && mediaController?.currentMediaItem == null) {
+            finish()
+            return
         }
-        // If the current media item is not null and the current media item's uri is the same as the intent's data, return
-        if (mediaController?.currentMediaItem?.localConfiguration?.uri.toString() == uri.toString()) return
 
-        isIntentNew = false
+        // When pressing the home button or recents button while playing
+        if (!isIntentNew && mediaController?.currentMediaItem != null) {
+            if (wasPlaying) {
+                mediaController?.play()
+            }
+            isIntentNew = false
+            return
+        }
 
-        lifecycleScope.launch {
-            playVideo(uri)
+        // When playing the same video again in the pip window
+        // When playing the same video again after removing the app from recents during background playback
+        if (isIntentNew && uri == currentUri) {
+            if (wasPlaying) {
+                mediaController?.play()
+            }
+            isIntentNew = false
+            return
+        }
+
+        // When playing a new video
+        if (isIntentNew && uri != currentUri) {
+            isIntentNew = false
+            lifecycleScope.launch {
+                playVideo(uri)
+            }
+            return
         }
     }
 
@@ -738,7 +769,7 @@ class PlayerActivity : AppCompatActivity() {
             mediaController?.run {
                 setMediaItems(mediaItems, mediaItemIndexToPlay, playerApi.position?.toLong() ?: C.TIME_UNSET)
                 prepare()
-                playWhenReady = viewModel.playWhenReady
+                playWhenReady = true
             }
         }
     }
@@ -757,6 +788,7 @@ class PlayerActivity : AppCompatActivity() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             super.onIsPlayingChanged(isPlaying)
+            wasPlaying = isPlaying
             if (mediaController?.playWhenReady == true && mediaController?.playbackState == Player.STATE_READY) {
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             } else {

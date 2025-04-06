@@ -1134,14 +1134,14 @@ class PlayerActivity : AppCompatActivity() {
                 loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_off)
             }
 
-            VideoLoop.LOOP_ONE -> {
-                mediaController?.setRepeatMode(Player.REPEAT_MODE_ONE)
-                loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_one)
-            }
-
             VideoLoop.LOOP_ALL -> {
                 mediaController?.setRepeatMode(Player.REPEAT_MODE_ALL)
                 loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_on)
+            }
+
+            VideoLoop.LOOP_ONE -> {
+                mediaController?.setRepeatMode(Player.REPEAT_MODE_ONE)
+                loopVideoButton.setImageResource(coreUiR.drawable.ic_repeat_one)
             }
         }
     }

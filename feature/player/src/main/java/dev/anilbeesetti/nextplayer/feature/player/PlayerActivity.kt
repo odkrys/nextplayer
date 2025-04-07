@@ -696,6 +696,15 @@ class PlayerActivity : AppCompatActivity() {
         val currentUri = mediaController?.currentMediaItem?.localConfiguration?.uri
 
         // When pressing the exit button in the media notification
+
+        // In stock nextplayer, if you press the home button or recents while watching a video
+        // and leave the app without closing it or use another app for a long time
+        // and then return to the nextplayer app, the video will start playing again.
+        // However, for that to work, if you press the X button on the media notification during background play,
+        // it acts like pause instead of exit. I didn't want that.
+
+        // Now the X button on the media notification acts like exit and you can see the video list when you return to the app.
+        // Thankfully, nextplayer has a button on the home screen that makes it play the last video I watched. Just tap it.
         if (!isIntentNew && uri != currentUri && mediaController?.currentMediaItem == null) {
             finish()
             return

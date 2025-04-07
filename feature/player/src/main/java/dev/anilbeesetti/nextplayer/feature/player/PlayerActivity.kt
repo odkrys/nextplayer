@@ -356,9 +356,9 @@ class PlayerActivity : AppCompatActivity() {
                 startPlayback()
             }
             subtitleFileLauncherLaunchedForMediaItem = null
+            setShuffleModeEnabled(playerPreferences.shuffle)
         }
         initializePlayerView()
-        setShuffleModeEnabled(playerPreferences.isShuffleOn)
     }
 
     override fun onStop() {
@@ -637,8 +637,9 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
         shuffleButton.setOnClickListener {
-            val isShuffleOn = playerPreferences.isShuffleOn.next()
-            setShuffleModeEnabled(isShuffleOn = isShuffleOn)
+            val shuffle = playerPreferences.shuffle.next()
+            setShuffleModeEnabled(shuffle = shuffle)
+            binding.playerView.showController()
         }
         pipButton.setOnClickListener {
             if (isPipSupported && !isPipEnabled) {
@@ -1103,16 +1104,16 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun setShuffleModeEnabled(isShuffleOn: Shuffle) {
-        viewModel.setShuffleModeEnabled(isShuffleOn)
+    private fun setShuffleModeEnabled(shuffle: Shuffle) {
+        viewModel.setShuffleModeEnabled(shuffle)
 
-        when (isShuffleOn) {
-            Shuffle.SHUFFLE_OFF -> {
+        when (shuffle) {
+            Shuffle.OFF -> {
                 mediaController?.setShuffleModeEnabled(false)
                 shuffleButton.setImageResource(coreUiR.drawable.ic_shuffle_off)
             }
 
-            Shuffle.SHUFFLE_ON -> {
+            Shuffle.ON -> {
                 mediaController?.setShuffleModeEnabled(true)
                 shuffleButton.setImageResource(coreUiR.drawable.ic_shuffle_on)
             }

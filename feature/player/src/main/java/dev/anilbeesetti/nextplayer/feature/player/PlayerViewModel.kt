@@ -71,11 +71,9 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun setShuffleModeEnabled(isShuffleOn: Shuffle) {
+    fun setShuffleModeEnabled(shuffle: Shuffle) {
         viewModelScope.launch {
-            preferencesRepository.updatePlayerPreferences {
-                it.copy(isShuffleOn = isShuffleOn)
-            }
+            preferencesRepository.updatePlayerPreferences { it.copy(shuffle = shuffle) }
         }
     }
 }

@@ -52,8 +52,10 @@
     <string name="settings">Settings</string>
     <string name="size">Size</string>
     <string name="sort">Sort</string>
-    <string name="swipe_gesture">Swipe gesture</string>
-    <string name="swipe_gesture_description">Swipe vertically to adjust the brightness and volume</string>
+    <string name="brightness_gesture">Brightness gesture</string>
+    <string name="brightness_gesture_description">Swipe vertically to adjust the brightness</string>
+    <string name="volume_gesture">Volume gesture</string>
+    <string name="volume_gesture_description">Swipe vertically to adjust the volume</string>
     <string name="title">Title</string>
     <string name="title_activity_player">Next Player Activity</string>
     <string name="unknown_error">An unknown error has occurred</string>

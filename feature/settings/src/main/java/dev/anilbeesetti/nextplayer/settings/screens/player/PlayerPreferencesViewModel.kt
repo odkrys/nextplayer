@@ -130,10 +130,18 @@ class PlayerPreferencesViewModel @Inject constructor(
         }
     }
 
-    fun toggleUseSwipeControls() {
+    fun toggleUseBrightnessGestureControls() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
-                it.copy(useSwipeControls = !it.useSwipeControls)
+                it.copy(useBrightnessGestureControls = !it.useBrightnessGestureControls)
+            }
+        }
+    }
+
+    fun toggleUseVolumeGestureControls() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(useVolumeGestureControls = !it.useVolumeGestureControls)
             }
         }
     }

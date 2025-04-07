@@ -95,9 +95,13 @@ fun PlayerPreferencesScreen(
                 isChecked = preferences.useSeekControls,
                 onClick = viewModel::toggleUseSeekControls,
             )
-            SwipeGestureSetting(
-                isChecked = preferences.useSwipeControls,
-                onClick = viewModel::toggleUseSwipeControls,
+            BrightnessGestureSetting(
+                isChecked = preferences.useBrightnessGestureControls,
+                onClick = viewModel::toggleUseBrightnessGestureControls,
+            )
+            VolumeGestureSetting(
+                isChecked = preferences.useVolumeGestureControls,
+                onClick = viewModel::toggleUseVolumeGestureControls,
             )
             ZoomGestureSetting(
                 isChecked = preferences.useZoomControls,
@@ -397,13 +401,27 @@ fun SeekGestureSetting(
 }
 
 @Composable
-fun SwipeGestureSetting(
+fun BrightnessGestureSetting(
     isChecked: Boolean,
     onClick: () -> Unit,
 ) {
     PreferenceSwitch(
-        title = stringResource(id = R.string.swipe_gesture),
-        description = stringResource(id = R.string.swipe_gesture_description),
+        title = stringResource(id = R.string.brightness_gesture),
+        description = stringResource(id = R.string.brightness_gesture_description),
+        icon = NextIcons.SwipeVertical,
+        isChecked = isChecked,
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun VolumeGestureSetting(
+    isChecked: Boolean,
+    onClick: () -> Unit,
+) {
+    PreferenceSwitch(
+        title = stringResource(id = R.string.volume_gesture),
+        description = stringResource(id = R.string.volume_gesture_description),
         icon = NextIcons.SwipeVertical,
         isChecked = isChecked,
         onClick = onClick,

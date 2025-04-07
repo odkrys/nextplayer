@@ -23,7 +23,8 @@ data class PlayerPreferences(
     val shuffle: Shuffle = Shuffle.OFF,
 
     // Controls (Gestures)
-    val useSwipeControls: Boolean = true,
+    val useBrightnessGestureControls: Boolean = true,
+    val useVolumeGestureControls: Boolean = true,
     val useSeekControls: Boolean = true,
     val useZoomControls: Boolean = true,
     val doubleTapGesture: DoubleTapGesture = DoubleTapGesture.FAST_FORWARD_AND_REWIND,

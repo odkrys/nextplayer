@@ -38,7 +38,10 @@
     <string name="seek_gesture_description">좌우로 화면을 쓸어 앞뒤로 동영상 탐색</string>
     <string name="resume_description">지난 번에 멈췄던 곳에서부터 동영상 재생</string>
     <string name="size">크기</string>
-    <string name="swipe_gesture">스와이프 제스처</string>
+    <string name="brightness_gesture">밝기 제스처</string>
+    <string name="brightness_gesture_description">위아래로 화면을 쓸어 밝기 조절</string>
+    <string name="volume_gesture">음량 제스처</string>
+    <string name="volume_gesture_description">위아래로 화면을 쓸어 음량 조절</string>
     <string name="title_activity_player">Next Player 액티비티</string>
     <string name="playback">재생</string>
     <string name="a_z">A-Z</string>
@@ -91,7 +94,6 @@
     <string name="audio">오디오</string>
     <string name="subtitle">자막</string>
     <string name="videos">동영상</string>
-    <string name="swipe_gesture_description">위아래로 화면을 쓸어 밝기 및 볼륨 조절</string>
     <string name="dynamic_theme_description">애플리케이션 테마에 시스템 배경화면 색상 사용</string>
     <string name="player_description">플레이어 모양, 재생 제어</string>
     <string name="controls_lock">재생 제어 잠금</string>

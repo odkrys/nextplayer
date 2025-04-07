@@ -165,7 +165,7 @@ class PlayerGestureHelper(
         },
     )
 
-    private val volumeAndBrightnessGestureDetector = GestureDetector(
+    private val brightnessGestureDetector = GestureDetector(
         playerView.context,
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onScroll(
@@ -176,7 +176,41 @@ class PlayerGestureHelper(
             ): Boolean {
                 if (firstEvent == null) return false
                 if (inExclusionArea(firstEvent)) return false
-                if (!prefs.useSwipeControls) return false
+                if (!prefs.useBrightnessGestureControls) return false
+                if (activity.isControlsLocked) return false
+                if (abs(distanceY / distanceX) < 2) return false
+
+                if (currentGestureAction == null) {
+                    currentGestureAction = GestureAction.SWIPE
+                }
+                if (currentGestureAction != GestureAction.SWIPE) return false
+
+                val viewCenterX = playerView.measuredWidth / 2
+                val distanceFull = playerView.measuredHeight * FULL_SWIPE_RANGE_SCREEN_RATIO
+                val ratioChange = distanceY / distanceFull
+
+                if (firstEvent.x.toInt() < viewCenterX) {
+                    val change = ratioChange * brightnessManager.maxBrightness
+                    brightnessManager.setBrightness(brightnessManager.currentBrightness + change)
+                    activity.showBrightnessGestureLayout()
+                }
+                return true
+            }
+        },
+    )
+
+    private val volumeGestureDetector = GestureDetector(
+        playerView.context,
+        object : GestureDetector.SimpleOnGestureListener() {
+            override fun onScroll(
+                firstEvent: MotionEvent?,
+                currentEvent: MotionEvent,
+                distanceX: Float,
+                distanceY: Float,
+            ): Boolean {
+                if (firstEvent == null) return false
+                if (inExclusionArea(firstEvent)) return false
+                if (!prefs.useVolumeGestureControls) return false
                 if (activity.isControlsLocked) return false
                 if (abs(distanceY / distanceX) < 2) return false
 
@@ -193,10 +227,6 @@ class PlayerGestureHelper(
                     val change = ratioChange * volumeManager.maxStreamVolume
                     volumeManager.setVolume(volumeManager.currentVolume + change, prefs.showSystemVolumePanel)
                     activity.showVolumeGestureLayout()
-                } else {
-                    val change = ratioChange * brightnessManager.maxBrightness
-                    brightnessManager.setBrightness(brightnessManager.currentBrightness + change)
-                    activity.showBrightnessGestureLayout()
                 }
                 return true
             }
@@ -271,7 +301,8 @@ class PlayerGestureHelper(
             when (motionEvent.pointerCount) {
                 1 -> {
                     tapGestureDetector.onTouchEvent(motionEvent)
-                    volumeAndBrightnessGestureDetector.onTouchEvent(motionEvent)
+                    brightnessGestureDetector.onTouchEvent(motionEvent)
+                    volumeGestureDetector.onTouchEvent(motionEvent)
                     seekGestureDetector.onTouchEvent(motionEvent)
                 }
 

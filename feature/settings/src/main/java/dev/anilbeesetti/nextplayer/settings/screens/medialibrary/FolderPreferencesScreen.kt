@@ -58,6 +58,27 @@ fun FolderPreferencesScreen(
                         )
                     }
                 },
+                actions = {
+                    if (uiState is FolderPreferencesUiState.Success) {
+                        val allSelected = (uiState as FolderPreferencesUiState.Success).directories.all { it.path in (preferences.excludeFolders ?: emptyList()) }
+                        val allFolders = (uiState as FolderPreferencesUiState.Success).directories.map { it.path }
+
+                        IconButton(
+                            onClick = {
+                                if (allSelected) {
+                                    viewModel.updateAllExcludeList(emptyList())
+                                } else {
+                                    viewModel.updateAllExcludeList(allFolders)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (allSelected) NextIcons.SelectAll else NextIcons.CropSquare,
+                                contentDescription = stringResource(id = R.string.select_all)
+                            )
+                        }
+                    }
+                }
             )
         },
     ) { innerPadding ->
@@ -77,7 +98,7 @@ fun FolderPreferencesScreen(
                         SelectablePreference(
                             title = folder.name,
                             description = folder.path,
-                            selected = folder.path in preferences.excludeFolders,
+                            selected = folder.path in (preferences.excludeFolders ?: emptyList()),
                             onClick = { viewModel.updateExcludeList(folder.path) },
                         )
                     }

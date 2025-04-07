@@ -258,10 +258,11 @@ class PlayerGestureHelper(
      * Check if [firstEvent] is in the gesture exclusion area
      */
     private fun inExclusionArea(firstEvent: MotionEvent): Boolean {
-        val gestureExclusionBorder = playerView.context.dpToPx(GESTURE_EXCLUSION_AREA)
+        val gestureExclusionBorderX = playerView.context.dpToPx(GESTURE_EXCLUSION_AREA_X)
+        val gestureExclusionBorderY = playerView.context.dpToPx(GESTURE_EXCLUSION_AREA_Y)
 
-        return firstEvent.y < gestureExclusionBorder || firstEvent.y > playerView.height - gestureExclusionBorder ||
-            firstEvent.x < gestureExclusionBorder || firstEvent.x > playerView.width - gestureExclusionBorder
+        return firstEvent.x < gestureExclusionBorderX || firstEvent.x > playerView.width - gestureExclusionBorderX ||
+            firstEvent.y < gestureExclusionBorderY || firstEvent.y > playerView.height - gestureExclusionBorderY
     }
 
     init {
@@ -288,7 +289,8 @@ class PlayerGestureHelper(
 
     companion object {
         const val FULL_SWIPE_RANGE_SCREEN_RATIO = 0.66f
-        const val GESTURE_EXCLUSION_AREA = 20f
+        const val GESTURE_EXCLUSION_AREA_X = 20f
+        const val GESTURE_EXCLUSION_AREA_Y = 100f
         const val SEEK_STEP_MS = 1000L
     }
 }

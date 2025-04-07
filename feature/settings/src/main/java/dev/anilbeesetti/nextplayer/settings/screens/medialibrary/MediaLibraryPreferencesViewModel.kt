@@ -38,11 +38,23 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updateApplicationPreferences {
                 it.copy(
-                    excludeFolders = if (path in it.excludeFolders) {
-                        it.excludeFolders - path
-                    } else {
-                        it.excludeFolders + path
-                    },
+                    excludeFolders = (it.excludeFolders ?: emptyList()).let { currentExcludeFolders ->
+                        if (path in currentExcludeFolders) {
+                            currentExcludeFolders - path
+                        } else {
+                            currentExcludeFolders + path
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    fun updateAllExcludeList(folders: List<String>) {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(
+                    excludeFolders = folders
                 )
             }
         }

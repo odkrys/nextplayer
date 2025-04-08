@@ -49,7 +49,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_weight="1"
-            android:stepSize="0.1"
+            android:stepSize="0.05"
             android:theme="@style/Widget.Material3.Slider"
             android:value="1.0"
             android:valueFrom="0.2"
@@ -78,12 +78,12 @@
             android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_0.2x"
+                android:id="@+id/button_0.25x"
                 style="@style/Widget.Material3.Button.IconButton.Outlined"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="0.2x" />
+                android:text="0.25x" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_0.5x"
@@ -95,6 +95,16 @@
                 android:text="0.5x" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_0.75x"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="5dp"
+                android:text="0.75x" />
+
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_1.0x"
                 style="@style/Widget.Material3.Button.IconButton.Outlined"
                 android:layout_width="wrap_content"
@@ -102,6 +112,15 @@
                 android:layout_gravity="center"
                 android:layout_marginStart="5dp"
                 android:text="1.0x" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_1.25x"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="5dp"
+                android:text="1.25x" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_1.5x"
@@ -113,6 +132,15 @@
                 android:text="1.5x" />
 
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_1.75x"
+                style="@style/Widget.Material3.Button.IconButton.Outlined"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginStart="5dp"
+                android:text="1.75x" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_2.0x"
                 style="@style/Widget.Material3.Button.IconButton.Outlined"
                 android:layout_width="wrap_content"
@@ -120,42 +148,6 @@
                 android:layout_gravity="center"
                 android:layout_marginStart="5dp"
                 android:text="2.0x" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_2.5x"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="5dp"
-                android:text="2.5x" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_3.0x"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="5dp"
-                android:text="3.0x" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_3.5x"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="5dp"
-                android:text="3.5x" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_4.0x"
-                style="@style/Widget.Material3.Button.IconButton.Outlined"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="5dp"
-                android:text="4.0x" />
 
         </LinearLayout>
     </HorizontalScrollView>

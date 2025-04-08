@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.common.extensions.round
+import dev.anilbeesetti.nextplayer.core.common.extensions.roundToNearestStep
 import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
 import dev.anilbeesetti.nextplayer.core.model.DoubleTapGesture
 import dev.anilbeesetti.nextplayer.core.model.FastSeek
@@ -278,7 +279,7 @@ fun PlayerPreferencesScreen(
                         onDismissClick = viewModel::hideDialog,
                         content = {
                             Text(
-                                text = "$defaultPlaybackSpeed",
+                                text = "%.2f".format(defaultPlaybackSpeed),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 20.dp),
@@ -287,7 +288,7 @@ fun PlayerPreferencesScreen(
                             )
                             Slider(
                                 value = defaultPlaybackSpeed,
-                                onValueChange = { defaultPlaybackSpeed = it.round(1) },
+                                onValueChange = { defaultPlaybackSpeed = it.roundToNearestStep(0.05f) },
                                 valueRange = 0.2f..4.0f,
                             )
                         },
@@ -520,7 +521,7 @@ fun DefaultPlaybackSpeedSetting(
 ) {
     ClickablePreferenceItem(
         title = stringResource(id = R.string.default_playback_speed),
-        description = currentDefaultPlaybackSpeed.toString(),
+        description = String.format("%.2f", currentDefaultPlaybackSpeed),
         icon = NextIcons.Speed,
         onClick = onClick,
     )

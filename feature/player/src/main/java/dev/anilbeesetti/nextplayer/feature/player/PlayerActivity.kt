@@ -298,7 +298,7 @@ class PlayerActivity : AppCompatActivity() {
             },
         )
 
-        volumeManager = VolumeManager(audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager)
+        volumeManager = VolumeManager(audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager, useSystemVolume = playerPreferences.useSystemVolume)
         brightnessManager = BrightnessManager(activity = this)
         playerGestureHelper = PlayerGestureHelper(
             viewModel = viewModel,
@@ -1046,7 +1046,11 @@ class PlayerActivity : AppCompatActivity() {
     fun showVolumeGestureLayout() {
         hideVolumeIndicatorJob?.cancel()
         with(binding) {
+        if (volumeManager.useSystemVolume) {
+            volumeGestureLayout.visibility = View.GONE
+        } else {
             volumeGestureLayout.visibility = View.VISIBLE
+        }
             volumeProgressBar.max = volumeManager.maxVolume
             volumeProgressBar.progress = volumeManager.currentVolume.toInt()
             volumeProgressText.text = volumeManager.currentVolume.toInt().toString()

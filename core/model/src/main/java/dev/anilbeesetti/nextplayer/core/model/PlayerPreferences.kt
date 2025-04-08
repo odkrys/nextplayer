@@ -33,6 +33,7 @@ data class PlayerPreferences(
 
     // Audio Preferences
     val preferredAudioLanguage: String = "",
+    val useSystemVolume: Boolean = false,
     val pauseOnHeadsetDisconnect: Boolean = true,
     val requireAudioFocus: Boolean = true,
     val showSystemVolumePanel: Boolean = true,

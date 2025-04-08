@@ -79,9 +79,14 @@ fun AudioPreferencesScreen(
                 currentLanguage = LocalesHelper.getLocaleDisplayLanguage(preferences.preferredAudioLanguage),
                 onClick = { viewModel.showDialog(AudioPreferenceDialog.AudioLanguageDialog) },
             )
+            UseSystemVolume(
+                isChecked = preferences.useSystemVolume,
+                onClick = viewModel::toggleUseSystemVolume,
+            )
             VolumeBoost(
                 isChecked = preferences.shouldUseVolumeBoost,
-                onClick = viewModel::toggleShouldUseVolumeBoost,
+                onClick = if (preferences.useSystemVolume) ({}) else viewModel::toggleShouldUseVolumeBoost,
+                enabled = !preferences.useSystemVolume,
             )
             RequireAudioFocusSetting(
                 isChecked = preferences.requireAudioFocus,
@@ -137,9 +142,24 @@ fun PreferredAudioLanguageSetting(
 }
 
 @Composable
+fun UseSystemVolume(
+    isChecked: Boolean,
+    onClick: () -> Unit,
+) {
+    PreferenceSwitch(
+        title = stringResource(R.string.use_system_volume),
+        description = stringResource(R.string.use_system_volume_desc),
+        icon = NextIcons.Android,
+        isChecked = isChecked,
+        onClick = onClick,
+    )
+}
+
+@Composable
 fun VolumeBoost(
     isChecked: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = false,
 ) {
     PreferenceSwitch(
         title = stringResource(R.string.volume_boost),
@@ -147,6 +167,7 @@ fun VolumeBoost(
         icon = NextIcons.VolumeUp,
         isChecked = isChecked,
         onClick = onClick,
+        enabled = enabled,
     )
 }
 

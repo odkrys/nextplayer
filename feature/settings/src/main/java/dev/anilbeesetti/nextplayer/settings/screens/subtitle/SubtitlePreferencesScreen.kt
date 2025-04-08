@@ -383,7 +383,7 @@ fun SubtitlePositionPreference(
     ClickablePreferenceItem(
         title = stringResource(id = R.string.subtitle_position),
         description = currentDefaultSubtitlePosition.toString(),
-        icon = NextIcons.Background,
+        icon = NextIcons.SwapVert,
         onClick = onClick,
         enabled = enabled,
     )

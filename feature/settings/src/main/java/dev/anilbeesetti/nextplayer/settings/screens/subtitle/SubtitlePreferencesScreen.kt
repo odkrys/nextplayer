@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,6 +43,7 @@ import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.CancelButton
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.DoneButton
+import dev.anilbeesetti.nextplayer.core.ui.components.NextDialogWithDoneAndCancelButtons
 import dev.anilbeesetti.nextplayer.core.ui.components.NextDialog
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
 import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSwitch
@@ -131,6 +133,11 @@ fun SubtitlePreferencesScreen(
                 onClick = viewModel::toggleSubtitleBackground,
                 enabled = preferences.useSystemCaptionStyle.not(),
             )
+            SubtitlePositionPreference(
+                currentDefaultSubtitlePosition = preferences.subtitlePosition,
+                onClick = { viewModel.showDialog(SubtitlePreferenceDialog.SubtitlePositionDialog) },
+                enabled = preferences.useSystemCaptionStyle.not(),
+            )
             SubtitleEmbeddedStylesPreference(
                 isChecked = preferences.applyEmbeddedStyles,
                 onClick = viewModel::toggleApplyEmbeddedStyles,
@@ -204,6 +211,35 @@ fun SubtitlePreferencesScreen(
                             })
                         },
                         dismissButton = { CancelButton(onClick = viewModel::hideDialog) },
+                    )
+                }
+
+                SubtitlePreferenceDialog.SubtitlePositionDialog -> {
+                    var subtitlePosition by remember { mutableFloatStateOf(preferences.subtitlePosition) }
+
+                    NextDialogWithDoneAndCancelButtons(
+                        title = stringResource(R.string.subtitle_position),
+                        onDoneClick = {
+                            viewModel.updateSubtitlePosition(subtitlePosition)
+                            viewModel.hideDialog()
+                        },
+                        onDismissClick = viewModel::hideDialog,
+                        content = {
+                            Text(
+                                text = String.format("%.2f", subtitlePosition),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 20.dp),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Slider(
+                                value = subtitlePosition,
+                                onValueChange = { subtitlePosition = (it * 25).toInt() / 25f },
+                                valueRange = 0f..1f,
+                                steps = 24,
+                            )
+                        },
                     )
                 }
 
@@ -333,6 +369,21 @@ fun SubtitleBackgroundPreference(
         description = stringResource(id = R.string.subtitle_background_desc),
         icon = NextIcons.Background,
         isChecked = isChecked,
+        onClick = onClick,
+        enabled = enabled,
+    )
+}
+
+@Composable
+fun SubtitlePositionPreference(
+    currentDefaultSubtitlePosition: Float,
+    onClick: () -> Unit,
+    enabled: Boolean,
+) {
+    ClickablePreferenceItem(
+        title = stringResource(id = R.string.subtitle_position),
+        description = currentDefaultSubtitlePosition.toString(),
+        icon = NextIcons.Background,
         onClick = onClick,
         enabled = enabled,
     )

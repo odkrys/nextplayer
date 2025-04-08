@@ -47,6 +47,7 @@ data class PlayerPreferences(
     val subtitleBackground: Boolean = false,
     val subtitleFont: Font = Font.DEFAULT,
     val subtitleTextBold: Boolean = true,
+    val subtitlePosition: Float = 0.08f,
     val applyEmbeddedStyles: Boolean = true,
 
     // Decoder Preferences

@@ -556,7 +556,7 @@ class PlayerActivity : AppCompatActivity() {
                         Color.WHITE,
                         Color.BLACK.takeIf { playerPreferences.subtitleBackground } ?: Color.TRANSPARENT,
                         Color.TRANSPARENT,
-                        CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW,
+                        CaptionStyleCompat.EDGE_TYPE_OUTLINE,
                         Color.BLACK,
                         Typeface.create(
                             playerPreferences.subtitleFont.toTypeface(),

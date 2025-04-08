@@ -565,6 +565,7 @@ class PlayerActivity : AppCompatActivity() {
                     )
                     setStyle(userStyle)
                     setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, playerPreferences.subtitleTextSize.toFloat())
+                    setBottomPaddingFraction(playerPreferences.subtitlePosition)
                 }
                 setApplyEmbeddedStyles(playerPreferences.applyEmbeddedStyles)
             }

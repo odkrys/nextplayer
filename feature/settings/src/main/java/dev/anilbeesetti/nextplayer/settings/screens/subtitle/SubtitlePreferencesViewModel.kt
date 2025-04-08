@@ -90,6 +90,14 @@ class SubtitlePreferencesViewModel @Inject constructor(
         }
     }
 
+    fun updateSubtitlePosition(value: Float) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(subtitlePosition = value)
+            }
+        }
+    }
+
     fun toggleUseSystemCaptionStyle() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { it.copy(useSystemCaptionStyle = !it.useSystemCaptionStyle) }
@@ -105,6 +113,7 @@ sealed interface SubtitlePreferenceDialog {
     object SubtitleLanguageDialog : SubtitlePreferenceDialog
     object SubtitleFontDialog : SubtitlePreferenceDialog
     object SubtitleSizeDialog : SubtitlePreferenceDialog
+    object SubtitlePositionDialog : SubtitlePreferenceDialog
     object SubtitleEncodingDialog : SubtitlePreferenceDialog
 }
 

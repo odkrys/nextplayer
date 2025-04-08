@@ -3,11 +3,11 @@ package dev.anilbeesetti.nextplayer.feature.player.utils
 import android.media.AudioManager
 import android.media.audiofx.LoudnessEnhancer
 
-class VolumeManager(private val audioManager: AudioManager) {
+class VolumeManager(private val audioManager: AudioManager, var useSystemVolume: Boolean = false) {
 
     var loudnessEnhancer: LoudnessEnhancer? = null
         set(value) {
-            if (currentVolume > maxStreamVolume) {
+            if (!useSystemVolume && currentVolume > maxStreamVolume) {
                 try {
                     value?.enabled = true
                     value?.setTargetGain(currentLoudnessGain.toInt())
@@ -29,6 +29,8 @@ class VolumeManager(private val audioManager: AudioManager) {
 
     @Suppress("DEPRECATION")
     fun setVolume(volume: Float, showVolumePanel: Boolean = false) {
+        if (useSystemVolume) return
+
         currentVolume = volume.coerceIn(0f, maxVolume.toFloat())
 
         if (currentVolume <= maxStreamVolume) {
@@ -49,11 +51,25 @@ class VolumeManager(private val audioManager: AudioManager) {
     }
 
     fun increaseVolume(showVolumePanel: Boolean = false) {
-        setVolume(currentVolume + 1, showVolumePanel)
+        if (useSystemVolume) {
+            audioManager.adjustVolume(
+                AudioManager.ADJUST_RAISE,
+                if (showVolumePanel) AudioManager.FLAG_SHOW_UI else 0
+            )
+        } else {
+            setVolume(currentVolume + 1, showVolumePanel)
+        }
     }
 
     fun decreaseVolume(showVolumePanel: Boolean = false) {
-        setVolume(currentVolume - 1, showVolumePanel)
+        if (useSystemVolume) {
+            audioManager.adjustVolume(
+                AudioManager.ADJUST_LOWER,
+                if (showVolumePanel) AudioManager.FLAG_SHOW_UI else 0
+            )
+        } else {
+            setVolume(currentVolume - 1, showVolumePanel)
+        }
     }
 
     companion object {

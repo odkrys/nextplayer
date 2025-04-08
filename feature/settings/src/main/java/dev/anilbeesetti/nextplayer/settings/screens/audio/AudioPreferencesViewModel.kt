@@ -51,6 +51,14 @@ class AudioPreferencesViewModel @Inject constructor(
         }
     }
 
+    fun toggleUseSystemVolume() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(useSystemVolume = !it.useSystemVolume)
+            }
+        }
+    }
+
     fun toggleShowSystemVolumePanel() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {

@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.AppSettingsAlt
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -65,6 +66,7 @@ import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Update
 
 object NextIcons {
+    val Android = Icons.Rounded.Android
     val Appearance = Icons.Rounded.Palette
     val ArrowBack = Icons.AutoMirrored.Rounded.ArrowBack
     val ArrowDownward = Icons.Rounded.ArrowDownward

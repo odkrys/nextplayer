@@ -101,7 +101,8 @@ fun PlayerPreferencesScreen(
             )
             VolumeGestureSetting(
                 isChecked = preferences.useVolumeGestureControls,
-                onClick = viewModel::toggleUseVolumeGestureControls,
+                onClick = if (preferences.useSystemVolume) ({}) else viewModel::toggleUseVolumeGestureControls,
+                enabled = !preferences.useSystemVolume,
             )
             ZoomGestureSetting(
                 isChecked = preferences.useZoomControls,
@@ -418,6 +419,7 @@ fun BrightnessGestureSetting(
 fun VolumeGestureSetting(
     isChecked: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     PreferenceSwitch(
         title = stringResource(id = R.string.volume_gesture),
@@ -425,6 +427,7 @@ fun VolumeGestureSetting(
         icon = NextIcons.SwipeVertical,
         isChecked = isChecked,
         onClick = onClick,
+        enabled = enabled,
     )
 }
 

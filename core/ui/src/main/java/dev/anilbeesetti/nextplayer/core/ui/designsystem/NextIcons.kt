@@ -57,6 +57,7 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Swipe
 import androidx.compose.material.icons.rounded.SwipeVertical
 import androidx.compose.material.icons.rounded.Timer
@@ -120,6 +121,7 @@ object NextIcons {
     val Subtitle = Icons.Rounded.Subtitles
     val Size = Icons.AutoMirrored.Rounded.CompareArrows
     val Speed = Icons.Rounded.Speed
+    val SwapVert = Icons.Rounded.SwapVert
     val SwipeHorizontal = Icons.Rounded.Swipe
     val SwipeVertical = Icons.Rounded.SwipeVertical
     val Tap = Icons.Rounded.TouchApp

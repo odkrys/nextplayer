@@ -1047,9 +1047,9 @@ class PlayerActivity : AppCompatActivity() {
         hideVolumeIndicatorJob?.cancel()
         with(binding) {
             volumeGestureLayout.visibility = View.VISIBLE
-            volumeProgressBar.max = volumeManager.maxVolume.times(100)
-            volumeProgressBar.progress = volumeManager.currentVolume.times(100).toInt()
-            volumeProgressText.text = volumeManager.volumePercentage.toString()
+            volumeProgressBar.max = volumeManager.maxVolume
+            volumeProgressBar.progress = volumeManager.currentVolume.toInt()
+            volumeProgressText.text = volumeManager.currentVolume.toInt().toString()
         }
     }
 

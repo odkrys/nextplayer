@@ -235,9 +235,9 @@ fun SubtitlePreferencesScreen(
                             )
                             Slider(
                                 value = subtitlePosition,
-                                onValueChange = { subtitlePosition = (it * 25).toInt() / 25f },
+                                onValueChange = { subtitlePosition = (it * 100).toInt() / 100f },
                                 valueRange = 0f..1f,
-                                steps = 24,
+                                steps = 99,
                             )
                         },
                     )

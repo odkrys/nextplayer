@@ -13,23 +13,14 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.convertToUTF8
 import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
 import java.nio.charset.Charset
 
-fun Uri.getSubtitleMime(): String {
-    return when {
-        path?.endsWith(".ssa") == true || path?.endsWith(".ass") == true -> {
-            MimeTypes.TEXT_SSA
-        }
-
-        path?.endsWith(".vtt") == true -> {
-            MimeTypes.TEXT_VTT
-        }
-
-        path?.endsWith(".ttml") == true || path?.endsWith(".xml") == true || path?.endsWith(".dfxp") == true -> {
-            MimeTypes.APPLICATION_TTML
-        }
-
-        else -> {
-            MimeTypes.APPLICATION_SUBRIP
-        }
+fun Uri.getSubtitleMime(context: Context): String {
+    val extension = context.getFilenameFromUri(this)?.substringAfterLast('.', "")?.lowercase()
+    return when (extension) {
+        "ssa", "ass" -> MimeTypes.TEXT_SSA
+        "srt" -> MimeTypes.APPLICATION_SUBRIP
+        "vtt" -> MimeTypes.TEXT_VTT
+        "ttml", "xml", "dfxp" -> MimeTypes.APPLICATION_TTML
+        else -> MimeTypes.APPLICATION_SUBRIP
     }
 }
 
@@ -47,7 +38,7 @@ suspend fun Context.uriToSubtitleConfiguration(
         null
     }
     val label = getFilenameFromUri(uri)
-    val mimeType = uri.getSubtitleMime()
+    val mimeType = uri.getSubtitleMime(this)
     val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
     return MediaItem.SubtitleConfiguration.Builder(utf8ConvertedUri).apply {
         setId(uri.toString())

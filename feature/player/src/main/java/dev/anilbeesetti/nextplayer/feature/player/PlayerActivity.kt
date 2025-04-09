@@ -107,6 +107,8 @@ import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.net.HttpURLConnection
+import java.net.URL
 
 @SuppressLint("UnsafeOptInUsageError")
 @AndroidEntryPoint
@@ -763,12 +765,29 @@ class PlayerActivity : AppCompatActivity() {
                 setMediaId(uri)
                 if (index == mediaItemIndexToPlay) {
                     setMediaMetadata(MediaMetadata.Builder().setTitle(playerApi.title).build())
-                    val apiSubs = playerApi.getSubs().map { subtitle ->
-                        uriToSubtitleConfiguration(
-                            uri = subtitle.uri,
-                            subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                            isSelected = subtitle.isSelected,
-                        )
+                    val apiSubs = if (playerApi.getSubs().isNotEmpty()) {
+                        playerApi.getSubs().map { subtitle ->
+                            uriToSubtitleConfiguration(
+                                uri = subtitle.uri,
+                                subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                                isSelected = subtitle.isSelected,
+                            )
+                        }
+                    } else {
+                        val autoSubtitleUris = buildSubtitleUrisFromStream(Uri.parse(uri))
+                        autoSubtitleUris.mapNotNull { subUri ->
+                            try {
+                                if (isRemoteFileExists(subUri)) {
+                                    uriToSubtitleConfiguration(
+                                        uri = subUri,
+                                        subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                                        isSelected = true,
+                                    )
+                                } else null
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
                     }
                     setSubtitleConfigurations(apiSubs)
                 }
@@ -781,6 +800,27 @@ class PlayerActivity : AppCompatActivity() {
                 prepare()
                 playWhenReady = true
             }
+        }
+    }
+
+    private fun buildSubtitleUrisFromStream(videoUri: Uri): List<Uri> {
+        val subtitleExtensions = listOf(".srt", ".vtt", ".ass", ".ssa")
+        val baseName = videoUri.lastPathSegment?.substringBeforeLast(".") ?: return emptyList()
+        val parentPath = videoUri.toString().substringBeforeLast("/")
+        return subtitleExtensions.map { ext -> Uri.parse("$parentPath/$baseName$ext") }
+    }
+
+    private fun isRemoteFileExists(uri: Uri): Boolean {
+        if (!uri.scheme.orEmpty().startsWith("http")) return false
+        return try {
+            val connection = (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
+                requestMethod = "HEAD"
+                connectTimeout = 2000
+                readTimeout = 2000
+            }
+            connection.responseCode == HttpURLConnection.HTTP_OK
+        } catch (e: Exception) {
+            false
         }
     }
 

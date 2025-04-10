@@ -107,6 +107,7 @@
     <string name="subtitle_background">자막 배경</string>
     <string name="subtitle_background_desc">자막 텍스트 뒤에 배경 사용</string>
     <string name="subtitle_desc">자막 외관, 재생 옵션</string>
+    <string name="subtitle_position">자막 위치</string>
     <string name="default_playback_speed">기본 재생 속도</string>
     <string name="play_file">재생할 동영상 파일 열기</string>
     <string name="play_url">재생할 동영상 URL 입력</string>
@@ -182,6 +183,8 @@
     <string name="sample_rate">샘플링 레이트</string>
     <string name="file">파일</string>
     <string name="format">형식</string>
+    <string name="use_system_volume">시스템 음량 사용</string>
+    <string name="use_system_volume_desc">시스템 음량 조절을 사용합니다</string>
     <string name="volume_boost_desc">200%까지 오디오 볼륨 증폭</string>
     <string name="volume_boost">볼륨 증폭</string>
     <string name="rename">이름 바꾸기</string>

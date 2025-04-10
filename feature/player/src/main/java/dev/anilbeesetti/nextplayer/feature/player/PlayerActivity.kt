@@ -301,7 +301,7 @@ class PlayerActivity : AppCompatActivity() {
         )
 
         volumeManager = VolumeManager(audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager, useSystemVolume = playerPreferences.useSystemVolume)
-        brightnessManager = BrightnessManager(activity = this)
+        brightnessManager = BrightnessManager(viewModel = viewModel, activity = this)
         playerGestureHelper = PlayerGestureHelper(
             viewModel = viewModel,
             activity = this,

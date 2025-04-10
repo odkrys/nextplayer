@@ -39,7 +39,7 @@
     <string name="resume_description">지난 번에 멈췄던 곳에서부터 동영상 재생</string>
     <string name="size">크기</string>
     <string name="brightness_gesture">밝기 제스처</string>
-    <string name="brightness_gesture_description">위아래로 화면을 쓸어 밝기 조절</string>
+    <string name="brightness_gesture_description">밝기 제스처를 끄면 시스템 밝기가 사용됩니다</string>
     <string name="volume_gesture">음량 제스처</string>
     <string name="volume_gesture_description">위아래로 화면을 쓸어 음량 조절</string>
     <string name="title_activity_player">Next Player 액티비티</string>

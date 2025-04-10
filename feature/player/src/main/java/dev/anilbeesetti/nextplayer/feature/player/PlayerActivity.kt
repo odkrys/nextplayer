@@ -805,7 +805,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun buildSubtitleUrisFromStream(videoUri: Uri): List<Uri> {
-        val subtitleExtensions = listOf(".srt", ".vtt", ".ass", ".ssa")
+        val subtitleExtensions = listOf(".srt", ".vtt", ".ass", ".ssa", ".ttml", ".xml", ".dfxp")
         val baseName = videoUri.lastPathSegment?.substringBeforeLast(".") ?: return emptyList()
         val parentPath = videoUri.toString().substringBeforeLast("/")
         return subtitleExtensions.map { ext -> Uri.parse("$parentPath/$baseName$ext") }

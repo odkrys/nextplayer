@@ -236,6 +236,9 @@ class PlayerService : MediaSessionService() {
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
                     )
                     mediaSession?.player?.let { player ->
+                        val expectedMediaItem = player.currentMediaItem
+                        val expectedIndex = player.currentMediaItemIndex
+                        val expectedPosition = player.currentPosition
                         val currentMediaItem = player.currentMediaItem ?: return@let
                         val textTracks = player.currentTracks.groups.filter {
                             it.type == C.TRACK_TYPE_TEXT && it.isSupported
@@ -253,7 +256,12 @@ class PlayerService : MediaSessionService() {
                             uri = currentMediaItem.mediaId,
                             subtitleUri = subtitleUri,
                         )
+                        player.playWhenReady = false
                         player.addAdditionalSubtitleConfiguration(newSubConfiguration)
+                        if (player.currentMediaItem != expectedMediaItem) {
+                            player.seekTo(expectedIndex, expectedPosition)
+                        }
+                        player.playWhenReady = true
                     }
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }

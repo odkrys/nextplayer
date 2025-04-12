@@ -301,7 +301,7 @@ class PlayerActivity : AppCompatActivity() {
         )
 
         volumeManager = VolumeManager(audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager, useSystemVolume = playerPreferences.useSystemVolume)
-        brightnessManager = BrightnessManager(viewModel = viewModel, activity = this)
+        brightnessManager = BrightnessManager(activity = this)
         playerGestureHelper = PlayerGestureHelper(
             viewModel = viewModel,
             activity = this,
@@ -326,7 +326,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (playerPreferences.rememberPlayerBrightness) {
+        if (playerPreferences.rememberPlayerBrightness && playerPreferences.useBrightnessGestureControls) {
             brightnessManager.setBrightness(playerPreferences.playerBrightness)
         }
         lifecycleScope.launch {

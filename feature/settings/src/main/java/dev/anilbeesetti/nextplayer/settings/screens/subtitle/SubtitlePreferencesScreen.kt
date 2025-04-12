@@ -55,6 +55,7 @@ import dev.anilbeesetti.nextplayer.settings.composables.PreferenceSubtitle
 import dev.anilbeesetti.nextplayer.settings.extensions.name
 import dev.anilbeesetti.nextplayer.settings.utils.LocalesHelper
 import java.nio.charset.Charset
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -215,18 +216,18 @@ fun SubtitlePreferencesScreen(
                 }
 
                 SubtitlePreferenceDialog.SubtitlePositionDialog -> {
-                    var subtitlePosition by remember { mutableFloatStateOf(preferences.subtitlePosition) }
+                    var subtitlePosition by remember { mutableIntStateOf((preferences.subtitlePosition * 100).toInt().coerceAtMost(95)) }
 
                     NextDialogWithDoneAndCancelButtons(
                         title = stringResource(R.string.subtitle_position),
                         onDoneClick = {
-                            viewModel.updateSubtitlePosition(subtitlePosition)
+                            viewModel.updateSubtitlePosition(subtitlePosition / 100f)
                             viewModel.hideDialog()
                         },
                         onDismissClick = viewModel::hideDialog,
                         content = {
                             Text(
-                                text = String.format("%.2f", subtitlePosition),
+                                text = String.format("%.2f", subtitlePosition / 100f),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 20.dp),
@@ -234,10 +235,10 @@ fun SubtitlePreferencesScreen(
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Slider(
-                                value = subtitlePosition,
-                                onValueChange = { subtitlePosition = (it * 100).toInt() / 100f },
-                                valueRange = 0f..1f,
-                                steps = 99,
+                                value = subtitlePosition.toFloat(),
+                                onValueChange = { subtitlePosition = it.roundToInt().coerceIn(0, 95) },
+                                valueRange = 0f..95f,
+                                steps = 94,
                             )
                         },
                     )

@@ -102,6 +102,8 @@ import dev.anilbeesetti.nextplayer.feature.player.utils.VolumeManager
 import dev.anilbeesetti.nextplayer.feature.player.utils.toMillis
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
@@ -776,18 +778,12 @@ class PlayerActivity : AppCompatActivity() {
                         }
                     } else {
                         val autoSubtitleUris = buildSubtitleUrisFromStream(Uri.parse(uri))
-                        autoSubtitleUris.mapNotNull { subUri ->
-                            try {
-                                if (isRemoteFileExists(subUri)) {
-                                    uriToSubtitleConfiguration(
-                                        uri = subUri,
-                                        subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                                        isSelected = true,
-                                    )
-                                } else null
-                            } catch (e: Exception) {
-                                null
-                            }
+                        autoSubtitleUris.map { subUri ->
+                            uriToSubtitleConfiguration(
+                                uri = subUri,
+                                subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                                isSelected = true,
+                            )
                         }
                     }
                     setSubtitleConfigurations(apiSubs)
@@ -804,11 +800,18 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildSubtitleUrisFromStream(videoUri: Uri): List<Uri> {
+    private suspend fun buildSubtitleUrisFromStream(videoUri: Uri): List<Uri> = withContext(Dispatchers.IO) {
         val subtitleExtensions = listOf(".srt", ".vtt", ".ass", ".ssa", ".ttml", ".xml", ".dfxp")
-        val baseName = videoUri.lastPathSegment?.substringBeforeLast(".") ?: return emptyList()
+        val baseName = Uri.encode(videoUri.lastPathSegment?.substringBeforeLast(".") ?: return@withContext emptyList())
         val parentPath = videoUri.toString().substringBeforeLast("/")
-        return subtitleExtensions.map { ext -> Uri.parse("$parentPath/$baseName$ext") }
+
+        subtitleExtensions.map { ext ->
+            Uri.parse("$parentPath/$baseName$ext")
+        }.map { uri ->
+            async {
+                if (isRemoteFileExists(uri)) uri else null
+            }
+        }.awaitAll().filterNotNull()
     }
 
     private fun isRemoteFileExists(uri: Uri): Boolean {

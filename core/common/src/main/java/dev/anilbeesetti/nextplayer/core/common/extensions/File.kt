@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 suspend fun File.getSubtitles(): List<File> = withContext(Dispatchers.IO) {
     val mediaName = this@getSubtitles.nameWithoutExtension
     val parentDir = this@getSubtitles.parentFile
-    val subtitleExtensions = listOf("srt", "ssa", "ass", "vtt", "ttml")
+    val subtitleExtensions = listOf("srt", "ssa", "ass", "vtt", "ttml", "xml", "dfxp")
 
     subtitleExtensions.mapNotNull { extension ->
         val file = File(parentDir, "$mediaName.$extension")

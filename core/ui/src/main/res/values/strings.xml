@@ -218,4 +218,6 @@
     <string name="stop_player_session">Stop player session</string>
     <string name="background_play">Background play</string>
     <string name="background_play_description">Play in background when tapped on home or screen is locked.</string>
+    <string name="manage_external_storage">Manage All Files Access</string>
+    <string name="manage_external_storage_desc">Grant permission to access all files</string>
 </resources>

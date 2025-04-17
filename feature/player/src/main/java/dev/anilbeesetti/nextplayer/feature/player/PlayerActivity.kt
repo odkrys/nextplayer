@@ -818,11 +818,12 @@ class PlayerActivity : AppCompatActivity() {
         if (!uri.scheme.orEmpty().startsWith("http")) return false
         return try {
             val connection = (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
-                requestMethod = "HEAD"
-                connectTimeout = 2000
-                readTimeout = 2000
+                requestMethod = "GET"
+                connectTimeout = 3000
+                readTimeout = 3000
             }
-            connection.responseCode == HttpURLConnection.HTTP_OK
+            connection.inputStream.close()
+            connection.responseCode in 200..299
         } catch (e: Exception) {
             false
         }

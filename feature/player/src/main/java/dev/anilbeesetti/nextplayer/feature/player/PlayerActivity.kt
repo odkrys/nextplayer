@@ -718,6 +718,12 @@ class PlayerActivity : AppCompatActivity() {
 
     private fun startPlayback() {
         val uri = intent.data ?: return
+        val currentUri = mediaController?.currentMediaItem?.localConfiguration?.uri
+
+        if (!isIntentNew && uri != currentUri && mediaController?.currentMediaItem == null) {
+            finish()
+            return
+        }
 
         val returningFromBackground = !isIntentNew && mediaController?.currentMediaItem != null
         val isNewUriTheCurrentMediaItem = mediaController?.currentMediaItem?.localConfiguration?.uri.toString() == uri.toString()

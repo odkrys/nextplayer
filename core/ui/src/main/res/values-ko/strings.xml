@@ -215,4 +215,6 @@
     <string name="background_play">백그라운드 재생</string>
     <string name="background_play_description">홈을 누르거나 화면이 잠겨 있을 때 백그라운드에서 계속 재생합니다.</string>
     <string name="enable_pip_from_settings">PIP 기능이 꺼져 있습니다. 설정에서 PIP 모드를 켜 주세요.</string>
+    <string name="manage_external_storage">모든 파일에 대한 접근 관리</string>
+    <string name="manage_external_storage_desc">모든 파일에 대한 접근 권한을 부여합니다</string>
 </resources>

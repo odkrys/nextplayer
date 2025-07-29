@@ -1,5 +1,8 @@
 package dev.anilbeesetti.nextplayer.settings.screens.medialibrary
 
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -19,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -37,6 +41,7 @@ fun MediaLibraryPreferencesScreen(
     viewModel: MediaLibraryPreferencesViewModel = hiltViewModel(),
 ) {
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     val scrollBehaviour = TopAppBarDefaults.pinnedScrollBehavior()
 
@@ -81,6 +86,11 @@ fun MediaLibraryPreferencesScreen(
             HideFoldersSettings(
                 onClick = onFolderSettingClick,
             )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                ManageExternalStorageSetting(
+                    onClick = { context.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) },
+                )
+            }
         }
     }
 }
@@ -93,6 +103,18 @@ fun HideFoldersSettings(
         title = stringResource(id = R.string.manage_folders),
         description = stringResource(id = R.string.manage_folders_desc),
         icon = NextIcons.FolderOff,
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun ManageExternalStorageSetting(
+    onClick: () -> Unit,
+) {
+    ClickablePreferenceItem(
+        title = stringResource(id = R.string.manage_external_storage),
+        description = stringResource(id = R.string.manage_external_storage_desc),
+        icon = NextIcons.Settings,
         onClick = onClick,
     )
 }

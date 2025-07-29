@@ -329,7 +329,7 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (playerPreferences.rememberPlayerBrightness) {
+        if (playerPreferences.rememberPlayerBrightness && playerPreferences.useBrightnessGestureControls) {
             brightnessManager.setBrightness(playerPreferences.playerBrightness)
         }
         lifecycleScope.launch {
@@ -1131,7 +1131,7 @@ class PlayerActivity : AppCompatActivity() {
             delay(delayTimeMillis)
             binding.brightnessGestureLayout.visibility = View.GONE
         }
-        if (playerPreferences.rememberPlayerBrightness && playerPreferences.useBrightnessGestureControls) {
+        if (playerPreferences.rememberPlayerBrightness) {
             viewModel.setPlayerBrightness(window.attributes.screenBrightness)
         }
     }

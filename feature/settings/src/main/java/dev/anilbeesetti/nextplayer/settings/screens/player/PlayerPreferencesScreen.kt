@@ -155,6 +155,7 @@ fun PlayerPreferencesScreen(
             RememberBrightnessSetting(
                 isChecked = preferences.rememberPlayerBrightness,
                 onClick = viewModel::toggleRememberBrightnessLevel,
+                enabled = preferences.useBrightnessGestureControls,
             )
             RememberSelectionsSetting(
                 isChecked = preferences.rememberSelections,
@@ -579,6 +580,7 @@ fun BackgroundPlaybackSetting(
 fun RememberBrightnessSetting(
     isChecked: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = false,
 ) {
     PreferenceSwitch(
         title = stringResource(id = R.string.remember_brightness_level),
@@ -588,6 +590,7 @@ fun RememberBrightnessSetting(
         icon = NextIcons.Brightness,
         isChecked = isChecked,
         onClick = onClick,
+        enabled = enabled,
     )
 }
 

@@ -1131,7 +1131,7 @@ class PlayerActivity : AppCompatActivity() {
             delay(delayTimeMillis)
             binding.brightnessGestureLayout.visibility = View.GONE
         }
-        if (playerPreferences.rememberPlayerBrightness) {
+        if (playerPreferences.rememberPlayerBrightness && playerPreferences.useBrightnessGestureControls) {
             viewModel.setPlayerBrightness(window.attributes.screenBrightness)
         }
     }

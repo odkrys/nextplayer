@@ -759,9 +759,6 @@ class PlayerActivity : AppCompatActivity() {
                 if (index == mediaItemIndexToPlay) {
                     setMediaMetadata(MediaMetadata.Builder().setTitle(playerApi.title).build())
                     val apiSubs = if (playerApi.getSubs().isNotEmpty()) {
-
-
-
                         playerApi.getSubs().map { subtitle ->
                             uriToSubtitleConfiguration(
                                 uri = subtitle.uri,

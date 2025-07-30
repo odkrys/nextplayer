@@ -124,7 +124,7 @@ class PlayerGestureHelper(
                 if (inExclusionArea(firstEvent)) return false
                 if (!prefs.useSeekControls) return false
                 if (activity.isControlsLocked) return false
-/*              if (!activity.isMediaItemReady) return false */
+                if (!activity.isMediaItemReady) return false
                 if (abs(distanceX / distanceY) < 2) return false
 
                 if (currentGestureAction == null) {

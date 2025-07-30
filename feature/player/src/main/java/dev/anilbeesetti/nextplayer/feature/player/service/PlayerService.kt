@@ -448,12 +448,15 @@ class PlayerService : MediaSessionService() {
                 }.build()
 
                 val externalSubs = videoState?.externalSubs ?: emptyList()
-                val localSubs = (videoState?.path ?: getPath(uri))?.let {
-                    File(it).getLocalSubtitles(
+                val FilePath = getPath(uri)
+                val localSubs = if (FilePath != null) {
+                    File(FilePath).getLocalSubtitles(
                         context = this@PlayerService,
                         excludeSubsList = externalSubs,
                     )
-                } ?: emptyList()
+                } else {
+                    emptyList()
+                }
 
                 val existingSubConfigurations = mediaItem.localConfiguration?.subtitleConfigurations ?: emptyList()
                 val subConfigurations = (localSubs + externalSubs).map { subtitleUri ->

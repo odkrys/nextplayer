@@ -118,18 +118,22 @@ class PlayerService : MediaSessionService() {
                 -> {
                     val newMediaItem = newPosition.mediaItem
                     if (newMediaItem != null && oldMediaItem != newMediaItem) {
-                        mediaRepository.updateMediumPosition(
-                            uri = oldMediaItem.mediaId,
-                            position = oldPosition.positionMs.takeIf { reason == DISCONTINUITY_REASON_SEEK } ?: C.TIME_UNSET,
-                        )
+                        serviceScope.launch {
+                            mediaRepository.updateMediumPosition(
+                                uri = oldMediaItem.mediaId,
+                                position = oldPosition.positionMs.takeIf { reason == DISCONTINUITY_REASON_SEEK } ?: C.TIME_UNSET,
+                            )
+                        }
                     }
                 }
 
                 DISCONTINUITY_REASON_REMOVE -> {
-                    mediaRepository.updateMediumPosition(
-                        uri = oldMediaItem.mediaId,
-                        position = oldPosition.positionMs,
-                    )
+                    serviceScope.launch {
+                        mediaRepository.updateMediumPosition(
+                            uri = oldMediaItem.mediaId,
+                            position = oldPosition.positionMs,
+                        )
+                    }
                 }
 
                 else -> return
@@ -163,10 +167,12 @@ class PlayerService : MediaSessionService() {
 
             if (playbackState == Player.STATE_READY) {
                 mediaSession?.player?.let {
-                    mediaRepository.updateMediumLastPlayedTime(
-                        uri = it.currentMediaItem?.mediaId ?: return@let,
-                        lastPlayedTime = System.currentTimeMillis(),
-                    )
+                    serviceScope.launch {
+                        mediaRepository.updateMediumLastPlayedTime(
+                            uri = it.currentMediaItem?.mediaId ?: return@launch,
+                            lastPlayedTime = System.currentTimeMillis(),
+                        )
+                    }
                 }
             }
         }
@@ -175,7 +181,16 @@ class PlayerService : MediaSessionService() {
             super.onPlayWhenReadyChanged(playWhenReady, reason)
 
             if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
-                mediaSession?.player?.stop()
+                if (mediaSession?.player?.repeatMode != Player.REPEAT_MODE_OFF) {
+                    mediaSession?.player?.seekTo(0)
+                    mediaSession?.player?.play()
+                    return
+                }
+                mediaSession?.run {
+                    player.clearMediaItems()
+                    player.stop()
+                }
+                stopSelf()
             }
         }
     }

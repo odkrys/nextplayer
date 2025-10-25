@@ -16,6 +16,7 @@ android {
         applicationId = "test.anilbeesetti.nextplayer"
         versionCode = 42
         versionName = "0.14.1"
+    }
 
     buildFeatures {
         compose = true

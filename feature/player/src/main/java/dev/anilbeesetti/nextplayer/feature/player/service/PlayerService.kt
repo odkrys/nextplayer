@@ -193,6 +193,13 @@ class PlayerService : MediaSessionService() {
                 stopSelf()
             }
         }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            super.onIsPlayingChanged(isPlaying)
+            mediaSession?.run {
+                saveCurrentMediaPlaybackPosition(player)
+            }
+        }
     }
 
     private val mediaSessionCallback = object : MediaSession.Callback {
@@ -347,6 +354,7 @@ class PlayerService : MediaSessionService() {
 
                 CustomCommands.STOP_PLAYER_SESSION -> {
                     mediaSession?.run {
+                        saveCurrentMediaPlaybackPosition(player)
                         player.clearMediaItems()
                         player.stop()
                     }
@@ -432,8 +440,6 @@ class PlayerService : MediaSessionService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceScope.cancel()
-        subtitleCacheDir.deleteFiles()
         mediaSession?.run {
             player.clearMediaItems()
             player.stop()
@@ -441,6 +447,20 @@ class PlayerService : MediaSessionService() {
             player.release()
             release()
             mediaSession = null
+        }
+        subtitleCacheDir.deleteFiles()
+        serviceScope.cancel()
+    }
+
+    private fun saveCurrentMediaPlaybackPosition(player: Player) {
+        val mediaUri = player.currentMediaItem?.mediaId ?: return
+        val mediaPosition = player.currentPosition
+
+        serviceScope.launch {
+            mediaRepository.updateMediumPosition(
+                uri = mediaUri,
+                position = mediaPosition,
+            )
         }
     }
 

@@ -381,13 +381,16 @@ class PlayerActivity : AppCompatActivity() {
             mediaController?.pause()
         }
 
+        if (isPipActive) {
+            finish()
+            if (!shouldPlayInBackground) {
+                mediaController?.stopPlayerSession()
+            }
+        }
+
         controllerFuture?.run {
             MediaController.releaseFuture(this)
             controllerFuture = null
-        }
-
-        if (isPipActive) {
-            finishAndRemoveTask()
         }
         super.onStop()
     }
@@ -433,7 +436,9 @@ class PlayerActivity : AppCompatActivity() {
                         PIP_ACTION_NEXT -> mediaController?.seekToNext()
                         PIP_ACTION_PREVIOUS -> mediaController?.seekToPrevious()
                     }
-                    updatePictureInPictureParams()
+                    if (isInPictureInPictureMode && !isFinishing && !isDestroyed) {
+                        updatePictureInPictureParams()
+                    }
                 }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -455,7 +460,16 @@ class PlayerActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun updatePictureInPictureParams(enableAutoEnter: Boolean = mediaController?.isPlaying == true): PictureInPictureParams {
-        val displayAspectRatio = Rational(binding.playerView.width, binding.playerView.height)
+        val playerViewWidth = binding.playerView.width
+        val playerViewHeight = binding.playerView.height
+
+        // Validate playerView dimensions
+        if (playerViewWidth <= 0 || playerViewHeight <= 0) {
+            Timber.w("Invalid playerView dimensions: $playerViewWidth x $playerViewHeight")
+            return PictureInPictureParams.Builder().build()
+        }
+
+        val displayAspectRatio = Rational(playerViewWidth, playerViewHeight)
 
         return PictureInPictureParams.Builder().apply {
             val aspectRatio = calculateVideoAspectRatio()
@@ -500,7 +514,15 @@ class PlayerActivity : AppCompatActivity() {
                     ),
                 ),
             )
-        }.build().also { setPictureInPictureParams(it) }
+        }.build().also { params ->
+            try {
+                if (!isFinishing && !isDestroyed) {
+                    setPictureInPictureParams(params)
+                }
+            } catch (e: IllegalStateException) {
+                Timber.e(e, "Failed to set picture-in-picture params")
+            }
+        }
     }
 
     private fun calculateVideoAspectRatio(): Rational? {

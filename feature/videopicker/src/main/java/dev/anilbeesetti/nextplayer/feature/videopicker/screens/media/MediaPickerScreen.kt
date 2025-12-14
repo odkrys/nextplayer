@@ -3,6 +3,7 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.media
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -39,18 +42,24 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -64,6 +73,7 @@ import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.Folder
 import dev.anilbeesetti.nextplayer.core.model.MediaLayoutMode
 import dev.anilbeesetti.nextplayer.core.model.MediaViewMode
+import dev.anilbeesetti.nextplayer.core.model.SearchResultFolder
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.CancelButton
@@ -86,6 +96,7 @@ const val CIRCULAR_PROGRESS_INDICATOR_TEST_TAG = "circularProgressIndicator"
 fun MediaPickerRoute(
     onSettingsClick: () -> Unit,
     onPlayVideo: (uri: Uri) -> Unit,
+    onPlayPlaylist: (List<Video>, startIndex: Int) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
     viewModel: MediaPickerViewModel = hiltViewModel(),
 ) {
@@ -101,6 +112,7 @@ fun MediaPickerRoute(
         isRefreshing = uiState.refreshing,
         permissionState = permissionState,
         onPlayVideo = onPlayVideo,
+        onPlayPlaylist = onPlayPlaylist,
         onFolderClick = onFolderClick,
         onSettingsClick = onSettingsClick,
         updatePreferences = viewModel::updateMenu,
@@ -120,6 +132,7 @@ internal fun MediaPickerScreen(
     isRefreshing: Boolean = false,
     permissionState: PermissionState = GrantedPermissionState,
     onPlayVideo: (uri: Uri) -> Unit = {},
+    onPlayPlaylist: (List<Video>, startIndex: Int) -> Unit,
     onFolderClick: (folderPath: String) -> Unit = {},
     onSettingsClick: () -> Unit = {},
     updatePreferences: (ApplicationPreferences) -> Unit = {},
@@ -131,6 +144,13 @@ internal fun MediaPickerScreen(
 ) {
     var showQuickSettingsDialog by rememberSaveable { mutableStateOf(false) }
     var showUrlDialog by rememberSaveable { mutableStateOf(false) }
+
+    var searchMode by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     val selectVideoFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { it?.let(onPlayVideo) },
@@ -138,28 +158,82 @@ internal fun MediaPickerScreen(
 
     val pullToRefreshState = rememberPullToRefreshState()
 
+    BackHandler(enabled = searchMode) {
+        searchMode = false
+        searchQuery = ""
+        focusManager.clearFocus()
+    }
+
     Scaffold(
         modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         topBar = {
-            NextCenterAlignedTopAppBar(
-                title = stringResource(id = R.string.app_name),
-                navigationIcon = {
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(
-                            imageVector = NextIcons.Settings,
-                            contentDescription = stringResource(id = R.string.settings),
+            if (!searchMode) {
+                NextCenterAlignedTopAppBar(
+                    title = stringResource(id = R.string.app_name),
+                    navigationIcon = {
+                        IconButton(onClick = onSettingsClick) {
+                            Icon(
+                                imageVector = NextIcons.Settings,
+                                contentDescription = stringResource(id = R.string.settings),
+                            )
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { searchMode = true }) {
+                            Icon(
+                                imageVector = NextIcons.Search,
+                                contentDescription = "Search",
+                            )
+                        }
+
+                        IconButton(onClick = { showQuickSettingsDialog = true }) {
+                            Icon(
+                                imageVector = NextIcons.DashBoard,
+                                contentDescription = stringResource(id = R.string.menu),
+                            )
+                        }
+                    },
+                )
+            } else {
+                NextCenterAlignedTopAppBar(
+                    title = {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            singleLine = true,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = NextIcons.Search,
+                                    contentDescription = null,
+                                )
+                            }
                         )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showQuickSettingsDialog = true }) {
-                        Icon(
-                            imageVector = NextIcons.DashBoard,
-                            contentDescription = stringResource(id = R.string.menu),
-                        )
-                    }
-                },
-            )
+                        LaunchedEffect(searchMode) {
+                            if (searchMode) {
+                                focusRequester.requestFocus()
+                                keyboardController?.show()
+                            }
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                searchMode = false
+                                searchQuery = ""
+                            }
+                        ) {
+                            Icon(
+                                imageVector = NextIcons.ArrowBack,
+                                contentDescription = null,
+                            )
+                        }
+                    },
+                    actions = {}
+                )
+            }
         },
         floatingActionButton = {
             if (!preferences.showFloatingPlayButton) return@Scaffold
@@ -180,6 +254,22 @@ internal fun MediaPickerScreen(
             }
         },
     ) { paddingValues ->
+
+        val displayRootFolder = remember(mediaState, searchQuery) {
+            val success = mediaState as? MediaState.Success
+            val root = success?.data ?: return@remember null
+
+            if (searchQuery.isBlank()) {
+                root
+            } else {
+                root.SearchResultFolder(searchQuery)
+            }
+        }
+
+        val playlistVideos = remember(displayRootFolder) {
+            displayRootFolder?.mediaList.orEmpty()
+        }
+
         PullToRefreshBox(
             modifier = Modifier.padding(paddingValues),
             state = pullToRefreshState,
@@ -216,11 +306,25 @@ internal fun MediaPickerScreen(
                 ) {
                     MediaView(
                         isLoading = mediaState is MediaState.Loading,
-                        rootFolder = (mediaState as? MediaState.Success)?.data,
+                        rootFolder = displayRootFolder,
                         preferences = preferences,
                         onFolderClick = onFolderClick,
                         onDeleteFolderClick = onDeleteFolderClick,
-                        onVideoClick = onPlayVideo,
+                        onVideoClick = { uri ->
+                            if (searchQuery.isNotBlank()) {
+                                val index = playlistVideos.indexOfFirst {
+                                    it.uriString == uri.toString()
+                                }
+
+                                if (index != -1) {
+                                    onPlayPlaylist(playlistVideos, index)
+                                } else {
+                                    onPlayVideo(uri)
+                                }
+                            } else {
+                                onPlayVideo(uri)
+                            }
+                        },
                         onRenameVideoClick = onRenameVideoClick,
                         onDeleteVideoClick = onDeleteVideoClick,
                         onVideoLoaded = onAddToSync,
@@ -329,6 +433,7 @@ fun MediaPickerScreenPreview(
                     mediaLayoutMode = MediaLayoutMode.GRID,
                 ),
                 onPlayVideo = {},
+                onPlayPlaylist = { videos, index -> },
                 onFolderClick = {},
                 onDeleteVideoClick = {},
                 onDeleteFolderClick = {},
@@ -358,6 +463,7 @@ fun MediaPickerNoVideosFoundPreview() {
                 mediaState = MediaState.Loading,
                 preferences = ApplicationPreferences(),
                 onPlayVideo = {},
+                onPlayPlaylist = { videos, index -> },
                 onFolderClick = {},
                 onDeleteVideoClick = {},
                 onDeleteFolderClick = {},
@@ -375,11 +481,29 @@ fun MediaPickerLoadingPreview() {
                 mediaState = MediaState.Loading,
                 preferences = ApplicationPreferences(),
                 onPlayVideo = {},
+                onPlayPlaylist = { videos, index -> },
                 onFolderClick = {},
                 onDeleteVideoClick = {},
                 onDeleteFolderClick = {},
             )
         }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NextCenterAlignedTopAppBar(
+    title: @Composable () -> Unit,
+    navigationIcon: @Composable (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    if (navigationIcon != null) {
+        CenterAlignedTopAppBar(
+            title = title,
+            navigationIcon = navigationIcon,
+            actions = actions,
+        )
     }
 }
 

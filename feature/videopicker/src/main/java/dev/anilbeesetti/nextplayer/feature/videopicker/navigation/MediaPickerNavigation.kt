@@ -5,6 +5,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.navOptions
+import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.animatedComposable
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.media.MediaPickerRoute
 
@@ -17,12 +18,14 @@ fun NavController.navigateToMediaPickerScreen(navOptions: NavOptions? = navOptio
 fun NavGraphBuilder.mediaPickerScreen(
     onSettingsClick: () -> Unit,
     onPlayVideo: (uri: Uri) -> Unit,
+    onPlayPlaylist: (List<Video>, startIndex: Int) -> Unit,
     onFolderClick: (path: String) -> Unit,
 ) {
     animatedComposable(route = mediaPickerNavigationRoute) {
         MediaPickerRoute(
             onSettingsClick = onSettingsClick,
             onPlayVideo = onPlayVideo,
+            onPlayPlaylist = onPlayPlaylist,
             onFolderClick = onFolderClick,
         )
     }

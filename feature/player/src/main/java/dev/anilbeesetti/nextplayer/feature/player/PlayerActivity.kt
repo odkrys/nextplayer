@@ -78,6 +78,9 @@ import dev.anilbeesetti.nextplayer.feature.player.dialogs.PlaybackSpeedControlsD
 import dev.anilbeesetti.nextplayer.feature.player.dialogs.TrackSelectionDialogFragment
 import dev.anilbeesetti.nextplayer.feature.player.dialogs.VideoZoomOptionsDialogFragment
 import dev.anilbeesetti.nextplayer.feature.player.dialogs.nameRes
+import dev.anilbeesetti.nextplayer.feature.player.extensions.EXTRA_PLAYLIST_MEDIA_URI
+import dev.anilbeesetti.nextplayer.feature.player.extensions.EXTRA_PLAYLIST_START_INDEX
+import dev.anilbeesetti.nextplayer.feature.player.extensions.EXTRA_PLAYLIST_URIS
 import dev.anilbeesetti.nextplayer.feature.player.extensions.isPortrait
 import dev.anilbeesetti.nextplayer.feature.player.extensions.next
 import dev.anilbeesetti.nextplayer.feature.player.extensions.seekBack
@@ -738,6 +741,33 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun startPlayback() {
+        val intentPlaylist = intent.getStringArrayListExtra(EXTRA_PLAYLIST_URIS)
+        val hasPlaylist = !intentPlaylist.isNullOrEmpty()
+        val mediaUri = intent.getStringExtra(EXTRA_PLAYLIST_MEDIA_URI)?.let { Uri.parse(it) }
+
+        if (!isIntentNew && hasPlaylist && mediaController?.currentMediaItem == null) {
+            finish()
+            return
+        }
+
+        if (hasPlaylist && mediaUri != null) {
+            val currentUri = mediaController?.currentMediaItem?.localConfiguration?.uri
+            val isSameMedia = currentUri?.toString() == mediaUri.toString()
+
+            if (isSameMedia) {
+                mediaController?.prepare()
+                mediaController?.playWhenReady = viewModel.playWhenReady
+                return
+            }
+
+            isIntentNew = false
+
+            lifecycleScope.launch {
+                playVideo(Uri.EMPTY)
+            }
+            return
+        }
+
         val uri = intent.data ?: return
         val currentUri = mediaController?.currentMediaItem?.localConfiguration?.uri
 
@@ -747,7 +777,7 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         val returningFromBackground = !isIntentNew && mediaController?.currentMediaItem != null
-        val isNewUriTheCurrentMediaItem = mediaController?.currentMediaItem?.localConfiguration?.uri.toString() == uri.toString()
+        val isNewUriTheCurrentMediaItem = currentUri?.toString() == uri.toString()
 
         if (returningFromBackground || isNewUriTheCurrentMediaItem) {
             mediaController?.prepare()
@@ -763,56 +793,82 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private suspend fun playVideo(uri: Uri) = withContext(Dispatchers.Default) {
-        val mediaContentUri = getMediaContentUri(uri)
-        val playlist = mediaContentUri?.let { mediaUri ->
-            viewModel.getPlaylistFromUri(mediaUri)
-                .map { it.uriString }
-                .toMutableList()
-                .apply {
-                    if (!contains(mediaUri.toString())) {
-                        add(index = 0, element = mediaUri.toString())
-                    }
+        val intentPlaylist = intent.getStringArrayListExtra(EXTRA_PLAYLIST_URIS)
+        val intentStartIndex = intent.getIntExtra(EXTRA_PLAYLIST_START_INDEX, 0)
+
+        if (!intentPlaylist.isNullOrEmpty()) {
+            val mediaItems = intentPlaylist.map { uriString ->
+                MediaItem.Builder()
+                    .setUri(uriString)
+                    .setMediaId(uriString)
+                    .build()
+            }
+
+            withContext(Dispatchers.Main) {
+                mediaController?.run {
+                    setMediaItems(
+                        mediaItems,
+                        intentStartIndex,
+                        playerApi.position?.toLong() ?: C.TIME_UNSET
+                    )
+                    prepare()
+                    playWhenReady = true
                 }
-        } ?: listOf(uri.toString())
+            }
 
-        val mediaItemIndexToPlay = playlist.indexOfFirst {
-            it == (mediaContentUri ?: uri).toString()
-        }.takeIf { it >= 0 } ?: 0
-
-        val mediaItems = playlist.mapIndexed { index, uri ->
-            MediaItem.Builder().apply {
-                setUri(uri)
-                setMediaId(uri)
-                if (index == mediaItemIndexToPlay) {
-                    setMediaMetadata(MediaMetadata.Builder().setTitle(playerApi.title).build())
-                    val apiSubs = if (playerApi.getSubs().isNotEmpty()) {
-                        playerApi.getSubs().map { subtitle ->
-                            uriToSubtitleConfiguration(
-                                uri = subtitle.uri,
-                                subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                                isSelected = subtitle.isSelected,
-                            )
-                        }
-                    } else {
-                        val autoSubtitleUris = buildSubtitleUrisFromStream(Uri.parse(uri))
-                        autoSubtitleUris.map { subUri ->
-                            uriToSubtitleConfiguration(
-                                uri = subUri,
-                                subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                                isSelected = true,
-                            )
+            return@withContext
+        } else {
+            val mediaContentUri = getMediaContentUri(uri)
+            val playlist = mediaContentUri?.let { mediaUri ->
+                viewModel.getPlaylistFromUri(mediaUri)
+                    .map { it.uriString }
+                    .toMutableList()
+                    .apply {
+                        if (!contains(mediaUri.toString())) {
+                            add(index = 0, element = mediaUri.toString())
                         }
                     }
-                    setSubtitleConfigurations(apiSubs)
-                }
-            }.build()
-        }
+            } ?: listOf(uri.toString())
 
-        withContext(Dispatchers.Main) {
-            mediaController?.run {
-                setMediaItems(mediaItems, mediaItemIndexToPlay, playerApi.position?.toLong() ?: C.TIME_UNSET)
-                prepare()
-                playWhenReady = true
+            val mediaItemIndexToPlay = playlist.indexOfFirst {
+                it == (mediaContentUri ?: uri).toString()
+            }.takeIf { it >= 0 } ?: 0
+
+            val mediaItems = playlist.mapIndexed { index, uri ->
+                MediaItem.Builder().apply {
+                    setUri(uri)
+                    setMediaId(uri)
+                    if (index == mediaItemIndexToPlay) {
+                        setMediaMetadata(MediaMetadata.Builder().setTitle(playerApi.title).build())
+                        val apiSubs = if (playerApi.getSubs().isNotEmpty()) {
+                            playerApi.getSubs().map { subtitle ->
+                                uriToSubtitleConfiguration(
+                                    uri = subtitle.uri,
+                                    subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                                    isSelected = subtitle.isSelected,
+                                )
+                            }
+                        } else {
+                            val autoSubtitleUris = buildSubtitleUrisFromStream(Uri.parse(uri))
+                            autoSubtitleUris.map { subUri ->
+                                uriToSubtitleConfiguration(
+                                    uri = subUri,
+                                    subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                                    isSelected = true,
+                                )
+                            }
+                        }
+                        setSubtitleConfigurations(apiSubs)
+                    }
+                }.build()
+            }
+
+            withContext(Dispatchers.Main) {
+                mediaController?.run {
+                    setMediaItems(mediaItems, mediaItemIndexToPlay, playerApi.position?.toLong() ?: C.TIME_UNSET)
+                    prepare()
+                    playWhenReady = true
+                }
             }
         }
     }
@@ -956,13 +1012,14 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.data != null) {
-            currentOrientation = null
-            setIntent(intent)
-            isIntentNew = true
-            if (mediaController != null) {
-                startPlayback()
-            }
+        val hasPlaylist = intent.getStringArrayListExtra(EXTRA_PLAYLIST_URIS)?.isNotEmpty() == true
+        val hasUri = intent.data != null
+        if (!hasPlaylist && !hasUri) return
+        currentOrientation = null
+        setIntent(intent)
+        isIntentNew = true
+        if (mediaController != null) {
+            startPlayback()
         }
     }
 

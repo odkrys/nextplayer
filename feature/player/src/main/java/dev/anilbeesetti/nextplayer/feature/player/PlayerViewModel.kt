@@ -9,12 +9,15 @@ import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedPlaylistUseCase
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
+import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Shuffle
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoZoom
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -28,6 +31,10 @@ class PlayerViewModel @Inject constructor(
 
     var playWhenReady: Boolean = true
     var skipSilenceEnabled: Boolean = false
+
+    val preferencesFlow: StateFlow<PlayerPreferences> =
+        preferencesRepository.playerPreferences
+            .stateIn(viewModelScope, SharingStarted.Eagerly, PlayerPreferences())
 
     val playerPrefs = preferencesRepository.playerPreferences.stateIn(
         scope = viewModelScope,
@@ -76,6 +83,12 @@ class PlayerViewModel @Inject constructor(
     fun setShuffleModeEnabled(shuffle: Shuffle) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { it.copy(shuffle = shuffle) }
+        }
+    }
+
+    fun updateSubtitlePosition(value: Float) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(subtitlePosition = value) }
         }
     }
 }

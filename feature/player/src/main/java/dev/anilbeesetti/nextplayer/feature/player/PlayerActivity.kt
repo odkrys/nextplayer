@@ -116,6 +116,7 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.math.roundToInt
 
 @SuppressLint("UnsafeOptInUsageError")
 @AndroidEntryPoint
@@ -365,6 +366,7 @@ class PlayerActivity : AppCompatActivity() {
             setShuffleModeEnabled(playerPreferences.shuffle)
         }
         initializePlayerView()
+        observePlayerPreferences()
     }
 
     override fun onStop() {
@@ -396,6 +398,15 @@ class PlayerActivity : AppCompatActivity() {
             controllerFuture = null
         }
         super.onStop()
+    }
+
+    private fun observePlayerPreferences() {
+        lifecycleScope.launchWhenStarted {
+            viewModel.preferencesFlow.collect { prefs ->
+                val position = (prefs.subtitlePosition * 100).roundToInt().coerceIn(0, 95)
+                binding.playerView.subtitleView?.setBottomPaddingFraction(position / 100f)
+            }
+        }
     }
 
     private fun maybeInitControllerFuture() {
@@ -604,6 +615,7 @@ class PlayerActivity : AppCompatActivity() {
             TrackSelectionDialogFragment(
                 type = C.TRACK_TYPE_AUDIO,
                 tracks = mediaController?.currentTracks ?: return@setOnClickListener,
+                playerViewModel = viewModel,
                 onTrackSelected = { mediaController?.switchAudioTrack(it) },
             ).show(supportFragmentManager, "TrackSelectionDialog")
         }
@@ -612,6 +624,7 @@ class PlayerActivity : AppCompatActivity() {
             TrackSelectionDialogFragment(
                 type = C.TRACK_TYPE_TEXT,
                 tracks = mediaController?.currentTracks ?: return@setOnClickListener,
+                playerViewModel = viewModel,
                 onTrackSelected = { mediaController?.switchSubtitleTrack(it) },
                 onOpenLocalTrackClicked = {
                     subtitleFileLauncherLaunchedForMediaItem = mediaController?.currentMediaItem

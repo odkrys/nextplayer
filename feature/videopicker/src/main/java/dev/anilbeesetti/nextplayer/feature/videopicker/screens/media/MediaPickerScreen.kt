@@ -150,6 +150,7 @@ internal fun MediaPickerScreen(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    var showSearchExitOverlay by remember { mutableStateOf(false) }
 
     val selectVideoFileLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -159,9 +160,10 @@ internal fun MediaPickerScreen(
     val pullToRefreshState = rememberPullToRefreshState()
 
     BackHandler(enabled = searchMode) {
+        focusManager.clearFocus()
         searchMode = false
         searchQuery = ""
-        focusManager.clearFocus()
+        showSearchExitOverlay = true
     }
 
     Scaffold(
@@ -221,8 +223,10 @@ internal fun MediaPickerScreen(
                     navigationIcon = {
                         IconButton(
                             onClick = {
+                                focusManager.clearFocus()
                                 searchMode = false
                                 searchQuery = ""
+                                showSearchExitOverlay = true
                             }
                         ) {
                             Icon(
@@ -332,6 +336,12 @@ internal fun MediaPickerScreen(
                 }
             }
         }
+    }
+
+    if (showSearchExitOverlay) {
+        SearchExitOverlay(
+            onFinished = { showSearchExitOverlay = false }
+        )
     }
 
     if (showQuickSettingsDialog) {
@@ -504,6 +514,27 @@ fun NextCenterAlignedTopAppBar(
             navigationIcon = navigationIcon,
             actions = actions,
         )
+    }
+}
+
+@Composable
+fun SearchExitOverlay(
+    onFinished: () -> Unit,
+) {
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(150)
+        onFinished()
+    }
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = true,
+        enter = androidx.compose.animation.fadeIn(),
+        exit = androidx.compose.animation.fadeOut(),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+        ) {}
     }
 }
 

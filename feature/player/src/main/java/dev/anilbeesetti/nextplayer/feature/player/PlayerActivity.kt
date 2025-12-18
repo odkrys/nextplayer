@@ -857,6 +857,7 @@ class PlayerActivity : AppCompatActivity() {
                             playerApi.getSubs().map { subtitle ->
                                 uriToSubtitleConfiguration(
                                     uri = subtitle.uri,
+                                    subtitleOffsetMs = playerPreferences.subtitleOffsetMs,
                                     subtitleEncoding = playerPreferences.subtitleTextEncoding,
                                     isSelected = subtitle.isSelected,
                                 )
@@ -866,6 +867,7 @@ class PlayerActivity : AppCompatActivity() {
                             autoSubtitleUris.map { subUri ->
                                 uriToSubtitleConfiguration(
                                     uri = subUri,
+                                    subtitleOffsetMs = playerPreferences.subtitleOffsetMs,
                                     subtitleEncoding = playerPreferences.subtitleTextEncoding,
                                     isSelected = true,
                                 )

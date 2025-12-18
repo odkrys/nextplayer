@@ -14,10 +14,11 @@ import dev.anilbeesetti.nextplayer.core.model.Shuffle
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoZoom
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -31,6 +32,9 @@ class PlayerViewModel @Inject constructor(
 
     var playWhenReady: Boolean = true
     var skipSilenceEnabled: Boolean = false
+
+    private val _pendingSubtitleOffset = MutableStateFlow<Long?>(null)
+    val pendingSubtitleOffset = _pendingSubtitleOffset.asStateFlow()
 
     val preferencesFlow: StateFlow<PlayerPreferences> =
         preferencesRepository.playerPreferences
@@ -90,5 +94,17 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { it.copy(subtitlePosition = value) }
         }
+    }
+
+    fun setPendingSubtitleOffset(offsetMs: Long) {
+        _pendingSubtitleOffset.value = offsetMs
+    }
+
+    fun applySubtitleOffset() {
+        val offset = _pendingSubtitleOffset.value ?: return
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(subtitleOffsetMs = offset) }
+        }
+        _pendingSubtitleOffset.value = null
     }
 }

@@ -45,6 +45,8 @@ import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
+import dev.anilbeesetti.nextplayer.feature.player.extensions.getSubtitleMime
+import dev.anilbeesetti.nextplayer.feature.player.extensions.shiftSubtitleAndCache
 import dev.anilbeesetti.nextplayer.feature.player.extensions.switchTrack
 import dev.anilbeesetti.nextplayer.feature.player.extensions.uriToSubtitleConfiguration
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
@@ -57,7 +59,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -82,14 +86,33 @@ class PlayerService : MediaSessionService() {
 
     private var isMediaItemReady = false
     private var currentVideoState: VideoState? = null
+    private var lastMediaId: String? = null
+    private var isSubtitleReload = false
 
     private val playbackStateListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) return
             isMediaItemReady = false
+
             if (mediaItem != null) {
+                val newMediaId = mediaItem.mediaId
+
                 serviceScope.launch {
+                    if (!isSubtitleReload) {
+                        preferencesRepository.updatePlayerPreferences { it.copy(subtitleOffsetMs = 0L) }
+
+                        val hasOffsetApplied = mediaItem.localConfiguration?.subtitleConfigurations?.any {
+                            it.id?.contains("_offset=") == true && !it.id!!.endsWith("_offset=0")
+                        } ?: false
+
+                        if (hasOffsetApplied || lastMediaId != newMediaId) {
+                            reloadSubtitlesWithOffset(0L)
+                        }
+                    }
+                    isSubtitleReload = false
+                    lastMediaId = newMediaId
+
                     currentVideoState = mediaRepository.getVideoState(mediaItem.mediaId)
                     mediaSession?.player?.setPlaybackSpeed(
                         currentVideoState?.playbackSpeed ?: playerPreferences.defaultPlaybackSpeed,
@@ -255,6 +278,7 @@ class PlayerService : MediaSessionService() {
 
                     val newSubConfiguration = uriToSubtitleConfiguration(
                         uri = subtitleUri,
+                        subtitleOffsetMs = playerPreferences.subtitleOffsetMs,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
                     )
                     mediaSession?.player?.let { player ->
@@ -429,6 +453,72 @@ class PlayerService : MediaSessionService() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+        observeSubtitleOffset()
+    }
+
+    private fun observeSubtitleOffset() {
+        serviceScope.launch {
+            preferencesRepository.playerPreferences
+                .map { it.subtitleOffsetMs }
+                .distinctUntilChanged()
+                .collect { prefs  ->
+                    val offset = playerPreferences.subtitleOffsetMs
+                    reloadSubtitlesWithOffset(offset)
+                }
+        }
+    }
+
+    private suspend fun reloadSubtitlesWithOffset(offsetMs: Long) {
+        val player = mediaSession?.player ?: return
+        if (player.playbackState == Player.STATE_IDLE) return
+
+        val currentItem = player.currentMediaItem ?: return
+        val currentConfigs = currentItem.localConfiguration?.subtitleConfigurations ?: emptyList()
+        if (currentConfigs.isEmpty()) return
+
+        val newConfigs = currentConfigs.map { config ->
+            val originalUri = config.id?.split("_offset=")?.firstOrNull()?.toUri() ?: config.uri
+            val mimeType = config.mimeType ?: originalUri.getSubtitleMime(this)
+
+            val shiftedUri = if (offsetMs != 0L) {
+                shiftSubtitleAndCache(originalUri, mimeType, offsetMs)
+            } else {
+                originalUri
+            }
+
+            config.buildUpon()
+                .setUri(shiftedUri)
+                .setId("${originalUri}_offset=$offsetMs")
+                .build()
+        }
+
+        val index = player.currentMediaItemIndex
+        val pos = player.currentPosition
+        val play = player.playWhenReady
+
+        val currentPlaylist = mutableListOf<MediaItem>()
+        for (i in 0 until player.mediaItemCount) {
+            if (i == index) {
+                val newItem = currentItem.buildUpon()
+                    .setSubtitleConfigurations(newConfigs)
+                    .build()
+                currentPlaylist.add(newItem)
+            } else {
+                currentPlaylist.add(player.getMediaItemAt(i))
+            }
+        }
+
+        isSubtitleReload = true
+
+        player.setMediaItems(currentPlaylist, index, pos)
+
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .build()
+
+        player.prepare()
+        player.playWhenReady = play
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -497,6 +587,7 @@ class PlayerService : MediaSessionService() {
                 val subConfigurations = (localSubs + externalSubs).map { subtitleUri ->
                     uriToSubtitleConfiguration(
                         uri = subtitleUri,
+                        subtitleOffsetMs = playerPreferences.subtitleOffsetMs,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
                     )
                 }

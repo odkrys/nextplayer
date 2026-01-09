@@ -1335,6 +1335,11 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun changeAndSaveVideoZoom(videoZoom: VideoZoom) {
+        exoContentFrameLayout.scaleX = 1f
+        exoContentFrameLayout.scaleY = 1f
+        exoContentFrameLayout.translationX = 0f
+        exoContentFrameLayout.translationY = 0f
+
         applyVideoZoom(videoZoom)
         viewModel.setVideoZoom(videoZoom)
 

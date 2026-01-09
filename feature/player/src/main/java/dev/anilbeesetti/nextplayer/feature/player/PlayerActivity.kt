@@ -464,10 +464,7 @@ class PlayerActivity : AppCompatActivity() {
 
             zoomBeforePip = playerPreferences.playerVideoZoom
             applyVideoZoom(VideoZoom.BEST_FIT)
-            exoContentFrameLayout.scaleX = 1f
-            exoContentFrameLayout.scaleY = 1f
-            exoContentFrameLayout.translationX = 0f
-            exoContentFrameLayout.translationY = 0f
+            resetVideoTransform()
         } else {
             binding.playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, playerPreferences.subtitleTextSize.toFloat())
             if (!isControlsLocked) {
@@ -933,6 +930,7 @@ class PlayerActivity : AppCompatActivity() {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
             intent.data = mediaItem?.localConfiguration?.uri
+            resetVideoTransform()
         }
 
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -970,6 +968,7 @@ class PlayerActivity : AppCompatActivity() {
                 setOrientation()
             }
             lifecycleScope.launch {
+                resetVideoTransform()
                 val videoScale = mediaController?.currentMediaItem?.mediaId?.let { viewModel.getVideoState(it)?.videoScale } ?: 1f
                 applyVideoZoom(videoZoom = playerPreferences.playerVideoZoom)
                 applyVideoScale(videoScale = videoScale)
@@ -1335,11 +1334,7 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun changeAndSaveVideoZoom(videoZoom: VideoZoom) {
-        exoContentFrameLayout.scaleX = 1f
-        exoContentFrameLayout.scaleY = 1f
-        exoContentFrameLayout.translationX = 0f
-        exoContentFrameLayout.translationY = 0f
-
+        resetVideoTransform()
         applyVideoZoom(videoZoom)
         viewModel.setVideoZoom(videoZoom)
 
@@ -1352,6 +1347,15 @@ class PlayerActivity : AppCompatActivity() {
             binding.infoText.text = getString(videoZoom.nameRes())
             delay(HIDE_DELAY_MILLIS)
             binding.infoLayout.visibility = View.GONE
+        }
+    }
+
+    private fun resetVideoTransform() {
+        exoContentFrameLayout.apply {
+            scaleX = 1f
+            scaleY = 1f
+            translationX = 0f
+            translationY = 0f
         }
     }
 

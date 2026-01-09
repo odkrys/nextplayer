@@ -107,4 +107,8 @@ class PlayerViewModel @Inject constructor(
         }
         _pendingSubtitleOffset.value = null
     }
+
+    fun clearPendingSubtitleOffset() {
+        _pendingSubtitleOffset.value = null
+    }
 }

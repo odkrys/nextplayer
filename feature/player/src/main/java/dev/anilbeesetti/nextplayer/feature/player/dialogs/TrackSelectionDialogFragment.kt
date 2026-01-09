@@ -88,6 +88,9 @@ class TrackSelectionDialogFragment(
                                 .setPositiveButton(android.R.string.ok) { _, _ ->
                                     playerViewModel.applySubtitleOffset()
                                 }
+                                .setOnDismissListener {
+                                    playerViewModel.clearPendingSubtitleOffset()
+                                }
                                 .create()
 
                             val controlView = createSubtitleControlView(

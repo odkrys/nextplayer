@@ -265,6 +265,51 @@ class PlayerGestureHelper(
         },
     )
 
+    private val panGestureDetector = GestureDetector(
+        playerView.context,
+        object : GestureDetector.SimpleOnGestureListener() {
+
+            override fun onDown(e: MotionEvent): Boolean {
+                return true
+            }
+
+            override fun onScroll(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                distanceX: Float,
+                distanceY: Float
+            ): Boolean {
+                if (!prefs.useZoomControls) return false
+                if (activity.isControlsLocked) return false
+                if (currentGestureAction != GestureAction.ZOOM) return false
+
+                val scale = exoContentFrameLayout.scaleX
+                if (scale <= 1f) return false
+
+                exoContentFrameLayout.translationX -= distanceX
+                exoContentFrameLayout.translationY -= distanceY
+
+                clampTranslation(scale)
+
+                return true
+            }
+        }
+    )
+
+    private fun clampTranslation(scale: Float) {
+        val viewWidth = exoContentFrameLayout.width
+        val viewHeight = exoContentFrameLayout.height
+
+        val maxTranslateX = (viewWidth * (scale - 1f)) / 2f
+        val maxTranslateY = (viewHeight * (scale - 1f)) / 2f
+
+        exoContentFrameLayout.translationX =
+            exoContentFrameLayout.translationX.coerceIn(-maxTranslateX, maxTranslateX)
+
+        exoContentFrameLayout.translationY =
+            exoContentFrameLayout.translationY.coerceIn(-maxTranslateY, maxTranslateY)
+    }
+
     private fun releaseGestures() {
         // hide the volume indicator
         activity.hideVolumeGestureLayout()
@@ -310,6 +355,7 @@ class PlayerGestureHelper(
 
                 2 -> {
                     zoomGestureDetector.onTouchEvent(motionEvent)
+                    panGestureDetector.onTouchEvent(motionEvent)
                 }
             }
 

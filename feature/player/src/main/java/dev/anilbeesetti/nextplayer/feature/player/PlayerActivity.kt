@@ -460,6 +460,11 @@ class PlayerActivity : AppCompatActivity() {
             } else {
                 registerReceiver(pipBroadcastReceiver, IntentFilter(PIP_INTENT_ACTION))
             }
+
+            exoContentFrameLayout.scaleX = 1f
+            exoContentFrameLayout.scaleY = 1f
+            exoContentFrameLayout.translationX = 0f
+            exoContentFrameLayout.translationY = 0f
         } else {
             binding.playerView.subtitleView?.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, playerPreferences.subtitleTextSize.toFloat())
             if (!isControlsLocked) {

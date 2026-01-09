@@ -215,13 +215,11 @@ class TrackSelectionDialogFragment(
 
         syncSlider.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
             override fun onStartTrackingTouch(slider: Slider) {
-                isPositionChanging = true
-                onAlphaChange(0.4f)
+                isSyncChanging = true
             }
 
             override fun onStopTrackingTouch(slider: Slider) {
-                isPositionChanging = false
-                onAlphaChange(1f)
+                isSyncChanging = false
             }
         })
 

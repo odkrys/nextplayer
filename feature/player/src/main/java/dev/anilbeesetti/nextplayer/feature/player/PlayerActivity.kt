@@ -145,6 +145,7 @@ class PlayerActivity : AppCompatActivity() {
     private var isIntentNew: Boolean = true
 
     private var isPipActive: Boolean = false
+    private var zoomBeforePip: VideoZoom? = null
 
     private val shouldFastSeek: Boolean
         get() = playerPreferences.shouldFastSeek(mediaController?.duration ?: C.TIME_UNSET)
@@ -461,6 +462,8 @@ class PlayerActivity : AppCompatActivity() {
                 registerReceiver(pipBroadcastReceiver, IntentFilter(PIP_INTENT_ACTION))
             }
 
+            zoomBeforePip = playerPreferences.playerVideoZoom
+            applyVideoZoom(VideoZoom.BEST_FIT)
             exoContentFrameLayout.scaleX = 1f
             exoContentFrameLayout.scaleY = 1f
             exoContentFrameLayout.translationX = 0f
@@ -474,6 +477,10 @@ class PlayerActivity : AppCompatActivity() {
                 unregisterReceiver(it)
                 pipBroadcastReceiver = null
             }
+            zoomBeforePip?.let {
+                applyVideoZoom(it)
+            }
+            zoomBeforePip = null
         }
     }
 

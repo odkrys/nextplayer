@@ -678,10 +678,19 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         videoZoomButton.setOnLongClickListener {
-            VideoZoomOptionsDialogFragment(
-                currentVideoZoom = playerPreferences.playerVideoZoom,
-                onVideoZoomOptionSelected = { changeAndSaveVideoZoom(videoZoom = it) },
-            ).show(supportFragmentManager, "VideoZoomOptionsDialog")
+            resetVideoTransform()
+            applyVideoZoom(VideoZoom.BEST_FIT)
+            viewModel.setVideoZoom(VideoZoom.BEST_FIT)
+            mediaController?.currentMediaItem?.mediaId?.let {
+                viewModel.updateMediumZoom(uri = it, zoom = 1f)
+            }
+            lifecycleScope.launch {
+                binding.infoLayout.visibility = View.VISIBLE
+                binding.infoText.text = ("Reset Zoom")
+                delay(HIDE_DELAY_MILLIS)
+                binding.infoLayout.visibility = View.GONE
+            }
+            binding.playerView.showController()
             true
         }
         screenRotateButton.setOnClickListener {

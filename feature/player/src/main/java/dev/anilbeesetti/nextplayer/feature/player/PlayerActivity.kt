@@ -783,9 +783,11 @@ class PlayerActivity : AppCompatActivity() {
 
         if (hasPlaylist && mediaUri != null) {
             val currentUri = mediaController?.currentMediaItem?.localConfiguration?.uri
+
+            val returningFromBackground = !isIntentNew && mediaController?.currentMediaItem != null
             val isSameMedia = currentUri?.toString() == mediaUri.toString()
 
-            if (isSameMedia) {
+            if (returningFromBackground || isSameMedia) {
                 mediaController?.prepare()
                 mediaController?.playWhenReady = viewModel.playWhenReady
                 return

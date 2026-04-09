@@ -11,6 +11,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import dev.anilbeesetti.nextplayer.core.common.extensions.convertToUTF8
 import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
+import java.net.URLDecoder
 import java.nio.charset.Charset
 
 fun Uri.getSubtitleMime(): String {
@@ -46,7 +47,8 @@ suspend fun Context.uriToSubtitleConfiguration(
     } else {
         null
     }
-    val label = getFilenameFromUri(uri)
+    //val label = getFilenameFromUri(uri)
+    val label = URLDecoder.decode(getFilenameFromUri(uri), "UTF-8")
     val mimeType = uri.getSubtitleMime()
     val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
     return MediaItem.SubtitleConfiguration.Builder(utf8ConvertedUri).apply {

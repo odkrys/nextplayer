@@ -312,6 +312,15 @@ class PlayerService : MediaSessionService() {
             }
         }
 
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+            serviceScope.launch {
+                preferencesRepository.updatePlayerPreferences {
+                    it.copy(shuffleMode = shuffleModeEnabled)
+                }
+            }
+        }
+
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
             super.onAudioSessionIdChanged(audioSessionId)
             if (!playerPreferences.enableVolumeBoost) return
@@ -561,6 +570,7 @@ class PlayerService : MediaSessionService() {
                     LoopMode.ONE -> Player.REPEAT_MODE_ONE
                     LoopMode.ALL -> Player.REPEAT_MODE_ALL
                 }
+                it.shuffleModeEnabled = playerPreferences.shuffleMode
             }
 
         try {

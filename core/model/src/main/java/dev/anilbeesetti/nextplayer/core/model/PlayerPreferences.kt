@@ -16,6 +16,7 @@ data class PlayerPreferences(
     val autoPip: Boolean = true,
     val autoBackgroundPlay: Boolean = false,
     val loopMode: LoopMode = LoopMode.OFF,
+    val shuffleMode: Boolean = false,
 
     // Controls (Gestures)
     @Deprecated(message = "Use individual enableVolumeSwipeGesture and enableBrightnessSwipeGesture instead")

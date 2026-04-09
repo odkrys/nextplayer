@@ -72,6 +72,12 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun setShuffleMode(shuffleMode: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(shuffleMode = shuffleMode) }
+        }
+    }
+
     fun onVideoZoomEvent(event: VideoZoomEvent) {
         when (event) {
             is VideoZoomEvent.ContentScaleChanged -> {

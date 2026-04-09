@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.common.extensions.round
 import dev.anilbeesetti.nextplayer.core.common.extensions.toString
 import dev.anilbeesetti.nextplayer.core.model.DoubleTapGesture
+import dev.anilbeesetti.nextplayer.core.model.LongPressGesture
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
@@ -200,6 +201,7 @@ private fun GesturePreferencesContent(
                     onChecked = { onEvent(GesturePreferencesUiEvent.ToggleDoubleTapGesture) },
                     onClick = { onEvent(GesturePreferencesUiEvent.ShowDialog(GesturePreferenceDialog.DoubleTapDialog)) },
                 )
+/*
                 PreferenceSwitchWithDivider(
                     title = stringResource(id = R.string.long_press_gesture),
                     description = stringResource(id = R.string.long_press_gesture_desc, uiState.preferences.longPressControlsSpeed),
@@ -207,6 +209,15 @@ private fun GesturePreferencesContent(
                     isChecked = uiState.preferences.useLongPressControls,
                     onChecked = { onEvent(GesturePreferencesUiEvent.ToggleUseLongPressControls) },
                     onClick = { onEvent(GesturePreferencesUiEvent.ShowDialog(GesturePreferenceDialog.LongPressControlsSpeedDialog)) },
+                )
+*/
+                PreferenceSwitchWithDivider(
+                    title = stringResource(id = R.string.long_press_gesture),
+                    description = stringResource(id = R.string.long_press_gesture),
+                    icon = NextIcons.Tap,
+                    isChecked = (uiState.preferences.longPressGesture != LongPressGesture.NONE),
+                    onChecked = { onEvent(GesturePreferencesUiEvent.ToggleLongPressGesture) },
+                    onClick = { onEvent(GesturePreferencesUiEvent.ShowDialog(GesturePreferenceDialog.LongPressGestureDialog)) },
                 )
                 PreferenceSlider(
                     title = stringResource(R.string.seek_increment),
@@ -247,7 +258,7 @@ private fun GesturePreferencesContent(
                         }
                     }
                 }
-
+/*
                 GesturePreferenceDialog.LongPressControlsSpeedDialog -> {
                     var longPressControlsSpeed by remember {
                         mutableFloatStateOf(uiState.preferences.longPressControlsSpeed)
@@ -275,6 +286,66 @@ private fun GesturePreferencesContent(
                                 valueRange = 0.2f..4.0f,
                             )
                         },
+                    )
+                }
+*/
+                GesturePreferenceDialog.LongPressGestureDialog -> {
+                    var speed by remember {
+                        mutableFloatStateOf(uiState.preferences.longPressControlsSpeed)
+                    }
+
+                    NextDialogWithDoneAndCancelButtons(
+                        title = stringResource(R.string.long_press_gesture),
+                        onDoneClick = {
+                            onEvent(
+                                GesturePreferencesUiEvent.UpdateLongPressControlsSpeed(speed)
+                            )
+                            onEvent(GesturePreferencesUiEvent.ShowDialog(null))
+                        },
+                        onDismissClick = {
+                            onEvent(GesturePreferencesUiEvent.ShowDialog(null))
+                        },
+                        content = {
+                            Column {
+                                LongPressGesture.entries.forEach { action ->
+                                    RadioTextButton(
+                                        text = when (action) {
+                                            LongPressGesture.NONE ->
+                                                stringResource(R.string.none)
+
+                                            LongPressGesture.PLAYBACK_SPEED ->
+                                                stringResource(R.string.long_press_gesture_desc)
+
+                                            LongPressGesture.PLAY_PAUSE ->
+                                                stringResource(R.string.play_pause)
+                                        },
+                                        selected = action == uiState.preferences.longPressGesture,
+                                        onClick = {
+                                            onEvent(GesturePreferencesUiEvent.UpdateLongPressGesture(action))
+                                        }
+                                    )
+                                }
+
+                                if (uiState.preferences.longPressGesture ==
+                                    LongPressGesture.PLAYBACK_SPEED
+                                ) {
+                                    Text(
+                                        text = "${speed}x",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 16.dp),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+
+                                    Slider(
+                                        value = speed,
+                                        onValueChange = { speed = it.round(1) },
+                                        valueRange = 0.2f..4.0f,
+                                    )
+                                }
+                            }
+                        }
                     )
                 }
             }

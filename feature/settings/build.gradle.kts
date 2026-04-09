@@ -55,6 +55,7 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
+    implementation(libs.androidx.media3.ui)
     ksp(libs.hilt.compiler)
     ksp(libs.kotlin.metadata.jvm)
     kspAndroidTest(libs.hilt.compiler)

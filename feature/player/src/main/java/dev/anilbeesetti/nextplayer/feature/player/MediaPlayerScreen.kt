@@ -194,6 +194,7 @@ fun MediaPlayerScreen(
                         useSystemCaptionStyle = playerPreferences.useSystemCaptionStyle,
                         showBackground = playerPreferences.subtitleBackground,
                         font = playerPreferences.subtitleFont,
+                        edgeType = playerPreferences.subtitleEdgeType,
                         textSize = playerPreferences.subtitleTextSize,
                         textBold = playerPreferences.subtitleTextBold,
                         applyEmbeddedStyles = playerPreferences.applyEmbeddedStyles,

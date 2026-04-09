@@ -23,13 +23,21 @@ fun LoopButton(player: Player, modifier: Modifier = Modifier) {
         modifier = modifier,
         isEnabled = state.isEnabled,
         onClick = {
-            state.onClick()
+            //state.onClick()
+            val nextMode = when (player.repeatMode) {
+                Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_OFF
+                else -> Player.REPEAT_MODE_OFF
+            }
+            player.repeatMode = nextMode
             controlsVisibilityState?.showControls()
         },
     ) {
         Icon(
             painter = repeatModeIconPainter(state.repeatModeState),
             contentDescription = repeatModeContentDescription(state.repeatModeState),
+            tint = androidx.compose.ui.graphics.Color.Unspecified
         )
     }
 }

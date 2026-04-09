@@ -165,6 +165,8 @@ fun ControlsBottomView(
                     contentDescription = null,
                 )
             }
+            LoopButton(player = player)
+            ShuffleButton(player = player)
             if (isPipSupported) {
                 PlayerButton(onClick = onPictureInPictureClick) {
                     Icon(
@@ -179,8 +181,6 @@ fun ControlsBottomView(
                     contentDescription = null,
                 )
             }
-            LoopButton(player = player)
-            ShuffleButton(player = player)
         }
     }
 }

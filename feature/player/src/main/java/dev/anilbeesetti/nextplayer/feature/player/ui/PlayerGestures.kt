@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomHorizontalDragGestures
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomTransformGestures
 import dev.anilbeesetti.nextplayer.feature.player.extensions.detectCustomVerticalDragGestures
@@ -28,6 +31,9 @@ fun PlayerGestures(
     volumeAndBrightnessGestureState: VolumeAndBrightnessGestureState,
 ) {
     BoxWithConstraints {
+        val density = LocalDensity.current
+        val GestureExclusionPx = with(density) { 72.dp.toPx() }
+
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -61,7 +67,18 @@ fun PlayerGestures(
                     if (pictureInPictureState.isInPictureInPictureMode) return@pointerInput
 
                     detectCustomHorizontalDragGestures(
-                        onDragStart = seekGestureState::onDragStart,
+                        //onDragStart = seekGestureState::onDragStart,
+                        onDragStart = { offset: Offset ->
+                            if (
+                                isInGestureExclusionArea(
+                                    y = offset.y,
+                                    height = size.height,
+                                    ExclusionPx = GestureExclusionPx,
+                                )
+                            ) return@detectCustomHorizontalDragGestures
+
+                            seekGestureState.onDragStart(offset)
+                        },
                         onHorizontalDrag = seekGestureState::onDrag,
                         onDragCancel = seekGestureState::onDragEnd,
                         onDragEnd = seekGestureState::onDragEnd,
@@ -75,7 +92,18 @@ fun PlayerGestures(
                     if (pictureInPictureState.isInPictureInPictureMode) return@pointerInput
 
                     detectCustomVerticalDragGestures(
-                        onDragStart = { volumeAndBrightnessGestureState.onDragStart(it, size) },
+                        //onDragStart = { volumeAndBrightnessGestureState.onDragStart(it, size) },
+                        onDragStart = { offset: Offset ->
+                            if (
+                                isInGestureExclusionArea(
+                                    y = offset.y,
+                                    height = size.height,
+                                    ExclusionPx = GestureExclusionPx,
+                                )
+                            ) return@detectCustomVerticalDragGestures
+
+                            volumeAndBrightnessGestureState.onDragStart(offset, size)
+                        },
                         onVerticalDrag = volumeAndBrightnessGestureState::onDrag,
                         onDragCancel = volumeAndBrightnessGestureState::onDragEnd,
                         onDragEnd = volumeAndBrightnessGestureState::onDragEnd,
@@ -104,4 +132,12 @@ fun PlayerGestures(
                 },
         )
     }
+}
+
+private fun isInGestureExclusionArea(
+    y: Float,
+    height: Int,
+    ExclusionPx: Float,
+): Boolean {
+    return y <= ExclusionPx || y >= (height - ExclusionPx)
 }

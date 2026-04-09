@@ -198,6 +198,7 @@ fun MediaPlayerScreen(
                         textSize = playerPreferences.subtitleTextSize,
                         textBold = playerPreferences.subtitleTextBold,
                         applyEmbeddedStyles = playerPreferences.applyEmbeddedStyles,
+                        subtitlePosition = playerPreferences.subtitlePosition,
                     ),
                 )
 

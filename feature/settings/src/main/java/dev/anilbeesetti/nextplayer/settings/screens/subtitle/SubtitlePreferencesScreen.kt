@@ -182,6 +182,36 @@ private fun SubtitlePreferencesContent(
                         }
                     },
                 )
+                PreferenceSlider(
+                    title = stringResource(id = R.string.subtitle_position),
+                    description = "${(uiState.preferences.subtitlePosition * 100).toInt()}",
+                    icon = NextIcons.SubtitlePosition,
+                    enabled = uiState.preferences.useSystemCaptionStyle.not(),
+                    value = uiState.preferences.subtitlePosition,
+                    valueRange = 0f..0.95f,
+                    onValueChange = {
+                        onEvent(
+                            SubtitlePreferencesUiEvent.UpdateSubtitlePosition(it)
+                        )
+                    },
+                    trailingContent = {
+                        FilledIconButton(
+                            enabled = uiState.preferences.useSystemCaptionStyle.not(),
+                            onClick = {
+                                onEvent(
+                                    SubtitlePreferencesUiEvent.UpdateSubtitlePosition(
+                                        0.08f
+                                    )
+                                )
+                            },
+                        ) {
+                            Icon(
+                                imageVector = NextIcons.History,
+                                contentDescription = "Reset"
+                            )
+                        }
+                    },
+                )
                 PreferenceSwitch(
                     title = stringResource(id = R.string.subtitle_background),
                     description = stringResource(id = R.string.subtitle_background_desc),

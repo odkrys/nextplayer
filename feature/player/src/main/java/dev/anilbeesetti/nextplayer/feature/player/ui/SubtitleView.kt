@@ -53,6 +53,7 @@ fun SubtitleView(
                     setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
                 }
                 setApplyEmbeddedStyles(configuration.applyEmbeddedStyles)
+                setBottomPaddingFraction(configuration.subtitlePosition)
             }
         },
         update = { subtitleView ->
@@ -62,6 +63,7 @@ fun SubtitleView(
             } else {
                 subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
             }
+            subtitleView.setBottomPaddingFraction(configuration.subtitlePosition)
         },
     )
 }
@@ -75,4 +77,5 @@ data class SubtitleConfiguration(
     val textBold: Boolean,
     val applyEmbeddedStyles: Boolean,
     val edgeType: Int,
+    val subtitlePosition: Float,
 )

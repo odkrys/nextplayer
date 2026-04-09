@@ -46,7 +46,8 @@ class ControlsVisibilityState(
 ) {
     private var autoHideControlsJob: Job? = null
 
-    var controlsVisible: Boolean by mutableStateOf(true)
+    //var controlsVisible: Boolean by mutableStateOf(true)
+    var controlsVisible: Boolean by mutableStateOf(false)
         private set
 
     var controlsLocked: Boolean by mutableStateOf(false)

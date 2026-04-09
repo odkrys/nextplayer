@@ -30,6 +30,7 @@ fun ShuffleButton(player: Player, modifier: Modifier = Modifier) {
         Icon(
             painter = shuffleModeIconPainter(state.shuffleOn),
             contentDescription = shuffleContentDescription(state.shuffleOn),
+            tint = androidx.compose.ui.graphics.Color.Unspecified
         )
     }
 }

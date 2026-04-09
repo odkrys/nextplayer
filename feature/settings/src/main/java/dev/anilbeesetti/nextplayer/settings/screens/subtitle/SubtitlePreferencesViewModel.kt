@@ -48,6 +48,7 @@ class SubtitlePreferencesViewModel @Inject constructor(
             SubtitlePreferencesUiEvent.ToggleApplyEmbeddedStyles -> toggleApplyEmbeddedStyles()
             is SubtitlePreferencesUiEvent.UpdateSubtitleEncoding -> updateSubtitleEncoding(event.value)
             SubtitlePreferencesUiEvent.ToggleUseSystemCaptionStyle -> toggleUseSystemCaptionStyle()
+            is SubtitlePreferencesUiEvent.UpdateSubtitlePosition -> updateSubtitlePosition(event.value)
         }
     }
 
@@ -124,6 +125,12 @@ class SubtitlePreferencesViewModel @Inject constructor(
             preferencesRepository.updatePlayerPreferences { it.copy(useSystemCaptionStyle = !it.useSystemCaptionStyle) }
         }
     }
+
+    private fun updateSubtitlePosition(value: Float) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(subtitlePosition = value) }
+        }
+    }
 }
 
 @Stable
@@ -151,4 +158,5 @@ sealed interface SubtitlePreferencesUiEvent {
     data object ToggleApplyEmbeddedStyles : SubtitlePreferencesUiEvent
     data class UpdateSubtitleEncoding(val value: String) : SubtitlePreferencesUiEvent
     data object ToggleUseSystemCaptionStyle : SubtitlePreferencesUiEvent
+    data class UpdateSubtitlePosition(val value: Float) : SubtitlePreferencesUiEvent
 }

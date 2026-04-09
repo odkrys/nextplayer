@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.common.extensions.round
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.DoubleTapGesture
+import dev.anilbeesetti.nextplayer.core.model.LongPressGesture
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +39,9 @@ class GesturePreferencesViewModel @Inject constructor(
         when (event) {
             is GesturePreferencesUiEvent.ShowDialog -> showDialog(event.value)
             is GesturePreferencesUiEvent.UpdateDoubleTapGesture -> updateDoubleTapGesture(event.gesture)
-            GesturePreferencesUiEvent.ToggleUseLongPressControls -> toggleUseLongPressControls()
+            is GesturePreferencesUiEvent.UpdateLongPressGesture -> updateLongPressGesture(event.gesture)
+            //GesturePreferencesUiEvent.ToggleUseLongPressControls -> toggleUseLongPressControls()
+            GesturePreferencesUiEvent.ToggleLongPressGesture -> toggleLongPressGesture()
             GesturePreferencesUiEvent.ToggleDoubleTapGesture -> toggleDoubleTapGesture()
             GesturePreferencesUiEvent.ToggleEnableBrightnessSwipeGesture -> toggleEnableBrightnessSwipeGesture()
             GesturePreferencesUiEvent.ToggleEnableVolumeSwipeGesture -> toggleEnableVolumeSwipeGesture()
@@ -67,10 +70,33 @@ class GesturePreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun updateLongPressGesture(gesture: LongPressGesture) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(longPressGesture = gesture)
+            }
+        }
+    }
+
+/*
     private fun toggleUseLongPressControls() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
                 it.copy(useLongPressControls = !it.useLongPressControls)
+            }
+        }
+    }
+*/
+    private fun toggleLongPressGesture() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(
+                    longPressGesture = if (it.longPressGesture == LongPressGesture.NONE) {
+                        LongPressGesture.PLAYBACK_SPEED
+                    } else {
+                        LongPressGesture.NONE
+                    },
+                )
             }
         }
     }
@@ -176,13 +202,16 @@ data class GesturePreferencesUiState(
 
 sealed interface GesturePreferenceDialog {
     data object DoubleTapDialog : GesturePreferenceDialog
-    data object LongPressControlsSpeedDialog : GesturePreferenceDialog
+    //data object LongPressControlsSpeedDialog : GesturePreferenceDialog
+    data object LongPressGestureDialog : GesturePreferenceDialog
 }
 
 sealed interface GesturePreferencesUiEvent {
     data class ShowDialog(val value: GesturePreferenceDialog?) : GesturePreferencesUiEvent
     data class UpdateDoubleTapGesture(val gesture: DoubleTapGesture) : GesturePreferencesUiEvent
-    data object ToggleUseLongPressControls : GesturePreferencesUiEvent
+    data class UpdateLongPressGesture(val gesture: LongPressGesture) : GesturePreferencesUiEvent
+    //data object ToggleUseLongPressControls : GesturePreferencesUiEvent
+    data object ToggleLongPressGesture : GesturePreferencesUiEvent
     data object ToggleDoubleTapGesture : GesturePreferencesUiEvent
     data object ToggleEnableBrightnessSwipeGesture : GesturePreferencesUiEvent
     data object ToggleEnableVolumeSwipeGesture : GesturePreferencesUiEvent

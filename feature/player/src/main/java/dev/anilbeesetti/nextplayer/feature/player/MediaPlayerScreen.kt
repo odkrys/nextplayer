@@ -114,7 +114,8 @@ fun MediaPlayerScreen(
         player = player,
         doubleTapGesture = playerPreferences.doubleTapGesture,
         seekIncrementMillis = playerPreferences.seekIncrement.seconds.inWholeMilliseconds,
-        useLongPressGesture = playerPreferences.useLongPressControls,
+        //useLongPressGesture = playerPreferences.useLongPressControls,
+        longPressGesture = playerPreferences.longPressGesture,
         longPressSpeed = playerPreferences.longPressControlsSpeed,
     )
     val seekGestureState = rememberSeekGestureState(

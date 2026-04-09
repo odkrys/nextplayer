@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.DoubleTapGesture
+import dev.anilbeesetti.nextplayer.core.model.LongPressGesture
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -27,7 +28,8 @@ fun rememberTapGestureState(
     player: Player,
     doubleTapGesture: DoubleTapGesture,
     seekIncrementMillis: Long,
-    useLongPressGesture: Boolean,
+    //useLongPressGesture: Boolean,
+    longPressGesture: LongPressGesture,
     longPressSpeed: Float,
 ): TapGestureState {
     val coroutineScope = rememberCoroutineScope()
@@ -36,7 +38,8 @@ fun rememberTapGestureState(
             player = player,
             doubleTapGesture = doubleTapGesture,
             seekIncrementMillis = seekIncrementMillis,
-            useLongPressGesture = useLongPressGesture,
+            //useLongPressGesture = useLongPressGesture,
+            longPressGesture = longPressGesture,
             longPressSpeed = longPressSpeed,
             coroutineScope = coroutineScope,
         )
@@ -48,7 +51,8 @@ fun rememberTapGestureState(
 class TapGestureState(
     private val player: Player,
     private val seekIncrementMillis: Long,
-    private val useLongPressGesture: Boolean = true,
+    //private val useLongPressGesture: Boolean = true,
+    private val longPressGesture: LongPressGesture,
     private val coroutineScope: CoroutineScope,
     val longPressSpeed: Float = 2.0f,
     val doubleTapGesture: DoubleTapGesture,
@@ -114,7 +118,7 @@ class TapGestureState(
         }
         resetDoubleTapSeekState()
     }
-
+/*
     fun handleLongPress(offset: Offset) {
         if (!useLongPressGesture) return
         if (!player.isPlaying) return
@@ -126,6 +130,37 @@ class TapGestureState(
 
     fun handleOnLongPressRelease() {
         if (isLongPressGestureInAction) {
+            isLongPressGestureInAction = false
+            player.setPlaybackSpeed(currentSpeed)
+        }
+    }
+*/
+    fun handleLongPress(offset: Offset) {
+        when (longPressGesture) {
+            LongPressGesture.NONE -> return
+
+            LongPressGesture.PLAYBACK_SPEED -> {
+                if (!player.isPlaying) return
+
+                isLongPressGestureInAction = true
+                currentSpeed = player.playbackParameters.speed
+                player.setPlaybackSpeed(longPressSpeed)
+            }
+
+            LongPressGesture.PLAY_PAUSE -> {
+                when (player.isPlaying) {
+                    true -> player.pause()
+                    false -> player.play()
+                }
+            }
+        }
+    }
+
+    fun handleOnLongPressRelease() {
+        if (
+            longPressGesture == LongPressGesture.PLAYBACK_SPEED &&
+            isLongPressGestureInAction
+        ) {
             isLongPressGestureInAction = false
             player.setPlaybackSpeed(currentSpeed)
         }

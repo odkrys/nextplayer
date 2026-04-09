@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.settings.screens.subtitle
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.util.UnstableApi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.Font
@@ -40,6 +41,7 @@ class SubtitlePreferencesViewModel @Inject constructor(
             is SubtitlePreferencesUiEvent.ShowDialog -> showDialog(event.value)
             is SubtitlePreferencesUiEvent.UpdateSubtitleLanguage -> updateSubtitleLanguage(event.value)
             is SubtitlePreferencesUiEvent.UpdateSubtitleFont -> updateSubtitleFont(event.value)
+            is SubtitlePreferencesUiEvent.UpdateSubtitleEdgeType -> updateSubtitleEdgeType(event.value)
             SubtitlePreferencesUiEvent.ToggleSubtitleTextBold -> toggleSubtitleTextBold()
             is SubtitlePreferencesUiEvent.UpdateSubtitleFontSize -> updateSubtitleFontSize(event.value)
             SubtitlePreferencesUiEvent.ToggleSubtitleBackground -> toggleSubtitleBackground()
@@ -67,6 +69,14 @@ class SubtitlePreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
                 it.copy(subtitleFont = value)
+            }
+        }
+    }
+
+    private fun updateSubtitleEdgeType(value: Int) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(subtitleEdgeType = value)
             }
         }
     }
@@ -126,12 +136,15 @@ sealed interface SubtitlePreferenceDialog {
     data object SubtitleLanguageDialog : SubtitlePreferenceDialog
     data object SubtitleFontDialog : SubtitlePreferenceDialog
     data object SubtitleEncodingDialog : SubtitlePreferenceDialog
+    data object SubtitleEdgeTypeDialog : SubtitlePreferenceDialog
 }
 
+@OptIn(UnstableApi::class)
 sealed interface SubtitlePreferencesUiEvent {
     data class ShowDialog(val value: SubtitlePreferenceDialog?) : SubtitlePreferencesUiEvent
     data class UpdateSubtitleLanguage(val value: String) : SubtitlePreferencesUiEvent
     data class UpdateSubtitleFont(val value: Font) : SubtitlePreferencesUiEvent
+    data class UpdateSubtitleEdgeType(val value: Int) : SubtitlePreferencesUiEvent
     data object ToggleSubtitleTextBold : SubtitlePreferencesUiEvent
     data class UpdateSubtitleFontSize(val value: Int) : SubtitlePreferencesUiEvent
     data object ToggleSubtitleBackground : SubtitlePreferencesUiEvent

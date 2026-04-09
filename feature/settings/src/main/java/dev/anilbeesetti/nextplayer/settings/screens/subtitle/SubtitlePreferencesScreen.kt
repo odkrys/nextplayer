@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.settings.screens.subtitle
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
@@ -29,8 +30,11 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.CaptionStyleCompat
 import dev.anilbeesetti.nextplayer.core.model.Font
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
+import dev.anilbeesetti.nextplayer.core.model.SubtitleEdgeType
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
@@ -60,6 +64,7 @@ fun SubtitlePreferencesScreen(
     )
 }
 
+@SuppressLint("UnsafeOptInUsageError")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SubtitlePreferencesContent(
@@ -133,6 +138,19 @@ private fun SubtitlePreferencesContent(
                     icon = NextIcons.Font,
                     enabled = uiState.preferences.useSystemCaptionStyle.not(),
                     onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.SubtitleFontDialog)) },
+                )
+                ClickablePreferenceItem(
+                    title = stringResource(id = R.string.subtitle_style),
+                    description = when(uiState.preferences.subtitleEdgeType) {
+                            CaptionStyleCompat.EDGE_TYPE_OUTLINE -> "OUTLINE"
+                            CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW -> "SHADOW"
+                            CaptionStyleCompat.EDGE_TYPE_RAISED -> "RAISED"
+                            CaptionStyleCompat.EDGE_TYPE_DEPRESSED -> "DEPRESSED"
+                            else -> "NONE"
+                    },
+                    icon = NextIcons.TextFormat,
+                    enabled = uiState.preferences.useSystemCaptionStyle.not(),
+                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.SubtitleEdgeTypeDialog)) },
                 )
                 PreferenceSwitch(
                     title = stringResource(id = R.string.subtitle_text_bold),
@@ -214,6 +232,31 @@ private fun SubtitlePreferencesContent(
                                 selected = it == uiState.preferences.subtitleFont,
                                 onClick = {
                                     onEvent(SubtitlePreferencesUiEvent.UpdateSubtitleFont(it))
+                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
+
+                SubtitlePreferenceDialog.SubtitleEdgeTypeDialog -> {
+                    val edgeTypes = listOf(
+                        CaptionStyleCompat.EDGE_TYPE_NONE to "NONE",
+                        CaptionStyleCompat.EDGE_TYPE_OUTLINE to "OUTLINE",
+                        CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW to "SHADOW",
+                        CaptionStyleCompat.EDGE_TYPE_RAISED to "RAISED",
+                        CaptionStyleCompat.EDGE_TYPE_DEPRESSED to "DEPRESSED"
+                    )
+                    OptionsDialog(
+                        text = stringResource(id = R.string.subtitle_style),
+                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(edgeTypes) { (type, label) ->
+                            RadioTextButton(
+                                text = label,
+                                selected = type == uiState.preferences.subtitleEdgeType,
+                                onClick = {
+                                    onEvent(SubtitlePreferencesUiEvent.UpdateSubtitleEdgeType(type))
                                     onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
                                 },
                             )

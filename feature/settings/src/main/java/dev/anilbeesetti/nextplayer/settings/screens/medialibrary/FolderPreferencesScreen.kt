@@ -66,6 +66,20 @@ private fun FolderPreferencesContent(
                         )
                     }
                 },
+                actions = {
+                    val folders = (uiState.foldersDataState as? DataState.Success)?.value ?: emptyList()
+                    val excluded = uiState.preferences.excludeFolders ?: emptyList()
+                    val allSelected = folders.isNotEmpty() && folders.all { it.path in excluded }
+
+                    FilledTonalIconButton(
+                        onClick = { onEvent(FolderPreferencesUiEvent.ToggleSelectAll) }
+                    ) {
+                        Icon(
+                             imageVector = if (allSelected) NextIcons.SelectAll else NextIcons.Checklist,
+                             contentDescription = null
+                        )
+                    }
+                }
             )
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainer,

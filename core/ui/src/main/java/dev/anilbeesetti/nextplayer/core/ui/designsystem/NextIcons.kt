@@ -14,6 +14,7 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ClosedCaption
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -90,6 +91,7 @@ object NextIcons {
     val Check = Icons.Rounded.Check
     val CheckBox = Icons.Rounded.CheckCircle
     val CheckBoxOutline = Icons.Rounded.RadioButtonUnchecked
+    val Checklist = Icons.Rounded.Checklist
     val Contrast = Icons.Rounded.Contrast
     val DarkMode = Icons.Rounded.DarkMode
     val DashBoard = Icons.Rounded.Dashboard

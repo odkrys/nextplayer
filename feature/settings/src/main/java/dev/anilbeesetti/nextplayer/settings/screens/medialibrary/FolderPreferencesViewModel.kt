@@ -49,6 +49,7 @@ class FolderPreferencesViewModel @Inject constructor(
     fun onEvent(event: FolderPreferencesUiEvent) {
         when (event) {
             is FolderPreferencesUiEvent.UpdateExcludeList -> updateExcludeList(event.path)
+            FolderPreferencesUiEvent.ToggleSelectAll -> toggleSelectAll()
         }
     }
 
@@ -65,6 +66,28 @@ class FolderPreferencesViewModel @Inject constructor(
             }
         }
     }
+
+    private fun toggleSelectAll() {
+        viewModelScope.launch {
+            val currentState = uiStateInternal.value
+            val folders = (currentState.foldersDataState as? DataState.Success)?.value ?: return@launch
+            val currentExcluded = currentState.preferences.excludeFolders ?: emptyList()
+
+            preferencesRepository.updateApplicationPreferences { prefs ->
+                val allPaths = folders.map { it.path }
+
+                val isAllExcluded = allPaths.all { it in currentExcluded }
+
+                prefs.copy(
+                    excludeFolders = if (isAllExcluded) {
+                        emptyList()
+                    } else {
+                        allPaths
+                    }
+                )
+            }
+        }
+    }
 }
 
 data class FolderPreferencesUiState(
@@ -74,4 +97,5 @@ data class FolderPreferencesUiState(
 
 sealed interface FolderPreferencesUiEvent {
     data class UpdateExcludeList(val path: String) : FolderPreferencesUiEvent
+    data object ToggleSelectAll : FolderPreferencesUiEvent
 }

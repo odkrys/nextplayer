@@ -47,10 +47,21 @@ fun NavGraphBuilder.mediaNavGraph(
 
         searchScreen(
             onNavigateUp = navController::navigateUp,
+/*
             onPlayVideo = { uri ->
                 val intent = Intent(context, PlayerActivity::class.java).apply {
                     action = Intent.ACTION_VIEW
                     data = uri
+                }
+                context.startActivity(intent)
+            },
+*/
+            onPlayVideo = { videos, index ->
+                val uris = ArrayList(videos.map { android.net.Uri.parse(it.uriString) })
+                val intent = Intent(context, PlayerActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    data = uris[index]
+                    putParcelableArrayListExtra(PlayerApi.API_PLAYLIST, uris)
                 }
                 context.startActivity(intent)
             },

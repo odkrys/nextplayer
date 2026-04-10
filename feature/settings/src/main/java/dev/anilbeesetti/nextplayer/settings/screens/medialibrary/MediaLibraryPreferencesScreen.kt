@@ -1,5 +1,9 @@
 package dev.anilbeesetti.nextplayer.settings.screens.medialibrary
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +20,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
@@ -58,6 +63,7 @@ private fun MediaLibraryPreferencesContent(
     onEvent: (MediaLibraryPreferencesUiEvent) -> Unit,
 ) {
     val preferences = uiState.preferences
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -109,9 +115,26 @@ private fun MediaLibraryPreferencesContent(
                     icon = NextIcons.FolderOff,
                     onClick = onFolderSettingClick,
                     isFirstItem = true,
-                    isLastItem = true,
+                    //isLastItem = true,
+                    isLastItem = false,
                 )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    ClickablePreferenceItem(
+                        title = stringResource(id = R.string.manage_external_storage),
+                        description = stringResource(id = R.string.manage_external_storage_desc),
+                        icon = NextIcons.Settings,
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
+                            context.startActivity(intent)
+                        },
+                        isFirstItem = false,
+                        isLastItem = true,
+                    )
+                }
             }
+
 
             ListSectionTitle(text = stringResource(id = R.string.thumbnail))
             Column(

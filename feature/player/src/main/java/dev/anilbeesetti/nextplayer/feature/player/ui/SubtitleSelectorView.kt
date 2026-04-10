@@ -5,22 +5,27 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +42,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.C
@@ -80,11 +86,12 @@ fun BoxScope.SubtitleSelectorView(
     ) {
         Column(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
+                //.verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp)
                 .padding(horizontal = 24.dp)
-                .selectableGroup(),
+                //.selectableGroup(),
         ) {
+/*
             subtitleTracksState.tracks.forEachIndexed { index, track ->
                 RadioButtonRow(
                     selected = track.isSelected,
@@ -104,6 +111,79 @@ fun BoxScope.SubtitleSelectorView(
                 },
             )
             Spacer(modifier = Modifier.size(16.dp))
+ */
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                subtitleTracksState.tracks.forEachIndexed { index, track ->
+                    val baseName = track.mediaTrackGroup.getName(C.TRACK_TYPE_TEXT, index)
+                    val format = track.mediaTrackGroup.getFormat(0)
+
+                    val extension = remember(format) {
+                        val sourceString = format.id ?: format.label ?: ""
+                        val ext = sourceString.substringAfterLast('.', "").uppercase()
+
+                        if (ext.isNotEmpty() && ext.length <= 4 && ext.all { it.isLetter() }) {
+                            ext
+                        } else {
+                            when (format.sampleMimeType) {
+                                androidx.media3.common.MimeTypes.TEXT_SSA -> "ASS"
+                                androidx.media3.common.MimeTypes.TEXT_VTT -> "VTT"
+                                androidx.media3.common.MimeTypes.APPLICATION_TTML -> "TTML"
+                                androidx.media3.common.MimeTypes.APPLICATION_SUBRIP -> "SRT"
+                                else -> ""
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            RadioButtonRow(
+                                selected = track.isSelected,
+                                text = baseName,
+                                onClick = {
+                                    subtitleTracksState.switchTrack(index)
+                                    onDismiss()
+                                },
+                            )
+                        }
+
+                        if (extension.isNotEmpty()) {
+                            Surface(
+                                modifier = Modifier
+                                    .padding(end = 12.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = extension,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.size(8.dp))
+
+            if (!showSettings) {
+                RadioButtonRow(
+                    selected = subtitleTracksState.tracks.none { it.isSelected },
+                    text = stringResource(R.string.disable),
+                    onClick = {
+                        subtitleTracksState.switchTrack(-1)
+                        onDismiss()
+                    },
+                )
+            }
 /*
             FilledTonalButton(
                 modifier = Modifier.fillMaxWidth(),
@@ -126,6 +206,7 @@ fun BoxScope.SubtitleSelectorView(
             )
 
 */
+            Spacer(modifier = Modifier.size(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -153,7 +234,14 @@ fun BoxScope.SubtitleSelectorView(
             }
 
             if (showSettings) {
-                Column(modifier = Modifier.padding(top = 16.dp)) {
+                //Column(modifier = Modifier.padding(top = 16.dp)) {
+                Column(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .heightIn(max = 250.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 8.dp)
+                ) {
                     DelayInput(
                         value = subtitleOptionsState.delayMilliseconds,
                         onValueChange = { subtitleOptionsState.setDelay(it) },

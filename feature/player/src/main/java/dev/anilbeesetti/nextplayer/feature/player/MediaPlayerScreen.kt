@@ -181,6 +181,7 @@ fun MediaPlayerScreen(
     }
 
     var overlayView by remember { mutableStateOf<OverlayView?>(null) }
+    var showFullTitleDialog by remember { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
         Box {
@@ -281,6 +282,9 @@ fun MediaPlayerScreen(
                             ) {
                                 ControlsTopView(
                                     title = metadataState.title ?: "",
+                                    onTitleClick = {
+                                        showFullTitleDialog = true
+                                    },
                                     onAudioClick = {
                                         controlsVisibilityState.hideControls()
                                         overlayView = OverlayView.AUDIO_SELECTOR
@@ -402,6 +406,32 @@ fun MediaPlayerScreen(
                 initialPosition = playerPreferences.subtitlePosition,
                 onVideoContentScaleChanged = { videoZoomAndContentScaleState.onVideoContentScaleChanged(it) },
             )
+
+            if (showFullTitleDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showFullTitleDialog = false
+                    },
+                    title = {
+                        Text(text = "Video Title")
+                    },
+                    text = {
+                        Text(
+                            text = metadataState.title ?: "",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showFullTitleDialog = false
+                            }
+                        ) {
+                            Text(text = stringResource(android.R.string.ok))
+                        }
+                    }
+                )
+            }
         }
     }
 

@@ -97,6 +97,9 @@ class PlayerViewModel @Inject constructor(
             is SubtitleOptionsEvent.SpeedChanged -> {
                 updateSubtitleSpeed(event.mediaItem.mediaId, event.speed)
             }
+            is SubtitleOptionsEvent.UpdateSubtitlePosition -> {
+                updateSubtitlePosition(event.position)
+            }
         }
     }
 
@@ -109,6 +112,12 @@ class PlayerViewModel @Inject constructor(
     private fun updateSubtitleSpeed(uri: String, speed: Float) {
         viewModelScope.launch {
             mediaRepository.updateSubtitleSpeed(uri, speed)
+        }
+    }
+
+    private fun updateSubtitlePosition(value: Float) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(subtitlePosition = value) }
         }
     }
 }

@@ -29,11 +29,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun rememberSubtitleOptionsState(
     player: Player,
+    initialPosition: Float,
     onEvent: (SubtitleOptionsEvent) -> Unit = {},
 ): SubtitleOptionsState {
     val scope = rememberCoroutineScope()
-    val subtitleOptionsState = remember { SubtitleOptionsState(player, scope, onEvent) }
+    //val subtitleOptionsState = remember { SubtitleOptionsState(player, scope, onEvent) }
+    val subtitleOptionsState = remember { SubtitleOptionsState(player, scope, initialPosition, onEvent) }
     LaunchedEffect(player) { subtitleOptionsState.observe() }
+    LaunchedEffect(initialPosition) {
+        subtitleOptionsState.updatePositionState(initialPosition)
+    }
     return subtitleOptionsState
 }
 
@@ -41,6 +46,7 @@ fun rememberSubtitleOptionsState(
 class SubtitleOptionsState(
     val player: Player,
     val scope: CoroutineScope,
+    initialPosition: Float,
     val onEvent: (SubtitleOptionsEvent) -> Unit = {},
 ) {
 
@@ -48,6 +54,9 @@ class SubtitleOptionsState(
         private set
 
     var speedMultiplier: Float by mutableFloatStateOf(1f)
+        private set
+
+    var positionRatio: Float by mutableFloatStateOf(initialPosition)
         private set
 
     fun setDelay(delayMillis: Long) {
@@ -72,6 +81,15 @@ class SubtitleOptionsState(
             updateSubtitleSpeed()
             updateSpeedMetadataAndSendEvent()
         }
+    }
+
+    fun setPosition(ratio: Float) {
+        positionRatio = ratio
+        onEvent(SubtitleOptionsEvent.UpdateSubtitlePosition(ratio))
+    }
+
+    fun updatePositionState(ratio: Float) {
+        positionRatio = ratio
     }
 
     suspend fun observe() {
@@ -125,4 +143,5 @@ class SubtitleOptionsState(
 sealed interface SubtitleOptionsEvent {
     data class DelayChanged(val mediaItem: MediaItem, val delay: Long) : SubtitleOptionsEvent
     data class SpeedChanged(val mediaItem: MediaItem, val speed: Float) : SubtitleOptionsEvent
+    data class UpdateSubtitlePosition(val position: Float) : SubtitleOptionsEvent
 }

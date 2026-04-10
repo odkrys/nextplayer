@@ -40,7 +40,8 @@ val Uri.isSchemaContent: Boolean
 suspend fun Context.uriToSubtitleConfiguration(
     uri: Uri,
     subtitleEncoding: String = "",
-    isSelected: Boolean = false,
+    //isSelected: Boolean = false,
+    isSelected: Boolean = true,
 ): MediaItem.SubtitleConfiguration {
     val charset = if (subtitleEncoding.isNotEmpty() && Charset.isSupported(subtitleEncoding)) {
         Charset.forName(subtitleEncoding)

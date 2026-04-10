@@ -161,6 +161,17 @@ class VideoZoomAndContentScaleState(
         )
         onEvent(VideoZoomEvent.ZoomChanged(currentMediaItem, zoom))
     }
+
+    fun resetZoomAndOffset() {
+        zoom = 1f
+        offset = Offset.Zero
+        isZooming = false
+        videoContentScale = VideoContentScale.BEST_FIT
+        updateVideoScaleMetadataAndSendEvent(zoom = 1f)
+        onEvent(
+            VideoZoomEvent.ContentScaleChanged(VideoContentScale.BEST_FIT)
+        )
+    }
 }
 
 sealed interface VideoZoomEvent {

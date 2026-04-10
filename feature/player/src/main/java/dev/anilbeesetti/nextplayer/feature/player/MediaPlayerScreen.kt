@@ -333,7 +333,8 @@ fun MediaPlayerScreen(
                                     },
                                     onVideoContentScaleLongClick = {
                                         controlsVisibilityState.hideControls()
-                                        overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                        //overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                        videoZoomAndContentScaleState.resetZoomAndOffset()
                                     },
                                     onPictureInPictureClick = {
                                         if (!pictureInPictureState.hasPipPermission) {

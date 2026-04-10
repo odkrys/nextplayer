@@ -123,16 +123,23 @@ fun MediaPlayerScreen(
         sensitivity = playerPreferences.seekSensitivity,
         enableSeekGesture = playerPreferences.useSeekControls,
     )
+    /*
     val pictureInPictureState = rememberPictureInPictureState(
         player = player,
         autoEnter = playerPreferences.autoPip,
     )
+    */
     val videoZoomAndContentScaleState = rememberVideoZoomAndContentScaleState(
         player = player,
         initialContentScale = playerPreferences.playerVideoZoom,
         enableZoomGesture = playerPreferences.useZoomControls,
         enablePanGesture = playerPreferences.enablePanGesture,
         onEvent = viewModel::onVideoZoomEvent,
+    )
+    val pictureInPictureState = rememberPictureInPictureState(
+        player = player,
+        autoEnter = playerPreferences.autoPip,
+        onEnterPip = { videoZoomAndContentScaleState.resetZoomAndOffset() }
     )
     val brightnessState = rememberBrightnessState()
     val volumeAndBrightnessGestureState = rememberVolumeAndBrightnessGestureState(

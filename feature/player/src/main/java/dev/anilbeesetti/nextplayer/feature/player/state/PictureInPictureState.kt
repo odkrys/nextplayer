@@ -42,6 +42,7 @@ import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 fun rememberPictureInPictureState(
     player: Player,
     autoEnter: Boolean = true,
+    onEnterPip: () -> Unit = {},
 ): PictureInPictureState {
     val activity = LocalActivity.current
     val pictureInPictureState = remember {
@@ -49,6 +50,7 @@ fun rememberPictureInPictureState(
             player = player,
             activity = activity as ComponentActivity,
             autoEnter = autoEnter,
+            onEnterPip = onEnterPip,
         )
     }
     DisposableEffect(activity) { pictureInPictureState.handleListeners(this) }
@@ -61,6 +63,7 @@ class PictureInPictureState(
     private val player: Player,
     private val activity: ComponentActivity,
     private val autoEnter: Boolean = true,
+    private val onEnterPip: () -> Unit = {},
 ) {
     companion object {
         private const val PIP_INTENT_ACTION = "pip_action"
@@ -182,7 +185,13 @@ class PictureInPictureState(
     private fun updateIsInPictureInPictureMode(pipBroadcastReceiver: BroadcastReceiver) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
+        val wasInPip = isInPictureInPictureMode
         isInPictureInPictureMode = activity.isInPictureInPictureMode
+
+        if (isInPictureInPictureMode && !wasInPip) {
+            onEnterPip()
+        }
+
         if (isInPictureInPictureMode) {
             ContextCompat.registerReceiver(
                 activity,

@@ -13,6 +13,7 @@ import dev.anilbeesetti.nextplayer.core.domain.SearchResults
 import dev.anilbeesetti.nextplayer.core.media.sync.MediaInfoSynchronizer
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.Folder
+import dev.anilbeesetti.nextplayer.core.model.Sort
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -77,9 +78,20 @@ class SearchViewModel @Inject constructor(
                     searchMediaUseCase(query)
                 }
                 .collect { results ->
+                    val prefs = uiState.value.preferences
+                    val forcedSortedVideos = when (prefs.sortBy) {
+                        Sort.By.TITLE -> results.videos.sortedBy { it.nameWithExtension }
+                        Sort.By.DATE -> results.videos.sortedBy { it.dateModified }
+                        Sort.By.SIZE -> results.videos.sortedBy { it.size }
+                        Sort.By.LENGTH -> results.videos.sortedBy { it.duration }
+                        Sort.By.PATH -> results.videos.sortedBy { it.path }
+                    }.let { list ->
+                        if (prefs.sortOrder == Sort.Order.DESCENDING) list.reversed() else list
+                    }
                     uiStateInternal.update {
                         it.copy(
-                            searchResults = results,
+                            //searchResults = results,
+                            searchResults = results.copy(videos = forcedSortedVideos),
                             isSearching = false,
                         )
                     }

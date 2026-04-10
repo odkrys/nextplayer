@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -31,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -40,6 +43,8 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.ui.R
+import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSlider
+import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.feature.player.extensions.getName
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberSubtitleOptionsState
@@ -56,14 +61,20 @@ fun BoxScope.SubtitleSelectorView(
     show: Boolean,
     player: Player,
     onSelectSubtitleClick: () -> Unit,
+    initialPosition: Float,
     onEvent: (SubtitleOptionsEvent) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val subtitleTracksState = rememberTracksState(player, C.TRACK_TYPE_TEXT)
-    val subtitleOptionsState = rememberSubtitleOptionsState(player, onEvent)
+    //val subtitleOptionsState = rememberSubtitleOptionsState(player, onEvent)
+    val subtitleOptionsState = rememberSubtitleOptionsState(player, initialPosition, onEvent)
+    var showSettings by remember { mutableStateOf(false) }
+    var currentAlpha by remember { mutableFloatStateOf(1f) }
 
     OverlayView(
-        modifier = modifier,
+        //modifier = modifier,
+        modifier = modifier
+            .graphicsLayer(alpha = currentAlpha),
         show = show,
         title = stringResource(R.string.select_subtitle_track),
     ) {
@@ -93,6 +104,7 @@ fun BoxScope.SubtitleSelectorView(
                 },
             )
             Spacer(modifier = Modifier.size(16.dp))
+/*
             FilledTonalButton(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
@@ -112,6 +124,72 @@ fun BoxScope.SubtitleSelectorView(
                 value = subtitleOptionsState.speedMultiplier,
                 onValueChange = { subtitleOptionsState.setSpeed(it) },
             )
+
+*/
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilledTonalButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        onSelectSubtitleClick()
+                        onDismiss()
+                    },
+                ) {
+                    Text(text = stringResource(R.string.open_subtitle))
+                }
+
+                FilledTonalIconButton(
+                    onClick = { showSettings = !showSettings },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = NextIcons.Settings,
+                        contentDescription = "Subtitle Settings"
+                    )
+                }
+            }
+
+            if (showSettings) {
+                Column(modifier = Modifier.padding(top = 16.dp)) {
+                    DelayInput(
+                        value = subtitleOptionsState.delayMilliseconds,
+                        onValueChange = { subtitleOptionsState.setDelay(it) },
+                    )
+
+                    Spacer(modifier = Modifier.size(12.dp))
+
+                    SpeedInput(
+                        value = subtitleOptionsState.speedMultiplier,
+                        onValueChange = { subtitleOptionsState.setSpeed(it) },
+                    )
+
+                    Spacer(modifier = Modifier.size(12.dp))
+
+                    PreferenceSlider(
+                        title = "Position: ${(subtitleOptionsState.positionRatio * 100).toInt()}",
+                        icon = NextIcons.SubtitlePosition,
+                        value = subtitleOptionsState.positionRatio,
+                        valueRange = 0f..0.95f,
+                        onValueChange = { newValue ->
+                            currentAlpha = 0.4f
+                            subtitleOptionsState.setPosition(newValue)
+                        },
+                        onValueChangeFinished = {
+                            currentAlpha = 1f
+                        },
+                        trailingContent = {
+                            FilledIconButton(
+                                onClick = { subtitleOptionsState.setPosition(0.08f) }
+                            ) {
+                                Icon(imageVector = NextIcons.History, contentDescription = "Reset")
+                            }
+                        },
+                    )
+                }
+            }
         }
     }
 }

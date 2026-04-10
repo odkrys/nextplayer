@@ -75,7 +75,8 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.composables.MediaView
 @Composable
 fun SearchRoute(
     viewModel: SearchViewModel = hiltViewModel(),
-    onPlayVideo: (uri: Uri) -> Unit,
+    //onPlayVideo: (uri: Uri) -> Unit,
+    onPlayVideo: (videos: List<Video>, index: Int) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
     onNavigateUp: () -> Unit,
 ) {
@@ -85,7 +86,8 @@ fun SearchRoute(
         uiState = uiState,
         onNavigateUp = onNavigateUp,
         onFolderClick = onFolderClick,
-        onVideoClick = onPlayVideo,
+        //onVideoClick = onPlayVideo,
+        onVideoClick = { index -> onPlayVideo(uiState.searchResults.videos, index) },
         onEvent = viewModel::onEvent,
     )
 }
@@ -96,7 +98,8 @@ internal fun SearchScreen(
     uiState: SearchUiState,
     onNavigateUp: () -> Unit = {},
     onFolderClick: (String) -> Unit = {},
-    onVideoClick: (Uri) -> Unit = {},
+    //onVideoClick: (Uri) -> Unit = {},
+    onVideoClick: (Int) -> Unit = {},
     onEvent: (SearchUiEvent) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -363,7 +366,8 @@ private fun SearchResultsContent(
     isSearching: Boolean,
     contentPadding: PaddingValues = PaddingValues(),
     onFolderClick: (String) -> Unit,
-    onVideoClick: (Uri) -> Unit,
+    //onVideoClick: (Uri) -> Unit,
+    onVideoClick: (Int) -> Unit,
 ) {
     AnimatedVisibility(
         visible = isSearching,
@@ -415,7 +419,10 @@ private fun SearchResultsContent(
                 ),
                 preferences = preferences,
                 onFolderClick = onFolderClick,
-                onVideoClick = onVideoClick,
+                onVideoClick = { videoUri ->
+                    val index = searchResults.videos.indexOfFirst { Uri.parse(it.uriString) == videoUri }
+                    if (index != -1) onVideoClick(index)
+                },
                 showHeaders = true,
                 contentPadding = contentPadding,
             )

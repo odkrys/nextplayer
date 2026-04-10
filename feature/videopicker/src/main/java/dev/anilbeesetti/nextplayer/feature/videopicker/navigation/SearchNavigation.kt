@@ -5,6 +5,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
+import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.search.SearchRoute
 import kotlinx.serialization.Serializable
 
@@ -17,7 +18,8 @@ fun NavController.navigateToSearch(navOptions: NavOptions? = null) {
 
 fun NavGraphBuilder.searchScreen(
     onNavigateUp: () -> Unit,
-    onPlayVideo: (uri: Uri) -> Unit,
+    //onPlayVideo: (uri: Uri) -> Unit,
+    onPlayVideo: (videos: List<Video>, index: Int) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
 ) {
     composable<SearchRoute> {

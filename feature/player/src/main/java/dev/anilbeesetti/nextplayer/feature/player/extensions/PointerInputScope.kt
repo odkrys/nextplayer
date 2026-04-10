@@ -73,10 +73,12 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
 
             // If any position change is consumed from another PointerInputChange
             // or pointer count requirement is not fulfilled
-            val canceled = event.changes.any { it.isConsumed } || currentPointerCount != pointCount
+            //val canceled = event.changes.any { it.isConsumed } || currentPointerCount != pointCount
+            val isConsumed = event.changes.any { it.isConsumed }
 
-            if (!canceled) {
+            //if (!canceled) {
                 // Trigger onGestureStart only once when pointer count requirement is met
+            if (!isConsumed && currentPointerCount >= 2) {
                 if (!gestureStarted) {
                     gestureStarted = true
                     onGestureStart(pointer)
@@ -139,7 +141,8 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
                     }
                 }
             }
-        } while (!canceled && event.changes.any { it.pressed })
+        //} while (!canceled && event.changes.any { it.pressed })
+        } while (!isConsumed && event.changes.any { it.pressed })
 
         // Only trigger onGestureEnd if gesture was actually started
         if (gestureStarted) {

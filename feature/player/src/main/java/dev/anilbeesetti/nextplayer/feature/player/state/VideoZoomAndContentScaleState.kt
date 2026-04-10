@@ -132,10 +132,23 @@ class VideoZoomAndContentScaleState(
     }
 
     suspend fun observe() {
+        var lastMediaId: String? = player.currentMediaItem?.localConfiguration?.uri?.toString()
         zoom = player.currentMediaItem?.mediaMetadata?.videoZoom ?: 1f
+
         player.listen { events ->
             if (events.contains(Player.EVENT_MEDIA_METADATA_CHANGED)) {
-                zoom = player.currentMediaItem?.mediaMetadata?.videoZoom ?: 1f
+                //zoom = player.currentMediaItem?.mediaMetadata?.videoZoom ?: 1f
+                val currentItem = player.currentMediaItem
+                val currentId = currentItem?.localConfiguration?.uri?.toString()
+
+                if (currentId != lastMediaId) {
+                    zoom = currentItem?.mediaMetadata?.videoZoom ?: 1f
+                    offset = Offset.Zero
+                    isZooming = false
+                    lastMediaId = currentId
+                } else {
+                    zoom = currentItem?.mediaMetadata?.videoZoom ?: 1f
+                }
             }
         }
     }

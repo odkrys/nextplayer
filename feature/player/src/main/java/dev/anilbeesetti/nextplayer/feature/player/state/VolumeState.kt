@@ -78,6 +78,10 @@ class VolumeState(
     var volumePercentage: Int by mutableIntStateOf(calculateVolumePercentage())
         private set
 
+    fun updateVolume(volume: Int) {
+        setVolume(volume)
+    }
+
     fun updateVolumePercentage(percentage: Int) {
         val maxPercentage = maxVolumePercentage
         val clampedPercentage = percentage.coerceIn(0, maxPercentage)

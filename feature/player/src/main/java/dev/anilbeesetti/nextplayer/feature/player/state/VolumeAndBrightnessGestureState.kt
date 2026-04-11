@@ -62,6 +62,7 @@ class VolumeAndBrightnessGestureState(
 
     private var startingY = 0f
     private var startVolumePercentage = 0
+    private var startVolume = 0
     private var startBrightnessPercentage = 0
     private var job: Job? = null
 
@@ -74,6 +75,7 @@ class VolumeAndBrightnessGestureState(
         }
         startingY = offset.y
         startVolumePercentage = volumeState.volumePercentage
+        startVolume = volumeState.currentVolume
         startBrightnessPercentage = brightnessState.brightnessPercentage
     }
 
@@ -83,6 +85,7 @@ class VolumeAndBrightnessGestureState(
 
         when (activeGesture) {
             VerticalGesture.VOLUME -> {
+/*
                 val maxVolumePercentage = volumeState.maxVolumePercentage
                 val volumeChange = (startingY - change.position.y) * (volumeGestureSensitivity / 10)
                 val newVolume = startVolumePercentage + volumeChange.toInt()
@@ -90,8 +93,12 @@ class VolumeAndBrightnessGestureState(
                     minimumValue = 0 - startVolumePercentage,
                     maximumValue = maxVolumePercentage - startVolumePercentage,
                 )
+ */
+                val volumeChange = (startingY - change.position.y) * (volumeGestureSensitivity / 100f)
+                val newVolume = (startVolume + volumeChange).toInt()
                 brightnessChangePercentage = 0
-                volumeState.updateVolumePercentage(newVolume)
+                //volumeState.updateVolumePercentage(newVolume)
+                volumeState.updateVolume(newVolume)
             }
 
             VerticalGesture.BRIGHTNESS -> {

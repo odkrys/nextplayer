@@ -376,8 +376,10 @@ fun MediaPlayerScreen(
                         exit = fadeOut(),
                     ) {
                         VerticalProgressView(
-                            value = volumeState.volumePercentage,
-                            maxValue = volumeState.maxVolumePercentage,
+                            //value = volumeState.volumePercentage,
+                            value = volumeState.volumeStep,
+                            //maxValue = volumeState.maxVolumePercentage,
+                            maxValue = volumeState.maxVolumeSteps,
                             icon = painterResource(coreUiR.drawable.ic_volume),
                         )
                     }

@@ -69,6 +69,9 @@ class VolumeState(
     val maxVolume: Int
         get() = if (isLoudnessGainSupported) systemMaxVolume * 2 else systemMaxVolume
 
+    val maxVolumeSteps: Int
+        get() = maxVolume
+
     val maxVolumePercentage: Int
         get() = if (isLoudnessGainSupported) MAX_VOLUME_PERCENTAGE_BOOST else MAX_VOLUME_PERCENTAGE_NORMAL
 
@@ -78,12 +81,28 @@ class VolumeState(
     var volumePercentage: Int by mutableIntStateOf(calculateVolumePercentage())
         private set
 
+    var volumeStep: Int by mutableIntStateOf(currentVolume)
+        private set
+/*
     fun updateVolumePercentage(percentage: Int) {
         val maxPercentage = maxVolumePercentage
         val clampedPercentage = percentage.coerceIn(0, maxPercentage)
         val targetVolume = (clampedPercentage * systemMaxVolume) / MAX_VOLUME_PERCENTAGE_NORMAL
 
         setVolume(targetVolume)
+    }
+
+    fun increaseVolume(showVolumePanel: Boolean = false) {
+        setVolume(currentVolume + 1, showVolumePanel)
+    }
+
+    fun decreaseVolume(showVolumePanel: Boolean = false) {
+        setVolume(currentVolume - 1, showVolumePanel)
+    }
+*/
+    fun updateVolumeByStep(step: Int) {
+        val clampedStep = step.coerceIn(0, maxVolume)
+        setVolume(clampedStep)
     }
 
     fun increaseVolume(showVolumePanel: Boolean = false) {
@@ -101,7 +120,8 @@ class VolumeState(
                     if (intent.action == VOLUME_CHANGED_ACTION) {
                         if (currentVolume <= systemMaxVolume) {
                             currentVolume = audioManager.currentStreamVolume
-                            volumePercentage = calculateVolumePercentage()
+                            //volumePercentage = calculateVolumePercentage()
+                            volumeStep = currentVolume
                         }
                     }
                 }
@@ -123,12 +143,14 @@ class VolumeState(
         if (loudnessGain > 0 && isLoudnessGainSupported) {
             if (systemVolume < systemMaxVolume) {
                 currentVolume = systemVolume
-                volumePercentage = calculateVolumePercentage()
+                //volumePercentage = calculateVolumePercentage()
+                volumeStep = currentVolume
                 player.setLoudnessGain(0)
             } else {
                 val boostVolume = (loudnessGain * systemMaxVolume) / MAX_BOOST_GAIN_MB
                 currentVolume = systemMaxVolume + boostVolume
-                volumePercentage = calculateVolumePercentage()
+                //volumePercentage = calculateVolumePercentage()
+                volumeStep = currentVolume
             }
         }
 
@@ -144,7 +166,8 @@ class VolumeState(
     private fun setVolume(volume: Int, showVolumePanel: Boolean = false) {
         val clampedVolume = volume.coerceIn(0, maxVolume)
         currentVolume = clampedVolume
-        volumePercentage = calculateVolumePercentage()
+        //volumePercentage = calculateVolumePercentage()
+        volumeStep = clampedVolume
 
         if (clampedVolume <= systemMaxVolume) {
             setSystemVolume(clampedVolume, showVolumePanel)

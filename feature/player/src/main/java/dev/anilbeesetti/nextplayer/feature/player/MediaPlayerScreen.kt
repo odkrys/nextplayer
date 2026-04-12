@@ -317,8 +317,8 @@ fun MediaPlayerScreen(
                             when {
                                 seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
                                 videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
-                                videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
                                 videoZoomAndContentScaleState.showResetIndicator -> InfoView(info = "Reset")
+                                videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
                                 controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
                                 else -> Unit
                             }

@@ -50,10 +50,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
+import dev.anilbeesetti.nextplayer.core.ui.composables.VideoInfoDialog
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
 import dev.anilbeesetti.nextplayer.feature.player.buttons.NextButton
@@ -180,7 +182,13 @@ fun MediaPlayerScreen(
         }
     }
 
+    LaunchedEffect(player.currentMediaItem) {
+        viewModel.loadVideoInfo(player.currentMediaItem?.localConfiguration?.uri?.toString())
+    }
+
     var overlayView by remember { mutableStateOf<OverlayView?>(null) }
+    val currentVideo by viewModel.currentVideo.collectAsStateWithLifecycle()
+    var showVideoInfoDialog by remember { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
         Box {
@@ -281,6 +289,10 @@ fun MediaPlayerScreen(
                             ) {
                                 ControlsTopView(
                                     title = metadataState.title ?: "",
+                                    onTitleClick = {
+                                        controlsVisibilityState.hideControls()
+                                        showVideoInfoDialog = true
+                                    },
                                     onAudioClick = {
                                         controlsVisibilityState.hideControls()
                                         overlayView = OverlayView.AUDIO_SELECTOR
@@ -410,6 +422,17 @@ fun MediaPlayerScreen(
                 initialPosition = playerPreferences.subtitlePosition,
                 onVideoContentScaleChanged = { videoZoomAndContentScaleState.onVideoContentScaleChanged(it) },
             )
+
+            if (showVideoInfoDialog) {
+                currentVideo?.let { video ->
+                    VideoInfoDialog(
+                        video = video,
+                        onDismiss = { showVideoInfoDialog = false }
+                    )
+                } ?: run {
+                    showVideoInfoDialog = false
+                }
+            }
         }
     }
 

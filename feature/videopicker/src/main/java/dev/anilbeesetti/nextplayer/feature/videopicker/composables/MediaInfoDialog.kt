@@ -82,7 +82,8 @@ fun MediaInfoDialog(
                     )
                     MediaInfoText(
                         title = stringResource(id = R.string.frame_rate),
-                        subText = videoStream.frameRate.toInt().toString(),
+                        //subText = videoStream.frameRate.toInt().toString(),
+                        subText = "%.3f".format(videoStream.frameRate),
                     )
                     Utils.formatBitrate(videoStream.bitRate)?.let {
                         MediaInfoText(

@@ -82,6 +82,11 @@ class VideoZoomAndContentScaleState(
 
     private var showContentScaleJob: Job? = null
 
+    var showResetIndicator: Boolean by mutableStateOf(false)
+        private set
+
+    private var showResetJob: Job? = null
+
     fun onVideoContentScaleChanged(newContentScale: VideoContentScale) {
         videoContentScale = newContentScale
         zoom = 1f
@@ -162,6 +167,16 @@ class VideoZoomAndContentScaleState(
         onEvent(VideoZoomEvent.ZoomChanged(currentMediaItem, zoom))
     }
 
+    private fun showResetIndicator() {
+        showResetJob?.cancel()
+        showResetIndicator = true
+        showResetJob = coroutineScope.launch {
+            delay(CONTENT_SCALE_INDICATOR_DURATION_MS)
+            showResetIndicator = false
+            showResetJob = null
+        }
+    }
+
     fun resetZoomAndOffset() {
         zoom = 1f
         offset = Offset.Zero
@@ -171,6 +186,7 @@ class VideoZoomAndContentScaleState(
         onEvent(
             VideoZoomEvent.ContentScaleChanged(VideoContentScale.BEST_FIT)
         )
+        showResetIndicator()
     }
 }
 

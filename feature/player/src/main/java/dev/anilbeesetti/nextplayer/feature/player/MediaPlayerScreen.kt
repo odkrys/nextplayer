@@ -310,6 +310,7 @@ fun MediaPlayerScreen(
                                 seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
                                 videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
                                 videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
+                                videoZoomAndContentScaleState.showResetIndicator -> InfoView(info = "Reset")
                                 controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
                                 else -> Unit
                             }
@@ -332,7 +333,11 @@ fun MediaPlayerScreen(
                                     isPipSupported = pictureInPictureState.isPipSupported,
                                     onSeek = seekGestureState::onSeek,
                                     onSeekEnd = seekGestureState::onSeekEnd,
-                                    onRotateClick = rotationState::rotate,
+                                    //onRotateClick = rotationState::rotate,
+                                    onRotateClick = {
+                                        controlsVisibilityState.showControls()
+                                        rotationState.rotate()
+                                    },
                                     onPlayInBackgroundClick = onPlayInBackgroundClick,
                                     onLockControlsClick = {
                                         controlsVisibilityState.showControls()
@@ -343,8 +348,9 @@ fun MediaPlayerScreen(
                                         videoZoomAndContentScaleState.switchToNextVideoContentScale()
                                     },
                                     onVideoContentScaleLongClick = {
-                                        controlsVisibilityState.hideControls()
+                                        //controlsVisibilityState.hideControls()
                                         //overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                        controlsVisibilityState.showControls()
                                         videoZoomAndContentScaleState.resetZoomAndOffset()
                                     },
                                     onPictureInPictureClick = {

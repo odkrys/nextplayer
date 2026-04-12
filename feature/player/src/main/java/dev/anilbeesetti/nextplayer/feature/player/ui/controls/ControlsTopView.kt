@@ -2,7 +2,6 @@ package dev.anilbeesetti.nextplayer.feature.player.ui.controls
 
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -33,7 +32,6 @@ import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
 fun ControlsTopView(
     modifier: Modifier = Modifier,
     title: String,
-    onTitleClick: () -> Unit = {},
     onAudioClick: () -> Unit = {},
     onSubtitleClick: () -> Unit = {},
     onPlaybackSpeedClick: () -> Unit = {},
@@ -61,8 +59,7 @@ fun ControlsTopView(
             color = Color.White,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            //modifier = Modifier.weight(1f),
-            modifier = Modifier.weight(1f).clickable { onTitleClick() }
+            modifier = Modifier.weight(1f),
         )
 
         Row(

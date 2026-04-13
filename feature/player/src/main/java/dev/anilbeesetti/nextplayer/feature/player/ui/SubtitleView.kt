@@ -4,6 +4,7 @@ import android.graphics.Typeface
 import android.util.TypedValue
 import android.view.accessibility.CaptioningManager
 import androidx.annotation.OptIn
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -27,7 +28,7 @@ fun SubtitleView(
     configuration: SubtitleConfiguration,
 ) {
     val cuesState = rememberCuesState(player)
-
+/*
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
@@ -41,8 +42,7 @@ fun SubtitleView(
                         android.graphics.Color.WHITE,
                         android.graphics.Color.BLACK.takeIf { configuration.showBackground } ?: android.graphics.Color.TRANSPARENT,
                         android.graphics.Color.TRANSPARENT,
-                        //CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW,
-                        configuration.edgeType,
+                        CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW,
                         android.graphics.Color.BLACK,
                         Typeface.create(
                             configuration.font.toTypeface(),
@@ -53,7 +53,6 @@ fun SubtitleView(
                     setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
                 }
                 setApplyEmbeddedStyles(configuration.applyEmbeddedStyles)
-                setBottomPaddingFraction(configuration.subtitlePosition)
             }
         },
         update = { subtitleView ->
@@ -63,9 +62,93 @@ fun SubtitleView(
             } else {
                 subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
             }
-            subtitleView.setBottomPaddingFraction(configuration.subtitlePosition)
         },
     )
+*/
+
+    Box(modifier = modifier.fillMaxSize()) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                SubtitleView(context).apply {
+                    val captioningManager = getSystemService(context, CaptioningManager::class.java) ?: return@apply
+                    if (configuration.useSystemCaptionStyle) {
+                        val systemCaptionStyle = CaptionStyleCompat.createFromCaptionStyle(captioningManager.userStyle)
+                        setStyle(systemCaptionStyle)
+                    } else {
+                        val actualEdgeType = if (configuration.edgeType == 5) {
+                            CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                        } else {
+                            configuration.edgeType
+                        }
+                        val userStyle = CaptionStyleCompat(
+                            android.graphics.Color.WHITE,
+                            android.graphics.Color.BLACK.takeIf { configuration.showBackground } ?: android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT,
+                            actualEdgeType,
+                            android.graphics.Color.BLACK,
+                            Typeface.create(
+                                configuration.font.toTypeface(),
+                                Typeface.BOLD.takeIf { configuration.textBold } ?: Typeface.NORMAL,
+                            ),
+                        )
+                        setStyle(userStyle)
+                        setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
+                    }
+                    setApplyEmbeddedStyles(configuration.applyEmbeddedStyles)
+                    setBottomPaddingFraction(configuration.subtitlePosition)
+                }
+            },
+            update = { subtitleView ->
+                subtitleView.setCues(cuesState.cues)
+                if (isInPictureInPictureMode) {
+                    subtitleView.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION)
+                } else {
+                    subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
+                }
+                subtitleView.setBottomPaddingFraction(configuration.subtitlePosition)
+            },
+        )
+        if (configuration.edgeType == 5) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { context ->
+                    SubtitleView(context).apply {
+                        val captioningManager = getSystemService(context, CaptioningManager::class.java) ?: return@apply
+                        if (configuration.useSystemCaptionStyle) {
+                            val systemCaptionStyle = CaptionStyleCompat.createFromCaptionStyle(captioningManager.userStyle)
+                            setStyle(systemCaptionStyle)
+                        } else {
+                            val userStyle = CaptionStyleCompat(
+                                android.graphics.Color.WHITE,
+                                android.graphics.Color.TRANSPARENT,
+                                android.graphics.Color.TRANSPARENT,
+                                CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                android.graphics.Color.BLACK,
+                                Typeface.create(
+                                    configuration.font.toTypeface(),
+                                    Typeface.BOLD.takeIf { configuration.textBold } ?: Typeface.NORMAL,
+                                ),
+                            )
+                            setStyle(userStyle)
+                            setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
+                        }
+                        setApplyEmbeddedStyles(configuration.applyEmbeddedStyles)
+                        setBottomPaddingFraction(configuration.subtitlePosition)
+                    }
+                },
+                update = { subtitleView ->
+                    subtitleView.setCues(cuesState.cues)
+                    if (isInPictureInPictureMode) {
+                        subtitleView.setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION)
+                    } else {
+                        subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
+                    }
+                    subtitleView.setBottomPaddingFraction(configuration.subtitlePosition)
+                },
+            )
+        }
+    }
 }
 
 @Stable

@@ -146,6 +146,7 @@ private fun SubtitlePreferencesContent(
                             CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW -> "SHADOW"
                             CaptionStyleCompat.EDGE_TYPE_RAISED -> "RAISED"
                             CaptionStyleCompat.EDGE_TYPE_DEPRESSED -> "DEPRESSED"
+                            5 -> "OUTLINE + SHADOW"
                             else -> "NONE"
                     },
                     icon = NextIcons.TextFormat,
@@ -275,7 +276,8 @@ private fun SubtitlePreferencesContent(
                         CaptionStyleCompat.EDGE_TYPE_OUTLINE to "OUTLINE",
                         CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW to "SHADOW",
                         CaptionStyleCompat.EDGE_TYPE_RAISED to "RAISED",
-                        CaptionStyleCompat.EDGE_TYPE_DEPRESSED to "DEPRESSED"
+                        CaptionStyleCompat.EDGE_TYPE_DEPRESSED to "DEPRESSED",
+                        5 to "OUTLINE + SHADOW"
                     )
                     OptionsDialog(
                         text = stringResource(id = R.string.subtitle_style),

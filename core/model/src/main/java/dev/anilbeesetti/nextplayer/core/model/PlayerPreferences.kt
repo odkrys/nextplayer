@@ -55,7 +55,7 @@ data class PlayerPreferences(
     val subtitleTextSize: Int = DEFAULT_SUBTITLE_TEXT_SIZE,
     val subtitleBackground: Boolean = false,
     val subtitleFont: Font = Font.DEFAULT,
-    val subtitleEdgeType: Int = 1,
+    val subtitleEdgeType: Int = 5,
     val subtitleTextBold: Boolean = true,
     val subtitlePosition: Float = 0.08f,
     val applyEmbeddedStyles: Boolean = true,

@@ -71,6 +71,12 @@ fun PlayerContentFrame(
             },
     )
 
+    SubtitleView(
+        player = player,
+        isInPictureInPictureMode = pictureInPictureState.isInPictureInPictureMode,
+        configuration = subtitleConfiguration,
+    )
+
     PlayerGestures(
         controlsVisibilityState = controlsVisibilityState,
         tapGestureState = tapGestureState,
@@ -79,13 +85,13 @@ fun PlayerContentFrame(
         videoZoomAndContentScaleState = videoZoomAndContentScaleState,
         volumeAndBrightnessGestureState = volumeAndBrightnessGestureState,
     )
-
+/*
     SubtitleView(
         player = player,
         isInPictureInPictureMode = pictureInPictureState.isInPictureInPictureMode,
         configuration = subtitleConfiguration,
     )
-
+*/
     if (presentationState.coverSurface) {
         ShutterView()
     }

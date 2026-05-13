@@ -23,6 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class LocalMediaInfoSynchronizer @Inject constructor(
     private val mediumDao: MediumDao,
@@ -74,7 +75,7 @@ class LocalMediaInfoSynchronizer @Inject constructor(
             e.printStackTrace()
             Log.d(TAG, "sync: MediaInfoBuilder exception", e)
         }.getOrNull() ?: return
-        mediaInfo.release()
+        //mediaInfo.release()
 
         val videoStreamInfo = mediaInfo.videoStream?.toVideoStreamInfoEntity(medium.mediumEntity.uriString)
         val audioStreamsInfo = mediaInfo.audioStreams.map {
@@ -84,10 +85,24 @@ class LocalMediaInfoSynchronizer @Inject constructor(
             it.toSubtitleStreamInfoEntity(medium.mediumEntity.uriString)
         }
 
+        mediaInfo.release()
+
         mediumDao.upsert(medium.mediumEntity.copy(format = mediaInfo.format))
         videoStreamInfo?.let { mediumDao.upsertVideoStreamInfo(it) }
         audioStreamsInfo.onEach { mediumDao.upsertAudioStreamInfo(it) }
         subtitleStreamsInfo.onEach { mediumDao.upsertSubtitleStreamInfo(it) }
+    }
+
+    override suspend fun syncAndAwait(uri: Uri) {
+        val uriString = uri.toString()
+        val existing = mutex.withLock { activeSyncJobs[uriString] }
+        if (existing != null) {
+            existing.join()
+        } else {
+            withContext(dispatcher) {
+                performSync(uri)
+            }
+        }
     }
 
     companion object {

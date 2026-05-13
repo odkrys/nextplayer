@@ -8,12 +8,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedPlaylistUseCase
+import dev.anilbeesetti.nextplayer.core.media.sync.MediaInfoSynchronizer
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +27,7 @@ class PlayerViewModel @Inject constructor(
     private val mediaRepository: MediaRepository,
     private val preferencesRepository: PreferencesRepository,
     private val getSortedPlaylistUseCase: GetSortedPlaylistUseCase,
+    private val mediaInfoSynchronizer: MediaInfoSynchronizer,
 ) : ViewModel() {
 
     var playWhenReady: Boolean = true
@@ -38,6 +41,10 @@ class PlayerViewModel @Inject constructor(
 
     private val _currentVideo = MutableStateFlow<Video?>(null)
     val currentVideo = _currentVideo.asStateFlow()
+
+    private var loadVideoInfoJob: Job? = null
+
+    private val _currentVideoUri = MutableStateFlow<String?>(null)
 
     init {
         viewModelScope.launch {
@@ -126,9 +133,12 @@ class PlayerViewModel @Inject constructor(
 
     fun loadVideoInfo(uriString: String?) {
         if (uriString == null) return
-        viewModelScope.launch {
-            val video = mediaRepository.getVideoByUri(uriString)
-            _currentVideo.value = video
+        _currentVideoUri.value = uriString
+        loadVideoInfoJob?.cancel()
+        loadVideoInfoJob = viewModelScope.launch {
+            mediaInfoSynchronizer.syncAndAwait(Uri.parse(uriString))
+            if (_currentVideoUri.value != uriString) return@launch
+            _currentVideo.value = mediaRepository.getVideoByUri(uriString)
         }
     }
 }

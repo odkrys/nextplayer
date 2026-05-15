@@ -530,8 +530,13 @@ class PlayerService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
+    companion object {
+        var instance: PlayerService? = null
+    }
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
         val renderersFactory = NextRenderersFactory(applicationContext)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(
@@ -609,6 +614,7 @@ class PlayerService : MediaSessionService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        instance = null
         artworkLoadJob?.cancel()
         loudnessEnhancer?.release()
         loudnessEnhancer = null
@@ -620,8 +626,15 @@ class PlayerService : MediaSessionService() {
             release()
             mediaSession = null
         }
-        subtitleCacheDir.deleteFiles()
-        serviceScope.cancel()
+        //subtitleCacheDir.deleteFiles()
+        //serviceScope.cancel()
+        serviceScope.launch {
+            DlnaManager.stopCasting(applicationContext)
+        }.invokeOnCompletion {
+            DlnaManager.release()
+            subtitleCacheDir.deleteFiles()
+            serviceScope.cancel()
+        }
     }
 
     private suspend fun updatedMediaItemsWithMetadata(
@@ -721,6 +734,7 @@ class PlayerService : MediaSessionService() {
             )
         }
     }
+
     private suspend fun loadArtworkForMediaItem(mediaItem: MediaItem): Uri? = withContext(Dispatchers.IO) {
         val uri = mediaItem.mediaId.toUri()
         return@withContext try {
@@ -737,6 +751,7 @@ class PlayerService : MediaSessionService() {
             null
         }
     }
+
     private fun MediaItem.withArtwork(uri: Uri): MediaItem = buildUpon()
         .setMediaMetadata(
             mediaMetadata.buildUpon()
@@ -744,6 +759,47 @@ class PlayerService : MediaSessionService() {
                 .build(),
         )
         .build()
+
+    fun playNext() {
+        val player = mediaSession?.player ?: return
+        if (!player.hasNextMediaItem()) return
+
+        player.seekToNext()
+        player.pause()
+
+        serviceScope.launch {
+            kotlinx.coroutines.delay(100)
+            val nextUri = player.currentMediaItem?.localConfiguration?.uri?.toString() ?: return@launch
+            val nextPath = mediaRepository.getVideoByUri(nextUri)?.path ?: return@launch
+            val videoFile = java.io.File(nextPath)
+            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
+                java.io.File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext").takeIf { it.exists() }
+            }
+            DlnaManager.updateCastingFile(videoFile, subtitleFile, DlnaManager.currentDevice ?: return@launch)
+        }
+    }
+
+    fun playPrevious() {
+        val player = mediaSession?.player ?: return
+        if (!player.hasPreviousMediaItem()) return
+
+        player.seekToPrevious()
+        player.pause()
+
+        serviceScope.launch {
+            val uri = player.currentMediaItem?.localConfiguration?.uri?.toString() ?: return@launch
+            val path = mediaRepository.getVideoByUri(uri)?.path ?: return@launch
+            val videoFile = java.io.File(path)
+            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
+                java.io.File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext").takeIf { it.exists() }
+            }
+            DlnaManager.updateCastingFile(videoFile, subtitleFile, DlnaManager.currentDevice ?: return@launch)
+        }
+    }
+
+    fun hasNext(): Boolean {
+        return mediaSession?.player?.hasNextMediaItem() ?: false
+    }
 }
 
 @get:UnstableApi

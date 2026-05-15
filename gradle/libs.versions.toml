@@ -1,7 +1,7 @@
 [versions]
 android-compileSdk = "36"
 android-targetSdk = "36"
-android-minSdk = "23"
+android-minSdk = "26"
 android-jvm = "17"
 aboutlibraries = "14.0.0"
 accompanist = "0.37.3"
@@ -33,7 +33,8 @@ reorderable = "3.0.0"
 room = "2.8.4"
 nextlib = "1.9.3-0.12.0"
 universalChardet = "2.5.0"
-
+runtime = "1.11.1"
+foundationLayout = "1.11.1"
 
 [libraries]
 aboutlibraries-core = { group = "com.mikepenz", name = "aboutlibraries-core", version.ref = "aboutlibraries" }
@@ -87,6 +88,8 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 kotlin-metadata-jvm = { group = "org.jetbrains.kotlin", name = "kotlin-metadata-jvm", version.ref = "kotlin" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 
 [plugins]
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutlibraries" }

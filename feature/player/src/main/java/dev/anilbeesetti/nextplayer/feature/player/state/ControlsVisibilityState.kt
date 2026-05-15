@@ -43,6 +43,7 @@ class ControlsVisibilityState(
     private val player: Player,
     private val hideAfter: Duration,
     private val scope: CoroutineScope,
+    private var keepVisibleCount: Int = 0
 ) {
     private var autoHideControlsJob: Job? = null
 
@@ -92,11 +93,25 @@ class ControlsVisibilityState(
 
     private fun autoHideControls(duration: Duration = hideAfter) {
         autoHideControlsJob?.cancel()
+        if (keepVisibleCount > 0) return
         autoHideControlsJob = scope.launch {
             delay(duration)
             if (player.isPlaying) {
                 controlsVisible = false
             }
+        }
+    }
+
+    fun keepVisible() {
+        keepVisibleCount++
+        autoHideControlsJob?.cancel()
+        controlsVisible = true
+    }
+
+    fun releaseKeepVisible() {
+        keepVisibleCount = (keepVisibleCount - 1).coerceAtLeast(0)
+        if (keepVisibleCount == 0) {
+            autoHideControls()
         }
     }
 }

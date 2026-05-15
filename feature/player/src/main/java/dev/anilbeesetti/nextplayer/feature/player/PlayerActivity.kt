@@ -38,6 +38,7 @@ import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
 import dev.anilbeesetti.nextplayer.feature.player.extensions.registerForSuspendActivityResult
 import dev.anilbeesetti.nextplayer.feature.player.extensions.setExtras
 import dev.anilbeesetti.nextplayer.feature.player.extensions.uriToSubtitleConfiguration
+import dev.anilbeesetti.nextplayer.feature.player.service.DlnaManager
 import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
 import dev.anilbeesetti.nextplayer.feature.player.service.addSubtitleTrack
 import dev.anilbeesetti.nextplayer.feature.player.service.stopPlayerSession
@@ -198,7 +199,12 @@ class PlayerActivity : ComponentActivity() {
 
         if (returningFromBackground || isNewUriTheCurrentMediaItem) {
             mediaController?.prepare()
-            mediaController?.playWhenReady = viewModel.playWhenReady
+            //mediaController?.playWhenReady = viewModel.playWhenReady
+            if (DlnaManager.currentDevice != null) {
+                mediaController?.pause()
+            } else {
+                mediaController?.playWhenReady = viewModel.playWhenReady
+            }
             return
         }
 

@@ -32,11 +32,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
@@ -58,6 +62,7 @@ import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.ui.composables.VideoInfoDialog
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
+import dev.anilbeesetti.nextplayer.feature.player.buttons.DlnaCastButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.NextButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayPauseButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
@@ -79,6 +84,7 @@ import dev.anilbeesetti.nextplayer.feature.player.state.rememberVolumeState
 import dev.anilbeesetti.nextplayer.feature.player.extensions.nameRes
 import dev.anilbeesetti.nextplayer.feature.player.state.seekAmountFormatted
 import dev.anilbeesetti.nextplayer.feature.player.state.seekToPositionFormated
+import dev.anilbeesetti.nextplayer.feature.player.ui.CastingControllerView
 import dev.anilbeesetti.nextplayer.feature.player.ui.DoubleTapIndicator
 import dev.anilbeesetti.nextplayer.feature.player.ui.OverlayShowView
 import dev.anilbeesetti.nextplayer.feature.player.ui.OverlayView
@@ -86,6 +92,7 @@ import dev.anilbeesetti.nextplayer.feature.player.ui.SubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.ui.VerticalProgressView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsBottomView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsTopView
+import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 val LocalControlsVisibilityState = compositionLocalOf<ControlsVisibilityState?> { null }
@@ -190,7 +197,74 @@ fun MediaPlayerScreen(
     val currentVideo by viewModel.currentVideo.collectAsStateWithLifecycle()
     var showVideoInfoDialog by remember { mutableStateOf(false) }
 
+    val dlnaDevices by viewModel.dlnaDevices.collectAsStateWithLifecycle()
+    val isDlnaSearching by viewModel.isDlnaSearching.collectAsStateWithLifecycle()
+    val currentUri = player.currentMediaItem?.localConfiguration?.uri?.toString()
+    val dlnaPlaybackState by viewModel.dlnaPlaybackState.collectAsStateWithLifecycle()
+    var isDlnaMenuExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val isCastingActiveRef = rememberUpdatedState(dlnaPlaybackState.isActive)
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val uri = mediaItem?.localConfiguration?.uri?.toString() ?: return
+                viewModel.loadVideoInfo(uri)
+
+                if (isCastingActiveRef.value &&
+                    reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+                ) {
+                    viewModel.castCurrentMediaToActiveDevice(uri, context)
+                }
+            }
+        }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
+    }
+
+    LaunchedEffect(dlnaPlaybackState.isActive) {
+        if (dlnaPlaybackState.isActive) {
+            player.pause()
+        }
+    }
+
+    LaunchedEffect(isDlnaMenuExpanded) {
+        if (isDlnaMenuExpanded) {
+            controlsVisibilityState.keepVisible()
+        } else {
+            controlsVisibilityState.releaseKeepVisible()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.castingEvent.collect { event ->
+            when (event) {
+                is CastingEvent.PlayNext -> {
+                    if (player.hasNextMediaItem()) {
+                        player.seekToNext()
+                    } else {
+                        viewModel.stopCasting(context)
+                    }
+                }
+                is CastingEvent.PlayPrevious -> {
+                    if (player.hasPreviousMediaItem()) {
+                        player.seekToPrevious()
+                    } else {
+                        viewModel.stopCasting(context)
+                    }
+                }
+                is CastingEvent.StopCasting -> {
+                    viewModel.stopCasting(context)
+                }
+            }
+        }
+    }
+
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
+        val dlnaPlaybackState by viewModel.dlnaPlaybackState.collectAsStateWithLifecycle()
+        var interactionTick by remember { mutableIntStateOf(0) }
+        val autoHideTimeout = playerPreferences.controllerAutoHideTimeout.seconds
+
         Box {
             Box(
                 modifier = modifier
@@ -262,6 +336,7 @@ fun MediaPlayerScreen(
                     }
                 }
 
+/*
                 if (controlsVisibilityState.controlsVisible && controlsVisibilityState.controlsLocked) {
                     Column(
                         modifier = Modifier
@@ -374,6 +449,195 @@ fun MediaPlayerScreen(
                         },
                     )
                 }
+*/
+
+                when {
+                    controlsVisibilityState.controlsVisible && controlsVisibilityState.controlsLocked -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .safeDrawingPadding()
+                                .padding(top = 24.dp),
+                        ) {
+                            PlayerButton(
+                                containerColor = Color.Black.copy(0.5f),
+                                onClick = { controlsVisibilityState.unlockControls() },
+                            ) {
+                                Icon(
+                                    painter = painterResource(coreUiR.drawable.ic_lock),
+                                    contentDescription = stringResource(coreUiR.string.controls_unlock),
+                                )
+                            }
+                        }
+                    }
+
+                    dlnaPlaybackState.isActive -> {
+                        LaunchedEffect(controlsVisibilityState.controlsVisible, dlnaPlaybackState.isPlaying, interactionTick) {
+                            if (controlsVisibilityState.controlsVisible && dlnaPlaybackState.isPlaying) {
+                                delay(autoHideTimeout)
+                                controlsVisibilityState.hideControls()
+                            }
+                        }
+
+                        CastingControllerView(
+                            mediaId = dlnaPlaybackState.mediaId,
+                            position = dlnaPlaybackState.positionMs,
+                            duration = dlnaPlaybackState.durationMs,
+                            isPlaying = dlnaPlaybackState.isPlaying,
+                            title = currentVideo?.nameWithExtension ?: metadataState.title ?: "",
+                            controlsVisible = controlsVisibilityState.controlsVisible,
+                            dlnaAutoplay = playerPreferences.dlnaAutoplay ?: false,
+                            onToggleAutoplay = viewModel::toggleDlnaAutoplay,
+                            onTap = {
+                                if (controlsVisibilityState.controlsVisible) {
+                                    controlsVisibilityState.hideControls()
+                                } else {
+                                    interactionTick++
+                                    controlsVisibilityState.showControls()
+                                }
+                            },
+                            onInteraction = {
+                                interactionTick++
+                                controlsVisibilityState.showControls()
+                            },
+                            onSeek = viewModel::seekCasting,
+                            onStop = { viewModel.stopCasting(context) },
+                            onPlayPause = viewModel::toggleCastingPlayPause,
+                            onPrevious = viewModel::playPreviousCasting,
+                            onNext = viewModel::playNextCasting,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+
+                    else -> {
+                        PlayerControlsView(
+                            topView = {
+                                AnimatedVisibility(
+                                    visible = controlsVisibilityState.controlsVisible,
+                                    enter = fadeIn(),
+                                    exit = fadeOut(),
+                                ) {
+                                    ControlsTopView(
+                                        title = metadataState.title ?: "",
+                                        onTitleClick = {
+                                            controlsVisibilityState.hideControls()
+                                            showVideoInfoDialog = true
+                                        },
+                                        onAudioClick = {
+                                            controlsVisibilityState.hideControls()
+                                            overlayView = OverlayView.AUDIO_SELECTOR
+                                        },
+                                        onSubtitleClick = {
+                                            controlsVisibilityState.hideControls()
+                                            overlayView = OverlayView.SUBTITLE_SELECTOR
+                                        },
+                                        onPlaybackSpeedClick = {
+                                            controlsVisibilityState.hideControls()
+                                            overlayView = OverlayView.PLAYBACK_SPEED
+                                        },
+                                        onPlaylistClick = {
+                                            controlsVisibilityState.hideControls()
+                                            overlayView = OverlayView.PLAYLIST
+                                        },
+                                        onBackClick = onBackClick,
+                                    )
+                                }
+                            },
+                            middleView = {
+                                when {
+                                    seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
+                                    videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
+                                    videoZoomAndContentScaleState.showResetIndicator -> InfoView(info = "Reset")
+                                    videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
+                                    controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
+                                    else -> Unit
+                                }
+                            },
+                            bottomView = {
+                                AnimatedVisibility(
+                                    visible = controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked,
+                                    enter = fadeIn(),
+                                    exit = fadeOut(),
+                                ) {
+                                    val context = LocalContext.current
+                                    ControlsBottomView(
+                                        player = player,
+                                        mediaPresentationState = mediaPresentationState,
+                                        controlsAlignment = when (playerPreferences.controlButtonsPosition) {
+                                            ControlButtonsPosition.LEFT -> Alignment.Start
+                                            ControlButtonsPosition.RIGHT -> Alignment.End
+                                        },
+                                        videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                                        isPipSupported = pictureInPictureState.isPipSupported,
+                                        onSeek = seekGestureState::onSeek,
+                                        onSeekEnd = seekGestureState::onSeekEnd,
+                                        //onRotateClick = rotationState::rotate,
+                                        onRotateClick = {
+                                            controlsVisibilityState.showControls()
+                                            rotationState.rotate()
+                                        },
+                                        onPlayInBackgroundClick = onPlayInBackgroundClick,
+                                        onLockControlsClick = {
+                                            controlsVisibilityState.showControls()
+                                            controlsVisibilityState.lockControls()
+                                        },
+                                        onVideoContentScaleClick = {
+                                            controlsVisibilityState.showControls()
+                                            videoZoomAndContentScaleState.switchToNextVideoContentScale()
+                                        },
+                                        onVideoContentScaleLongClick = {
+                                            //controlsVisibilityState.hideControls()
+                                            //overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                            controlsVisibilityState.showControls()
+                                            videoZoomAndContentScaleState.resetZoomAndOffset()
+                                        },
+                                        onPictureInPictureClick = {
+                                            if (!pictureInPictureState.hasPipPermission) {
+                                                Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
+                                                pictureInPictureState.openPictureInPictureSettings()
+                                            } else {
+                                                pictureInPictureState.enterPictureInPictureMode()
+                                            }
+                                        },
+                                    )
+                                }
+                            },
+                        )
+                    }
+                }
+
+                if (!dlnaPlaybackState.isActive) {
+                    AnimatedVisibility(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .safeDrawingPadding()
+                            .padding(top = 54.dp, end = 12.dp),
+                        visible = controlsVisibilityState.controlsVisible &&
+                                !controlsVisibilityState.controlsLocked,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.5f),
+                        ) {
+                            DlnaCastButton(
+                                devices = dlnaDevices,
+                                isSearching = isDlnaSearching,
+                                isCasting = dlnaPlaybackState.isActive,
+                                expanded = isDlnaMenuExpanded,
+                                onExpandedChange = { isDlnaMenuExpanded = it },
+                                onOpen = { viewModel.searchDlnaDevices(context) },
+                                onDeviceSelected = { device ->
+                                    currentUri?.let { viewModel.castToDevice(device, it, context) }
+                                    isDlnaMenuExpanded = false
+                                },
+                                onStopCasting = { viewModel.stopCasting(context) },
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                    }
+                }
 
                 val systemBarsPadding = WindowInsets.systemBars.asPaddingValues()
                 Box(
@@ -475,6 +739,9 @@ fun MediaPlayerScreen(
         if (overlayView != null) {
             overlayView = null
         } else {
+            if (dlnaPlaybackState.isActive) {
+                viewModel.stopCasting(context)
+            }
             onBackClick()
         }
     }

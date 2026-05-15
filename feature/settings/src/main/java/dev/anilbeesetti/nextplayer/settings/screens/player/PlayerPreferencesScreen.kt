@@ -152,6 +152,15 @@ private fun PlayerPreferencesContent(
                     isChecked = uiState.preferences.autoplay,
                     onClick = { onEvent(PlayerPreferencesUiEvent.ToggleAutoplay) },
                 )
+                PreferenceSwitch(
+                    title = stringResource(id = R.string.dlna_autoplay_settings),
+                    description = stringResource(
+                        id = R.string.dlna_autoplay_settings_description,
+                    ),
+                    icon = NextIcons.Cast,
+                    isChecked = uiState.preferences.dlnaAutoplay,
+                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleDlnaAutoplay) },
+                )
                 if (LocalContext.current.isPipFeatureSupported) {
                     PreferenceSwitch(
                         title = stringResource(id = R.string.pip_settings),

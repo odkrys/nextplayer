@@ -11,6 +11,8 @@ import androidx.compose.material.icons.rounded.Audiotrack
 import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Cast
+import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Deselect
 import androidx.compose.material.icons.rounded.DeveloperBoard
+import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.DoubleArrow
 import androidx.compose.material.icons.rounded.Edit
@@ -77,6 +80,7 @@ import androidx.compose.material.icons.rounded.Title
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material.icons.rounded.Update
 
 object NextIcons {
@@ -88,6 +92,8 @@ object NextIcons {
     val Background = Icons.Rounded.FlipToBack
     val Bold = Icons.Rounded.FormatBold
     val Brightness = Icons.Rounded.BrightnessHigh
+    val Cast = Icons.Rounded.Cast
+    val CastConnected = Icons.Rounded.CastConnected
     val Calendar = Icons.Rounded.CalendarMonth
     val Caption = Icons.Rounded.ClosedCaption
     val Check = Icons.Rounded.Check
@@ -99,6 +105,7 @@ object NextIcons {
     val DashBoard = Icons.Rounded.Dashboard
     val Decoder = Icons.Rounded.DeveloperBoard
     val Delete = Icons.Rounded.Delete
+    val Devices =  Icons.Rounded.Devices
     val DoubleTap = Icons.Rounded.DoubleArrow
     val Edit = Icons.Rounded.Edit
     val Fast = Icons.Rounded.FastForward
@@ -141,6 +148,7 @@ object NextIcons {
     val TextFormat = Icons.Rounded.TextFormat
     val Timer = Icons.Rounded.Timer
     val Title = Icons.Rounded.Title
+    val Tv = Icons.Rounded.Tv
     val Update = Icons.Rounded.Update
     val Video = Icons.Rounded.Movie
     val VolumeUp = Icons.AutoMirrored.Rounded.VolumeUp

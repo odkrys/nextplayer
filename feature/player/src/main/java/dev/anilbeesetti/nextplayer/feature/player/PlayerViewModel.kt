@@ -1,10 +1,13 @@
 package dev.anilbeesetti.nextplayer.feature.player
 
+import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedPlaylistUseCase
@@ -13,10 +16,17 @@ import dev.anilbeesetti.nextplayer.core.model.MediaInfo
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
+import dev.anilbeesetti.nextplayer.feature.player.service.CastingService
+import dev.anilbeesetti.nextplayer.feature.player.service.DlnaManager
+import dev.anilbeesetti.nextplayer.feature.player.service.DlnaTransportState
+import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
+import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -26,6 +36,7 @@ class PlayerViewModel @Inject constructor(
     private val mediaRepository: MediaRepository,
     private val preferencesRepository: PreferencesRepository,
     private val getSortedPlaylistUseCase: GetSortedPlaylistUseCase,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     var playWhenReady: Boolean = true
@@ -37,10 +48,50 @@ class PlayerViewModel @Inject constructor(
     )
     val uiState = internalUiState.asStateFlow()
 
+    private val _dlnaDevices = MutableStateFlow<List<DlnaManager.DlnaDevice>>(emptyList())
+    val dlnaDevices = _dlnaDevices.asStateFlow()
+
+    private val _isDlnaSearching = MutableStateFlow(false)
+    val isDlnaSearching = _isDlnaSearching.asStateFlow()
+
+    private val _castingEvent = MutableSharedFlow<CastingEvent>()
+    val castingEvent = _castingEvent.asSharedFlow()
+
+    val dlnaPlaybackState = DlnaManager.playbackState
+    private var autoStopJob: kotlinx.coroutines.Job? = null
+
     init {
         viewModelScope.launch {
             preferencesRepository.playerPreferences.collect { prefs ->
                 internalUiState.update { it.copy(playerPreferences = prefs) }
+            }
+        }
+
+        viewModelScope.launch {
+            DlnaManager.playbackState.collect { state ->
+                if (state.isActive && state.transportState == DlnaTransportState.STOPPED) {
+                    if (autoStopJob == null) {
+                        autoStopJob = launch {
+                            kotlinx.coroutines.delay(2000L)
+
+                            if (internalUiState.value.playerPreferences?.dlnaAutoplay == true) {
+                                if (PlayerService.instance?.hasNext() == true) {
+                                    PlayerService.instance?.playNext() ?: _castingEvent.emit(CastingEvent.PlayNext)
+                                } else {
+                                    stopCasting(appContext)
+                                }
+                            } else {
+                                stopCasting(appContext)
+                            }
+                        }
+                    }
+                } else if (state.isActive && state.isPlaying) {
+                    autoStopJob?.cancel()
+                    autoStopJob = null
+                } else if (!state.isActive) {
+                    autoStopJob?.cancel()
+                    autoStopJob = null
+                }
             }
         }
     }
@@ -131,8 +182,89 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun dismissMediaInfo() {
-        internalUiState.update { it.copy(mediaInfo = null) }
+    fun searchDlnaDevices(context: Context) {
+        viewModelScope.launch {
+            _isDlnaSearching.value = true
+            _dlnaDevices.value = DlnaManager.searchDevices(context)
+            _isDlnaSearching.value = false
+        }
+    }
+
+    fun castToDevice(device: DlnaManager.DlnaDevice, uri: String, context: Context) {
+        viewModelScope.launch {
+            val filePath = mediaRepository.getVideoByUri(uri)?.path ?: return@launch
+            val videoFile = File(filePath)
+            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
+                File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext")
+                    .takeIf { it.exists() }
+            }
+
+            DlnaManager.startCasting(
+                context = context,
+                file = videoFile,
+                subtitleFile = subtitleFile,
+                device = device,
+                onSuccess = { Log.d("DLNA", "Started casting to ${device.name}") },
+                onError = { Log.e("DLNA", it) }
+            )
+        }
+    }
+
+    fun stopCasting(context: Context) {
+        context.startService(CastingService.stopIntent(context))
+    }
+
+    fun castCurrentMediaToActiveDevice(uri: String, context: Context) {
+        val device = DlnaManager.currentDevice ?: return
+        viewModelScope.launch {
+            val filePath = mediaRepository.getVideoByUri(uri)?.path ?: return@launch
+
+            if (filePath == DlnaManager.currentCastingPath) {
+                return@launch
+            }
+
+            val videoFile = File(filePath)
+            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
+                File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext").takeIf { it.exists() }
+            }
+
+            DlnaManager.updateCastingFile(videoFile, subtitleFile, device)
+        }
+    }
+
+    fun seekCasting(positionMs: Long) {
+        viewModelScope.launch {
+            DlnaManager.currentDevice?.let { DlnaManager.seekTo(it, positionMs) }
+        }
+    }
+
+    fun toggleCastingPlayPause() {
+        viewModelScope.launch {
+            val device = DlnaManager.currentDevice ?: return@launch
+            if (dlnaPlaybackState.value.isPlaying) {
+                DlnaManager.pause(device)
+            } else {
+                DlnaManager.play(device)
+            }
+        }
+    }
+
+    fun playPreviousCasting() {
+        PlayerService.instance?.playPrevious()
+            ?: viewModelScope.launch { _castingEvent.emit(CastingEvent.PlayPrevious) }
+    }
+
+    fun playNextCasting() {
+        PlayerService.instance?.playNext()
+            ?: viewModelScope.launch { _castingEvent.emit(CastingEvent.PlayNext) }
+    }
+
+    fun toggleDlnaAutoplay() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { currentPrefs ->
+                currentPrefs.copy(dlnaAutoplay = !currentPrefs.dlnaAutoplay)
+            }
+        }
     }
 }
 
@@ -143,3 +275,9 @@ data class PlayerUiState(
 )
 
 sealed interface PlayerEvent
+
+sealed interface CastingEvent {
+    object PlayNext : CastingEvent
+    object PlayPrevious : CastingEvent
+    object StopCasting : CastingEvent
+}

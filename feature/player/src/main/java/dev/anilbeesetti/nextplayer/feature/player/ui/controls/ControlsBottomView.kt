@@ -190,7 +190,8 @@ fun ControlsBottomView(
 
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PlayerSeekbar(
+//private fun PlayerSeekbar(
+internal fun PlayerSeekbar(
     modifier: Modifier = Modifier,
     position: Float,
     duration: Float,

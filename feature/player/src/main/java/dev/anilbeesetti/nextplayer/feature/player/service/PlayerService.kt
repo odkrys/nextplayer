@@ -2,6 +2,7 @@ package dev.anilbeesetti.nextplayer.feature.player.service
 
 import android.app.PendingIntent
 import android.content.ContentResolver
+import android.content.Context
 import android.content.Intent
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
@@ -31,7 +32,6 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import coil3.ImageLoader
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
@@ -75,6 +75,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -760,7 +761,19 @@ class PlayerService : MediaSessionService() {
         )
         .build()
 
-    fun playNext() {
+    private suspend fun resolveMediaSourceFromPlayer(): CastMediaSource? {
+        val uri = mediaSession?.player?.currentMediaItem
+            ?.localConfiguration?.uri?.toString() ?: return null
+        return resolveMediaSource(uri) { mediaRepository.getVideoByUri(it)?.path }
+    }
+
+    private suspend fun updateCastingToCurrentItem(context: Context) {
+        val device = DlnaManager.currentDevice ?: return
+        val source = resolveMediaSourceFromPlayer() ?: return
+        DlnaManager.updateCastingSource(context, source, device)
+    }
+
+    fun playNext(context: Context) {
         val player = mediaSession?.player ?: return
         if (!player.hasNextMediaItem()) return
 
@@ -768,18 +781,12 @@ class PlayerService : MediaSessionService() {
         player.pause()
 
         serviceScope.launch {
-            kotlinx.coroutines.delay(100)
-            val nextUri = player.currentMediaItem?.localConfiguration?.uri?.toString() ?: return@launch
-            val nextPath = mediaRepository.getVideoByUri(nextUri)?.path ?: return@launch
-            val videoFile = java.io.File(nextPath)
-            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
-                java.io.File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext").takeIf { it.exists() }
-            }
-            DlnaManager.updateCastingFile(videoFile, subtitleFile, DlnaManager.currentDevice ?: return@launch)
+            delay(100)
+            updateCastingToCurrentItem(context)
         }
     }
 
-    fun playPrevious() {
+    fun playPrevious(context: Context) {
         val player = mediaSession?.player ?: return
         if (!player.hasPreviousMediaItem()) return
 
@@ -787,13 +794,8 @@ class PlayerService : MediaSessionService() {
         player.pause()
 
         serviceScope.launch {
-            val uri = player.currentMediaItem?.localConfiguration?.uri?.toString() ?: return@launch
-            val path = mediaRepository.getVideoByUri(uri)?.path ?: return@launch
-            val videoFile = java.io.File(path)
-            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
-                java.io.File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext").takeIf { it.exists() }
-            }
-            DlnaManager.updateCastingFile(videoFile, subtitleFile, DlnaManager.currentDevice ?: return@launch)
+            delay(100)
+            updateCastingToCurrentItem(context)
         }
     }
 

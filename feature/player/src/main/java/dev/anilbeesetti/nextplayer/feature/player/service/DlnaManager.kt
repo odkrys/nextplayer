@@ -1,12 +1,10 @@
 package dev.anilbeesetti.nextplayer.feature.player.service
 
-import android.Manifest
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.util.Log
-import androidx.annotation.RequiresPermission
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +19,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.io.IOException
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -105,6 +102,14 @@ object DlnaManager {
             socket.timeToLive = 4
             socket.soTimeout = 3000
 
+            val validInterfaces = NetworkInterface.getNetworkInterfaces()?.toList()
+                ?.filter { iface ->
+                    iface.isUp && !iface.isLoopback && !iface.isVirtual &&
+                            iface.inetAddresses.toList()
+                                .filterIsInstance<Inet4Address>()
+                                .any { isPrivateIp(it) }
+                } ?: emptyList()
+
             val group = java.net.InetAddress.getByName("239.255.255.250")
 
             val searchTargets = listOf(
@@ -112,42 +117,61 @@ object DlnaManager {
                 "urn:schemas-upnp-org:service:AVTransport:1",
             )
 
-            for (st in searchTargets) {
-                val msg = "M-SEARCH * HTTP/1.1\r\n" +
-                        "HOST: 239.255.255.250:1900\r\n" +
-                        "MAN: \"ssdp:discover\"\r\n" +
-                        "MX: 2\r\n" +
-                        "ST: $st\r\n" +
-                        "\r\n"
+            coroutineScope {
+                val sendJob = launch {
+                    for (iface in validInterfaces) {
+                        try {
+                            socket.networkInterface = iface
+                            for (st in searchTargets) {
+                                val msg = "M-SEARCH * HTTP/1.1\r\n" +
+                                        "HOST: 239.255.255.250:1900\r\n" +
+                                        "MAN: \"ssdp:discover\"\r\n" +
+                                        "MX: 2\r\n" +
+                                        "ST: $st\r\n" +
+                                        "\r\n"
 
-                repeat(3) {
-                    socket.send(java.net.DatagramPacket(msg.toByteArray(), msg.length, group, 1900))
-                    Thread.sleep(100)
-                }
-            }
+                                val packet = java.net.DatagramPacket(msg.toByteArray(), msg.length, group, 1900)
 
-            val buf = ByteArray(2048)
-            val deadline = System.currentTimeMillis() + 3000
-
-            while (System.currentTimeMillis() < deadline) {
-                try {
-                    val packet = java.net.DatagramPacket(buf, buf.size)
-                    socket.receive(packet)
-                    val response = String(packet.data, 0, packet.length)
-                    val address = packet.address.hostAddress ?: continue
-
-                    val location = Regex("LOCATION:\\s*(.+)", RegexOption.IGNORE_CASE)
-                        .find(response)?.groupValues?.get(1)?.trim() ?: continue
-
-                    if (!discovered.containsKey(address)) {
-                        discovered[address] = location
+                                repeat(3) {
+                                    if (!isActive) return@launch
+                                    socket.send(packet)
+                                    delay(50)
+                                }
+                            }
+                        } catch (e: java.net.SocketException) {
+                            break
+                        } catch (e: Exception) {
+                            Log.w("DLNA_SEARCH", "Failed to send via ${iface.name}: ${e.message}")
+                        }
                     }
-                } catch (_: java.net.SocketTimeoutException) {
-                    break
+                }
+
+                try {
+                    val buf = ByteArray(2048)
+                    val deadline = System.currentTimeMillis() + 3000
+
+                    while (System.currentTimeMillis() < deadline) {
+                        try {
+                            val packet = java.net.DatagramPacket(buf, buf.size)
+                            socket.receive(packet)
+
+                            val response = String(packet.data, 0, packet.length)
+                            val address = packet.address.hostAddress ?: continue
+                            val location = Regex("LOCATION:\\s*(.+)", RegexOption.IGNORE_CASE)
+                                .find(response)?.groupValues?.get(1)?.trim() ?: continue
+
+                            if (!discovered.containsKey(address)) {
+                                discovered[address] = location
+                            }
+                        } catch (_: java.net.SocketTimeoutException) {
+                            break
+                        }
+                    }
+                } finally {
+                    sendJob.cancel()
+                    socket.close()
                 }
             }
-            socket.close()
-
         } catch (e: Exception) {
             Log.e(TAG, "Failed to discover DLNA devices: $e")
         } finally {
@@ -235,7 +259,7 @@ object DlnaManager {
                         break
                     }
                 }
-                delay(1000L)
+                delay(1000)
             }
         }
     }
@@ -249,21 +273,21 @@ object DlnaManager {
         stopServer()
     }
 
-    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     suspend fun startCasting(
         context: Context,
-        file: File,
-        subtitleFile: File?,
+        source: CastMediaSource,
         device: DlnaDevice,
         onSuccess: () -> Unit,
         onError: (String) -> Unit,
     ) {
-        if (!file.exists()) { onError("File not found"); return }
+        if (source is CastMediaSource.LocalFile && !source.file.exists()) {
+            onError("File not found")
+            return
+        }
 
         stopServer()
         try {
-            server = LocalMediaServer(PORT, file).apply {
-                this.subtitleFile = subtitleFile
+            server = LocalMediaServer(PORT, source).apply {
                 start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
             }
         } catch (e: Exception) {
@@ -271,26 +295,97 @@ object DlnaManager {
             return
         }
 
-        delay(200L)
+        delay(200)
+
+        val mediaId = when (source) {
+            is CastMediaSource.LocalFile -> source.file.absolutePath
+            is CastMediaSource.RemoteUrl -> source.url
+        }
 
         context.startForegroundService(
-            CastingService.startIntent(context, file.absolutePath, subtitleFile?.absolutePath)
+            CastingService.startIntent(context, mediaId, source.subtitleFile?.absolutePath)
         )
 
         val ip = getLocalIp(context) ?: run { onError("Local IP address not found"); return }
         val videoUrl = "http://$ip:$PORT/video"
-        val subtitleUrl = subtitleFile?.let { "http://$ip:$PORT/subtitle" }
-        val mimeType = getMimeTypeFromFile(file)
+        val subtitleUrl = when {
+            source.subtitleFile != null -> "http://$ip:$PORT/subtitle"
+            source.subtitleUrl != null -> {
+                "http://$ip:$PORT/subtitle"
+            }
+            else -> null
+        }
 
-        val success = sendDlnaPlay(device.location, videoUrl, subtitleUrl, file.nameWithoutExtension, mimeType)
+        val title = when (source) {
+            is CastMediaSource.LocalFile -> source.file.nameWithoutExtension
+            is CastMediaSource.RemoteUrl -> source.url.substringAfterLast("/").substringBeforeLast(".")
+        }
+        val mimeType = getMimeType(source)
+
+        val success = sendDlnaPlay(device.location, videoUrl, subtitleUrl, title, mimeType)
         if (success) {
             currentDevice = device
-            startPolling(device, file.absolutePath)
+            currentCastingPath = mediaId
+            startPolling(device, mediaId)
             onSuccess()
         } else {
             onError("Failed to cast to device")
         }
-        currentCastingPath = file.absolutePath
+    }
+
+    suspend fun updateCastingSource(
+        context: Context,
+        source: CastMediaSource,
+        device: DlnaDevice,
+    ) = withContext(Dispatchers.IO) {
+        val mediaId = when (source) {
+            is CastMediaSource.LocalFile -> source.file.absolutePath
+            is CastMediaSource.RemoteUrl -> source.url
+        }
+
+        _playbackState.update {
+            it.copy(
+                positionMs = 0L,
+                durationMs = 0L,
+                transportState = DlnaTransportState.TRANSITIONING,
+                mediaId = mediaId
+            )
+        }
+
+        currentCastingPath = mediaId
+        server?.updateSource(source)
+
+        val ip = getLocalIp(context) ?: return@withContext
+        val videoUrl = "http://$ip:$PORT/video"
+        val subtitleUrl = source.subtitleFile?.let { "http://$ip:$PORT/subtitle" }
+        val title = when (source) {
+            is CastMediaSource.LocalFile -> source.file.nameWithoutExtension
+            is CastMediaSource.RemoteUrl -> source.url.substringAfterLast("/").substringBeforeLast(".")
+        }
+        val mimeType = getMimeType(source)
+
+        sendDlnaPlay(device.location, videoUrl, subtitleUrl, title, mimeType)
+    }
+
+    private fun getMimeType(source: CastMediaSource): String {
+        val ext = when (source) {
+            is CastMediaSource.LocalFile -> source.file.extension.lowercase()
+            is CastMediaSource.RemoteUrl -> {
+                val lastSegment = source.url.substringBefore("?").substringAfterLast("/")
+                if (lastSegment.contains(".")) lastSegment.substringAfterLast(".").lowercase() else ""
+            }
+        }
+        return when (ext) {
+            "mp4" -> "video/mp4"
+            "mkv" -> "video/x-matroska"
+            "webm" -> "video/webm"
+            "avi" -> "video/x-msvideo"
+            "ts"  -> "video/mp2t"
+            "mp3" -> "audio/mpeg"
+            "flac" -> "audio/flac"
+            "aac"  -> "audio/aac"
+            else  -> "video/mp4"
+        }
     }
 
     suspend fun stopCasting(context: Context) = withContext(Dispatchers.IO) {
@@ -449,7 +544,6 @@ object DlnaManager {
         server = null
     }
 
-    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     private fun getLocalIp(context: Context): String? {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = cm.activeNetwork
@@ -497,45 +591,6 @@ object DlnaManager {
             192 -> second == 168
             else -> false
         }
-    }
-
-    private fun getMimeTypeFromFile(file: File) = when (file.extension.lowercase()) {
-        "mp4" -> "video/mp4"
-        "mkv" -> "video/x-matroska"
-        "webm" -> "video/webm"
-        "avi" -> "video/x-msvideo"
-        "ts"  -> "video/mp2t"
-        "mp3" -> "audio/mpeg"
-        "flac" -> "audio/flac"
-        "aac"  -> "audio/aac"
-        else  -> "application/octet-stream"
-    }
-
-    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
-    suspend fun updateCastingFile(
-        context: Context,
-        file: File,
-        subtitleFile: File?,
-        device: DlnaDevice,
-    ) = withContext(Dispatchers.IO) {
-        _playbackState.update {
-            it.copy(
-                positionMs = 0L,
-                durationMs = 0L,
-                transportState = DlnaTransportState.TRANSITIONING,
-                mediaId = file.absolutePath
-            )
-        }
-
-        currentCastingPath = file.absolutePath
-        server?.updateFile(file, subtitleFile)
-
-        val ip = getLocalIp(context) ?: return@withContext
-        val videoUrl = "http://$ip:$PORT/video"
-        val subtitleUrl = subtitleFile?.let { "http://$ip:$PORT/subtitle" }
-        val mimeType = getMimeTypeFromFile(file)
-
-        sendDlnaPlay(device.location, videoUrl, subtitleUrl, file.nameWithoutExtension, mimeType)
     }
 
     private fun soapPostWithResponse(url: String, soapAction: String, body: String): String {

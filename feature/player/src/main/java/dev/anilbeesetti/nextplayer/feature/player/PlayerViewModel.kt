@@ -19,7 +19,9 @@ import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.feature.player.service.CastingService
 import dev.anilbeesetti.nextplayer.feature.player.service.DlnaManager
 import dev.anilbeesetti.nextplayer.feature.player.service.DlnaTransportState
+import dev.anilbeesetti.nextplayer.feature.player.service.CastMediaSource
 import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
+import dev.anilbeesetti.nextplayer.feature.player.service.resolveMediaSource
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
 import java.io.File
@@ -76,7 +78,7 @@ class PlayerViewModel @Inject constructor(
 
                             if (internalUiState.value.playerPreferences?.dlnaAutoplay == true) {
                                 if (PlayerService.instance?.hasNext() == true) {
-                                    PlayerService.instance?.playNext() ?: _castingEvent.emit(CastingEvent.PlayNext)
+                                    PlayerService.instance?.playNext(appContext) ?: _castingEvent.emit(CastingEvent.PlayNext)
                                 } else {
                                     stopCasting(appContext)
                                 }
@@ -192,17 +194,11 @@ class PlayerViewModel @Inject constructor(
 
     fun castToDevice(device: DlnaManager.DlnaDevice, uri: String, context: Context) {
         viewModelScope.launch {
-            val filePath = mediaRepository.getVideoByUri(uri)?.path ?: return@launch
-            val videoFile = File(filePath)
-            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
-                File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext")
-                    .takeIf { it.exists() }
-            }
+            val source = resolveMediaSource(uri) ?: return@launch
 
             DlnaManager.startCasting(
                 context = context,
-                file = videoFile,
-                subtitleFile = subtitleFile,
+                source = source,
                 device = device,
                 onSuccess = { Log.d("DLNA", "Started casting to ${device.name}") },
                 onError = { Log.e("DLNA", it) }
@@ -217,19 +213,21 @@ class PlayerViewModel @Inject constructor(
     fun castCurrentMediaToActiveDevice(uri: String, context: Context) {
         val device = DlnaManager.currentDevice ?: return
         viewModelScope.launch {
-            val filePath = mediaRepository.getVideoByUri(uri)?.path ?: return@launch
+            val source = resolveMediaSource(uri) ?: return@launch
 
-            if (filePath == DlnaManager.currentCastingPath) {
-                return@launch
+            val mediaId = when (source) {
+                is CastMediaSource.LocalFile -> source.file.absolutePath
+                is CastMediaSource.RemoteUrl -> source.url
             }
 
-            val videoFile = File(filePath)
-            val subtitleFile = listOf("srt", "vtt", "ssa", "ass").firstNotNullOfOrNull { ext ->
-                File(videoFile.parent, "${videoFile.nameWithoutExtension}.$ext").takeIf { it.exists() }
-            }
+            if (mediaId == DlnaManager.currentCastingPath) return@launch
 
-            DlnaManager.updateCastingFile(videoFile, subtitleFile, device)
+            DlnaManager.updateCastingSource(context, source, device)
         }
+    }
+
+    private suspend fun resolveMediaSource(uri: String): CastMediaSource? {
+        return resolveMediaSource(uri) { mediaRepository.getVideoByUri(it)?.path }
     }
 
     fun seekCasting(positionMs: Long) {
@@ -250,12 +248,12 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun playPreviousCasting() {
-        PlayerService.instance?.playPrevious()
+        PlayerService.instance?.playPrevious(appContext)
             ?: viewModelScope.launch { _castingEvent.emit(CastingEvent.PlayPrevious) }
     }
 
     fun playNextCasting() {
-        PlayerService.instance?.playNext()
+        PlayerService.instance?.playNext(appContext)
             ?: viewModelScope.launch { _castingEvent.emit(CastingEvent.PlayNext) }
     }
 

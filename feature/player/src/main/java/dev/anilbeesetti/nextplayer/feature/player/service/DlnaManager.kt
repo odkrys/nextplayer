@@ -1,14 +1,20 @@
 package dev.anilbeesetti.nextplayer.feature.player.service
 
+import android.Manifest
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.util.Log
+import androidx.annotation.RequiresPermission
+import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -229,7 +235,7 @@ object DlnaManager {
                         break
                     }
                 }
-                kotlinx.coroutines.delay(1000L)
+                delay(1000L)
             }
         }
     }
@@ -243,6 +249,7 @@ object DlnaManager {
         stopServer()
     }
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     suspend fun startCasting(
         context: Context,
         file: File,
@@ -257,20 +264,20 @@ object DlnaManager {
         try {
             server = LocalMediaServer(PORT, file).apply {
                 this.subtitleFile = subtitleFile
-                start(fi.iki.elonen.NanoHTTPD.SOCKET_READ_TIMEOUT, false)
+                start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
             }
         } catch (e: Exception) {
             onError("Failed to start server: ${e.message}")
             return
         }
 
-        kotlinx.coroutines.delay(200)
+        delay(200L)
 
         context.startForegroundService(
             CastingService.startIntent(context, file.absolutePath, subtitleFile?.absolutePath)
         )
 
-        val ip = getLocalIp() ?: run { onError("Local IP address not found"); return }
+        val ip = getLocalIp(context) ?: run { onError("Local IP address not found"); return }
         val videoUrl = "http://$ip:$PORT/video"
         val subtitleUrl = subtitleFile?.let { "http://$ip:$PORT/subtitle" }
         val mimeType = getMimeTypeFromFile(file)
@@ -442,11 +449,55 @@ object DlnaManager {
         server = null
     }
 
-    private fun getLocalIp(): String? =
-        NetworkInterface.getNetworkInterfaces().toList()
-            .flatMap { it.inetAddresses.toList() }
-            .firstOrNull { it is Inet4Address && !it.isLoopbackAddress }
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
+    private fun getLocalIp(context: Context): String? {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = cm.activeNetwork
+
+        if (activeNetwork != null) {
+            val caps = cm.getNetworkCapabilities(activeNetwork)
+            if (caps != null &&
+                !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
+            ) {
+                val ip = cm.getLinkProperties(activeNetwork)
+                    ?.linkAddresses
+                    ?.map { it.address }
+                    ?.filterIsInstance<Inet4Address>()
+                    ?.firstOrNull { isPrivateIp(it) }
+                    ?.hostAddress
+                if (ip != null) return ip
+            }
+        }
+
+        val excludedInterfaces = listOf("tun", "ppp", "rmnet", "lo", "dummy")
+        return NetworkInterface.getNetworkInterfaces()
+            ?.toList()
+            ?.filter { iface ->
+                iface.isUp && !iface.isLoopback && !iface.isVirtual &&
+                        excludedInterfaces.none { iface.name.startsWith(it) }
+            }
+            ?.flatMap { it.inetAddresses.toList() }
+            ?.filterIsInstance<Inet4Address>()
+            ?.firstOrNull { isPrivateIp(it) }
             ?.hostAddress
+    }
+
+    private fun isPrivateIp(addr: Inet4Address): Boolean {
+        if (addr.isLoopbackAddress) return false
+
+        val bytes = addr.address
+        val first = bytes[0].toInt() and 0xFF
+        val second = bytes[1].toInt() and 0xFF
+
+        return when (first) {
+            10 -> true
+            172 -> second in 16..31
+            192 -> second == 168
+            else -> false
+        }
+    }
 
     private fun getMimeTypeFromFile(file: File) = when (file.extension.lowercase()) {
         "mp4" -> "video/mp4"
@@ -460,7 +511,9 @@ object DlnaManager {
         else  -> "application/octet-stream"
     }
 
+    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
     suspend fun updateCastingFile(
+        context: Context,
         file: File,
         subtitleFile: File?,
         device: DlnaDevice,
@@ -477,7 +530,7 @@ object DlnaManager {
         currentCastingPath = file.absolutePath
         server?.updateFile(file, subtitleFile)
 
-        val ip = getLocalIp() ?: return@withContext
+        val ip = getLocalIp(context) ?: return@withContext
         val videoUrl = "http://$ip:$PORT/video"
         val subtitleUrl = subtitleFile?.let { "http://$ip:$PORT/subtitle" }
         val mimeType = getMimeTypeFromFile(file)

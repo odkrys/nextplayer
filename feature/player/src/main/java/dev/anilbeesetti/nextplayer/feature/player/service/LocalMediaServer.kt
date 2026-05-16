@@ -4,23 +4,23 @@ import android.util.Log
 import fi.iki.elonen.NanoHTTPD
 import java.io.File
 import java.io.FileInputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
-class LocalMediaServer(port: Int, private var file: File) : NanoHTTPD(port) {
+class LocalMediaServer(port: Int, private var source: CastMediaSource) : NanoHTTPD(port) {
 
     companion object {
         private const val TAG = "LocalMediaServer"
     }
 
     data class HttpRange(val start: Long, val end: Long, val length: Long)
+    @Volatile private var cachedLength: Long = -1L
 
-    var subtitleFile: File? = null
+    private val subtitleFile get() = source.subtitleFile
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
-
-        if (uri == "/subtitle") {
-            return serveSubtitle(session)
-        }
+        if (uri == "/subtitle") return serveSubtitle(session)
 
         val method = session.method
         val rangeHeader = session.headers["range"]
@@ -28,41 +28,36 @@ class LocalMediaServer(port: Int, private var file: File) : NanoHTTPD(port) {
         if (method == Method.OPTIONS) {
             return newFixedLengthResponse(Response.Status.OK, MIME_PLAINTEXT, null, 0).apply {
                 addHeader("Access-Control-Allow-Origin", "*")
-                addHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
+                addHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
                 addHeader("Access-Control-Allow-Headers", "Range, Content-Type, Accept")
                 addHeader("Access-Control-Max-Age", "86400")
             }
         }
 
+        return when (val s = source) {
+            is CastMediaSource.LocalFile -> serveLocalFile(s.file, method, rangeHeader)
+            is CastMediaSource.RemoteUrl -> serveRemoteUrl(s.url, method, rangeHeader)
+        }
+    }
+
+    private fun serveLocalFile(file: File, method: Method, rangeHeader: String?): Response {
         if (method == Method.HEAD) {
-            val mimeType = getMimeType(file)
-            return newFixedLengthResponse(Response.Status.OK, mimeType, null, file.length()).apply {
+            return newFixedLengthResponse(Response.Status.OK, getMimeType(file), null, file.length()).apply {
                 addHeader("Content-Length", file.length().toString())
                 addHeader("Accept-Ranges", "bytes")
                 addHeader("Access-Control-Allow-Origin", "*")
-                addHeader("Content-Disposition", "inline; filename=\"${file.name}\"")
                 addHeader("transferMode.dlna.org", "Streaming")
                 addHeader("contentFeatures.dlna.org", "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000")
             }
-
         }
 
         return try {
             val mimeType = getMimeType(file)
-
             val response = if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
                 val range = parseRange(rangeHeader, file.length())
-
-                if (range == null) {
-                    Log.w(TAG, "Invalid range request: $rangeHeader")
-                    return newFixedLengthResponse(
-                        Response.Status.RANGE_NOT_SATISFIABLE,
-                        MIME_PLAINTEXT,
-                        "Invalid Range"
-                    ).apply {
-                        addHeader("Content-Range", "bytes */${file.length()}")
-                    }
-                }
+                    ?: return newFixedLengthResponse(
+                        Response.Status.RANGE_NOT_SATISFIABLE, MIME_PLAINTEXT, "Invalid Range"
+                    ).apply { addHeader("Content-Range", "bytes */${file.length()}") }
 
                 val fis = FileInputStream(file).apply { skip(range.start) }
                 newFixedLengthResponse(Response.Status.PARTIAL_CONTENT, mimeType, fis, range.length).apply {
@@ -72,22 +67,111 @@ class LocalMediaServer(port: Int, private var file: File) : NanoHTTPD(port) {
                 newFixedLengthResponse(Response.Status.OK, mimeType, FileInputStream(file), file.length())
             }
 
-            response.apply {
-                addHeader("Accept-Ranges", "bytes")
-                addHeader("Access-Control-Allow-Origin", "*")
-                addHeader("Content-Disposition", "inline; filename=\"${file.name}\"")
-                addHeader("transferMode.dlna.org", "Streaming")
-                addHeader("contentFeatures.dlna.org", "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000")
-            }
+            response.applyDlnaHeaders()
         } catch (e: Exception) {
-            Log.e(TAG, "Server error", e)
+            Log.e(TAG, "Local file serve error", e)
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Internal Server Error")
         }
     }
 
-    private fun serveSubtitle(session: IHTTPSession): Response {
-        val sub = subtitleFile
+    private fun serveRemoteUrl(url: String, method: Method, rangeHeader: String?): Response {
+        if (method == Method.HEAD) {
+            return try {
+                if (cachedLength < 0) {
+                    val conn = openRemoteConnection(url, null).also {
+                        it.requestMethod = "HEAD"
+                    }
+                    cachedLength = conn.contentLengthLong
+                    conn.disconnect()
+                }
+                newFixedLengthResponse(Response.Status.OK, "video/mp4", null, cachedLength)
+                    .applyDlnaHeaders()
+            } catch (e: Exception) {
+                Log.e(TAG, "HEAD error", e)
+                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "HEAD Error")
+            }
+        }
 
+        return try {
+            val conn = openRemoteConnection(url, rangeHeader)
+            val responseCode = conn.responseCode
+            val mimeType = conn.contentType ?: "video/mp4"
+            val contentLength = conn.contentLengthLong.also {
+                if (it > 0) cachedLength = it
+            }
+
+            val status = if (responseCode == 206) Response.Status.PARTIAL_CONTENT
+            else Response.Status.OK
+
+            val response = if (contentLength > 0) {
+                newFixedLengthResponse(status, mimeType, conn.inputStream, contentLength)
+            } else {
+                newChunkedResponse(status, mimeType, conn.inputStream)
+            }
+
+            conn.getHeaderField("Content-Range")?.let {
+                response.addHeader("Content-Range", it)
+            }
+
+            response.applyDlnaHeaders()
+        } catch (e: Exception) {
+            Log.e(TAG, "Relay error", e)
+            newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Relay Error")
+        }
+    }
+
+    private fun openRemoteConnection(url: String, rangeHeader: String?): java.net.HttpURLConnection {
+        return (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+            rangeHeader?.let { setRequestProperty("Range", it) }
+            connectTimeout = 10000
+            readTimeout = 60000
+        }
+    }
+
+    private fun Response.applyDlnaHeaders() = apply {
+        addHeader("Accept-Ranges", "bytes")
+        addHeader("Access-Control-Allow-Origin", "*")
+        addHeader("transferMode.dlna.org", "Streaming")
+        addHeader("contentFeatures.dlna.org", "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000")
+    }
+
+    fun updateSource(newSource: CastMediaSource) {
+        this.source = newSource
+        this.cachedLength = -1L
+    }
+
+    private fun serveSubtitle(session: IHTTPSession): Response {
+        val remoteSubUrl = (source as? CastMediaSource.RemoteUrl)?.subtitleUrl
+        if (remoteSubUrl != null) {
+            return try {
+                val conn = (URL(remoteSubUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 10000
+                    readTimeout = 30000
+                }
+                val ext = remoteSubUrl.substringBefore("?").substringAfterLast(".").lowercase()
+                val mimeType = when (ext) {
+                    "srt" -> "text/srt"
+                    "vtt" -> "text/vtt"
+                    "ass", "ssa" -> "text/x-ssa"
+                    "ttml", "dfxp", "xml" -> "application/ttml+xml"
+                    else -> conn.contentType?.substringBefore(";")?.trim() ?: "text/plain"
+                }
+                val contentLength = conn.contentLengthLong
+                if (contentLength > 0) {
+                    newFixedLengthResponse(Response.Status.OK, mimeType, conn.inputStream, contentLength)
+                } else {
+                    newChunkedResponse(Response.Status.OK, mimeType, conn.inputStream)
+                }.apply {
+                    addHeader("Accept-Ranges", "bytes")
+                    addHeader("Access-Control-Allow-Origin", "*")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Remote subtitle relay error", e)
+                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Subtitle Error")
+            }
+        }
+
+        val sub = subtitleFile
         if (sub == null || !sub.exists()) {
             return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Subtitle not found")
         }
@@ -149,12 +233,7 @@ class LocalMediaServer(port: Int, private var file: File) : NanoHTTPD(port) {
             "mp3" -> "audio/mpeg"
             "flac" -> "audio/flac"
             "aac"  -> "audio/aac"
-            else -> "application/octet-stream"
+            else  -> "video/mp4"
         }
-    }
-
-    fun updateFile(newFile: File, newSubtitle: File?) {
-        this.file = newFile
-        this.subtitleFile = newSubtitle
     }
 }

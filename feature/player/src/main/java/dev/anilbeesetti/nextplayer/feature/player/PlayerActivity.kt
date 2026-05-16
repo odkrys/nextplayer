@@ -304,11 +304,13 @@ class PlayerActivity : ComponentActivity() {
         return try {
             val connection = (URL(uri.toString()).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
+                setRequestProperty("Range", "bytes=0-0")
                 connectTimeout = 3000
                 readTimeout = 3000
             }
-            connection.inputStream.close()
-            connection.responseCode in 200..299
+            val responseCode = connection.responseCode
+            connection.disconnect()
+            responseCode in 200..299
         } catch (e: Exception) {
             false
         }

@@ -70,9 +70,16 @@ fun CastingControllerView(
     LaunchedEffect(position) {
         if (ignoreNetworkPosition) {
             val diff = kotlin.math.abs(position - seekPosition.toLong())
-            if (diff < 2000L) {
+            if (diff < 5000L) {
                 ignoreNetworkPosition = false
             }
+        }
+    }
+
+    LaunchedEffect(ignoreNetworkPosition) {
+        if (ignoreNetworkPosition) {
+            kotlinx.coroutines.delay(4000L)
+            ignoreNetworkPosition = false
         }
     }
 

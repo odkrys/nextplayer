@@ -15,6 +15,7 @@ class LocalMediaServer(port: Int, private var source: CastMediaSource) : NanoHTT
 
     data class HttpRange(val start: Long, val end: Long, val length: Long)
     @Volatile private var cachedLength: Long = -1L
+    @Volatile private var cachedMimeType: String = "video/mp4"
 
     private val subtitleFile get() = source.subtitleFile
 
@@ -44,11 +45,7 @@ class LocalMediaServer(port: Int, private var source: CastMediaSource) : NanoHTT
         if (method == Method.HEAD) {
             return newFixedLengthResponse(Response.Status.OK, getMimeType(file), null, file.length()).apply {
                 addHeader("Content-Length", file.length().toString())
-                addHeader("Accept-Ranges", "bytes")
-                addHeader("Access-Control-Allow-Origin", "*")
-                addHeader("transferMode.dlna.org", "Streaming")
-                addHeader("contentFeatures.dlna.org", "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000")
-            }
+            }.applyDlnaHeaders()
         }
 
         return try {
@@ -78,14 +75,30 @@ class LocalMediaServer(port: Int, private var source: CastMediaSource) : NanoHTT
         if (method == Method.HEAD) {
             return try {
                 if (cachedLength < 0) {
-                    val conn = openRemoteConnection(url, null).also {
-                        it.requestMethod = "HEAD"
+                    val conn = openRemoteConnection(url, "bytes=0-0").also {
+                        it.requestMethod = "GET"
                     }
-                    cachedLength = conn.contentLengthLong
+                    val code = conn.responseCode
+
+                    cachedMimeType = conn.contentType?.takeIf { it != "application/octet-stream" }
+                        ?: getMimeType(url)
+
+                    cachedLength = when {
+                        code == 206 -> conn.getHeaderField("Content-Range")
+                            ?.substringAfterLast("/")
+                            ?.toLongOrNull() ?: -1L
+                        else -> conn.contentLengthLong
+                    }
+                    conn.inputStream.close()
                     conn.disconnect()
                 }
-                newFixedLengthResponse(Response.Status.OK, "video/mp4", null, cachedLength)
-                    .applyDlnaHeaders()
+
+                val dummyStream = java.io.ByteArrayInputStream(ByteArray(0))
+                val response = newFixedLengthResponse(Response.Status.OK, cachedMimeType, dummyStream, cachedLength)
+                if (cachedLength > 0) {
+                    response.addHeader("Content-Length", cachedLength.toString())
+                }
+                response.applyDlnaHeaders()
             } catch (e: Exception) {
                 Log.e(TAG, "HEAD error", e)
                 newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "HEAD Error")
@@ -95,25 +108,39 @@ class LocalMediaServer(port: Int, private var source: CastMediaSource) : NanoHTT
         return try {
             val conn = openRemoteConnection(url, rangeHeader)
             val responseCode = conn.responseCode
-            val mimeType = conn.contentType ?: "video/mp4"
-            val contentLength = conn.contentLengthLong.also {
-                if (it > 0) cachedLength = it
+
+            val mimeType = conn.contentType?.takeIf { it != "application/octet-stream" }
+                ?: cachedMimeType
+
+            val contentLength = conn.contentLengthLong
+
+            val finalLength = if (contentLength > 0) {
+                cachedLength = contentLength
+                contentLength
+            } else {
+                cachedLength
             }
 
-            val status = if (responseCode == 206) Response.Status.PARTIAL_CONTENT
-            else Response.Status.OK
-
-            val response = if (contentLength > 0) {
-                newFixedLengthResponse(status, mimeType, conn.inputStream, contentLength)
+            val contentRange = conn.getHeaderField("Content-Range")
+            val status = if (rangeHeader != null && responseCode == 206) {
+                Response.Status.PARTIAL_CONTENT
             } else {
+                Response.Status.OK
+            }
+
+            val response = if (finalLength > 0) {
+                newFixedLengthResponse(status, mimeType, conn.inputStream, finalLength)
+            } else {
+                Log.w(TAG, "Falling back to Chunked Response")
                 newChunkedResponse(status, mimeType, conn.inputStream)
             }
 
-            conn.getHeaderField("Content-Range")?.let {
-                response.addHeader("Content-Range", it)
+            if (rangeHeader != null) {
+                contentRange?.let { response.addHeader("Content-Range", it) }
             }
 
             response.applyDlnaHeaders()
+            response
         } catch (e: Exception) {
             Log.e(TAG, "Relay error", e)
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, MIME_PLAINTEXT, "Relay Error")
@@ -138,6 +165,7 @@ class LocalMediaServer(port: Int, private var source: CastMediaSource) : NanoHTT
     fun updateSource(newSource: CastMediaSource) {
         this.source = newSource
         this.cachedLength = -1L
+        this.cachedMimeType = "video/mp4"
     }
 
     private fun serveSubtitle(session: IHTTPSession): Response {
@@ -223,17 +251,18 @@ class LocalMediaServer(port: Int, private var source: CastMediaSource) : NanoHTT
         return HttpRange(start, end, end - start + 1)
     }
 
-    private fun getMimeType(file: File): String {
-        return when (file.extension.lowercase()) {
-            "mp4" -> "video/mp4"
-            "mkv" -> "video/x-matroska"
-            "webm" -> "video/webm"
-            "avi" -> "video/x-msvideo"
-            "ts" -> "video/mp2t"
-            "mp3" -> "audio/mpeg"
-            "flac" -> "audio/flac"
-            "aac"  -> "audio/aac"
-            else  -> "video/mp4"
-        }
+    private fun getMimeType(file: File) = mimeTypeFromExt(file.extension)
+    private fun getMimeType(url: String) = mimeTypeFromExt(url.substringBefore("?").substringAfterLast("."))
+
+    private fun mimeTypeFromExt(ext: String) = when (ext.lowercase()) {
+        "mp4" -> "video/mp4"
+        "mkv" -> "video/x-matroska"
+        "webm" -> "video/webm"
+        "avi" -> "video/x-msvideo"
+        "ts"  -> "video/mp2t"
+        "mp3" -> "audio/mpeg"
+        "flac" -> "audio/flac"
+        "aac"  -> "audio/aac"
+        else  -> "video/mp4"
     }
 }

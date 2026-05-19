@@ -21,10 +21,10 @@ import dev.anilbeesetti.nextplayer.feature.player.service.DlnaManager
 import dev.anilbeesetti.nextplayer.feature.player.service.DlnaTransportState
 import dev.anilbeesetti.nextplayer.feature.player.service.CastMediaSource
 import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
-import dev.anilbeesetti.nextplayer.feature.player.service.resolveMediaSource
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +68,7 @@ class PlayerViewModel @Inject constructor(
     val castingEvent = _castingEvent.asSharedFlow()
 
     val dlnaPlaybackState = DlnaManager.playbackState
-    private var autoStopJob: kotlinx.coroutines.Job? = null
+    private var autoStopJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -82,7 +82,7 @@ class PlayerViewModel @Inject constructor(
                 if (state.isActive && state.transportState == DlnaTransportState.STOPPED) {
                     if (autoStopJob == null) {
                         autoStopJob = launch {
-                            kotlinx.coroutines.delay(2000L)
+                            delay(2000)
 
                             if (internalUiState.value.playerPreferences?.dlnaAutoplay == true) {
                                 if (PlayerService.instance?.hasNext() == true) {
@@ -204,12 +204,14 @@ class PlayerViewModel @Inject constructor(
 
     fun castToDevice(device: DlnaManager.DlnaDevice, uri: String, context: Context) {
         viewModelScope.launch {
-            val source = resolveMediaSource(uri) ?: return@launch
+            val service = PlayerService.instance ?: return@launch
+            val source = service.resolveMediaSourceForUri(uri) ?: return@launch
 
             DlnaManager.startCasting(
                 context = context,
                 source = source,
                 device = device,
+                okHttpClient = service.okHttpClient,
                 onSuccess = { Log.d("DLNA", "Started casting to ${device.name}") },
                 onError = { Log.e("DLNA", it) }
             )
@@ -223,7 +225,8 @@ class PlayerViewModel @Inject constructor(
     fun castCurrentMediaToActiveDevice(uri: String, context: Context) {
         val device = DlnaManager.currentDevice ?: return
         viewModelScope.launch {
-            val source = resolveMediaSource(uri) ?: return@launch
+            val service = PlayerService.instance ?: return@launch
+            val source = service.resolveMediaSourceForUri(uri) ?: return@launch
 
             val mediaId = when (source) {
                 is CastMediaSource.LocalFile -> source.file.absolutePath
@@ -234,10 +237,6 @@ class PlayerViewModel @Inject constructor(
 
             DlnaManager.updateCastingSource(context, source, device)
         }
-    }
-
-    private suspend fun resolveMediaSource(uri: String): CastMediaSource? {
-        return resolveMediaSource(uri) { mediaRepository.getVideoByUri(it)?.path }
     }
 
     fun seekCasting(positionMs: Long) {

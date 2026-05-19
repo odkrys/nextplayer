@@ -123,6 +123,9 @@ dependencies {
 
     implementation(libs.coil.compose)
 
+    // Webdav
+    implementation(libs.androidx.media3.datasource.okhttp)
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

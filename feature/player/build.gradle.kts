@@ -78,6 +78,9 @@ dependencies {
     // Dlna
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
+    // Webdav
+    implementation(libs.androidx.media3.datasource.okhttp)
+
     // Hilt
     implementation(libs.hilt.android)
     implementation(libs.androidx.compose.runtime)

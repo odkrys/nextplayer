@@ -122,17 +122,20 @@ fun BoxScope.SubtitleSelectorView(
                     val format = track.mediaTrackGroup.getFormat(0)
 
                     val extension = remember(format) {
-                        val sourceString = format.id ?: format.label ?: ""
+                        val sourceString = format.label ?: format.id ?: ""
                         val ext = sourceString.substringAfterLast('.', "").uppercase()
 
                         if (ext.isNotEmpty() && ext.length <= 4 && ext.all { it.isLetter() }) {
                             ext
                         } else {
-                            when (format.sampleMimeType) {
-                                androidx.media3.common.MimeTypes.TEXT_SSA -> "ASS"
-                                androidx.media3.common.MimeTypes.TEXT_VTT -> "VTT"
-                                androidx.media3.common.MimeTypes.APPLICATION_TTML -> "TTML"
-                                androidx.media3.common.MimeTypes.APPLICATION_SUBRIP -> "SRT"
+                            val mime = format.sampleMimeType ?: format.containerMimeType ?: ""
+                            val codecs = format.codecs?.lowercase() ?: ""
+
+                            when {
+                                mime == androidx.media3.common.MimeTypes.TEXT_SSA || codecs.contains("ssa") || codecs.contains("ass") -> "SSA"
+                                mime == androidx.media3.common.MimeTypes.TEXT_VTT || codecs.contains("vtt") -> "VTT"
+                                mime == androidx.media3.common.MimeTypes.APPLICATION_TTML || codecs.contains("ttml") || codecs.contains("xml") || codecs.contains("dfxp") -> "TTML"
+                                mime == androidx.media3.common.MimeTypes.APPLICATION_SUBRIP || codecs.contains("subrip") || codecs.contains("srt") -> "SRT"
                                 else -> ""
                             }
                         }

@@ -21,8 +21,11 @@ import androidx.media3.common.Player.DISCONTINUITY_REASON_SEEK
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.CommandButton
 import androidx.media3.session.CommandButton.ICON_UNDEFINED
@@ -40,6 +43,7 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
 import dev.anilbeesetti.nextplayer.core.common.extensions.getLocalSubtitles
 import dev.anilbeesetti.nextplayer.core.common.extensions.getPath
 import dev.anilbeesetti.nextplayer.core.common.extensions.subtitleCacheDir
+import dev.anilbeesetti.nextplayer.core.data.remote.setupUnsafeSsl
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.DecoderPriority
@@ -80,6 +84,7 @@ import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
@@ -533,6 +538,12 @@ class PlayerService : MediaSessionService() {
 
     companion object {
         var instance: PlayerService? = null
+
+        private val webdavCredentials = mutableMapOf<String, String>()
+
+        fun setWebdavCredentials(host: String, auth: String) {
+            webdavCredentials[host] = auth
+        }
     }
 
     override fun onCreate() {
@@ -556,9 +567,34 @@ class PlayerService : MediaSessionService() {
             )
         }
 
+        val okHttpClient = OkHttpClient.Builder()
+            .setupUnsafeSsl()
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val host = request.url.host
+                val auth = webdavCredentials[host]
+
+                if (auth != null) {
+                    chain.proceed(
+                        request.newBuilder()
+                            .header("Authorization", auth)
+                            .build()
+                    )
+                } else {
+                    chain.proceed(request)
+                }
+            }
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+
+        val okHttpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        val defaultDataSourceFactory = DefaultDataSource.Factory(applicationContext, okHttpDataSourceFactory)
+
         val player = ExoPlayer.Builder(applicationContext)
             .setRenderersFactory(renderersFactory)
             .setTrackSelector(trackSelector)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(applicationContext).setDataSourceFactory(defaultDataSourceFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -667,12 +703,47 @@ class PlayerService : MediaSessionService() {
                 }
 
                 val existingSubConfigurations = mediaItem.localConfiguration?.subtitleConfigurations ?: emptyList()
+
+                val remoteSubConfigurations = if (filePath == null && (uri.scheme == "http" || uri.scheme == "https")) {
+                    val fragment = uri.fragment
+                    if (!fragment.isNullOrBlank()) {
+                        fragment.split("&").mapNotNull { pairs ->
+                            val kv = pairs.split("=", limit = 2)
+                            if (kv.size == 2) {
+                                val ext = kv[0].lowercase()
+                                val subUrl = Uri.decode(kv[1])
+
+                                val mimeType = when (ext) {
+                                    "srt" -> androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
+                                    "vtt" -> androidx.media3.common.MimeTypes.TEXT_VTT
+                                    "ass", "ssa" -> androidx.media3.common.MimeTypes.TEXT_SSA
+                                    "ttml", "xml", "dfxp" -> androidx.media3.common.MimeTypes.APPLICATION_TTML
+                                    else -> androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
+                                }
+
+                                val fileName = subUrl.substringAfterLast('/').substringBeforeLast(".")
+                                val trackLabel = "$fileName.$ext"
+
+                                MediaItem.SubtitleConfiguration.Builder(Uri.parse(subUrl))
+                                    .setMimeType(mimeType)
+                                    .setLabel(trackLabel)
+                                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                                    .build()
+                            } else null
+                        }
+                    } else {
+                        emptyList()
+                    }
+                } else {
+                    emptyList()
+                }
+
                 val subConfigurations = (localSubs + externalSubs).map { subtitleUri ->
                     uriToSubtitleConfiguration(
                         uri = subtitleUri,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
                     )
-                }
+                } + remoteSubConfigurations
 
                 // Use placeholder artwork initially - actual artwork will be loaded in background
                 val artworkUri = getDefaultArtworkUri()

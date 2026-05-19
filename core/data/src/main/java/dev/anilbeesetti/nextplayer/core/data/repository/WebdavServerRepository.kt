@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.core.data.repository
 
+import dev.anilbeesetti.nextplayer.core.data.remote.CredentialEncryptor
 import dev.anilbeesetti.nextplayer.core.database.dao.WebdavServerDao
 import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
@@ -10,7 +11,8 @@ import javax.inject.Singleton
 
 @Singleton
 class WebdavServerRepository @Inject constructor(
-    private val dao: WebdavServerDao
+    private val dao: WebdavServerDao,
+    private val encryptor: CredentialEncryptor,
 ) {
 
     fun getAllServers(): Flow<List<WebdavServer>> =
@@ -35,7 +37,7 @@ class WebdavServerRepository @Inject constructor(
         port = port,
         path = path,
         username = username,
-        password = password,
+        password = encryptor.decrypt(password),
         useSsl = useSsl,
         allowSelfSigned = allowSelfSigned,
         createdAt = createdAt,
@@ -49,7 +51,7 @@ class WebdavServerRepository @Inject constructor(
         port = port,
         path = path,
         username = username,
-        password = password,
+        password = encryptor.encrypt(password),
         useSsl = useSsl,
         allowSelfSigned = allowSelfSigned,
         createdAt = createdAt,

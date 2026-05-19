@@ -148,7 +148,7 @@ class WebdavClient @Inject constructor() {
                 XmlPullParser.END_TAG -> {
                     if (parser.name == "response" && insideResponse) {
                         insideResponse = false
-                        val decodedHref = java.net.URLDecoder.decode(href, "UTF-8")
+                        val decodedHref = android.net.Uri.decode(href)
 
                         val hrefPathNorm = if (decodedHref.startsWith("http://") || decodedHref.startsWith("https://")) {
                             android.net.Uri.parse(decodedHref).path ?: decodedHref

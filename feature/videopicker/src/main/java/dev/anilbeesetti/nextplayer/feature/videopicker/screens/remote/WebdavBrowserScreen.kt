@@ -162,6 +162,27 @@ private fun WebdavBrowserContent(
         }
     }
 
+    val folderCount = uiState.files.count { it.isDirectory }
+    val fileCount = uiState.files.count { !it.isDirectory }
+
+    val countText = remember(folderCount, fileCount) {
+        buildString {
+            if (folderCount > 0) {
+                append("$folderCount folder")
+                if (folderCount > 1) append("s")
+            }
+            if (folderCount > 0 && fileCount > 0) append(" · ")
+
+            if (fileCount > 0) {
+                append("$fileCount file")
+                if (fileCount > 1) append("s")
+            }
+            if (folderCount == 0 && fileCount == 0 && !uiState.isLoading) {
+                append("Empty")
+            }
+        }
+    }
+
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
@@ -169,14 +190,14 @@ private fun WebdavBrowserContent(
                 title = {
                     Column {
                         Text(
-                            text = server.name,
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "${server.name}  ($countText)",
+                            style = MaterialTheme.typography.titleSmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             text = viewModel.breadcrumb(),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

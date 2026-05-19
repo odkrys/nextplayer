@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import java.io.IOException
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -277,6 +278,7 @@ object DlnaManager {
         context: Context,
         source: CastMediaSource,
         device: DlnaDevice,
+        okHttpClient: OkHttpClient,
         onSuccess: () -> Unit,
         onError: (String) -> Unit,
     ) {
@@ -287,7 +289,7 @@ object DlnaManager {
 
         stopServer()
         try {
-            server = LocalMediaServer(PORT, source).apply {
+            server = LocalMediaServer(PORT, source, okHttpClient).apply {
                 start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
             }
         } catch (e: Exception) {
@@ -297,32 +299,20 @@ object DlnaManager {
 
         delay(200)
 
-        val mediaId = when (source) {
-            is CastMediaSource.LocalFile -> source.file.absolutePath
-            is CastMediaSource.RemoteUrl -> source.url
-        }
-
+        val mediaId = source.toMediaId()
         context.startForegroundService(
             CastingService.startIntent(context, mediaId, source.subtitleFile?.absolutePath)
         )
 
         val ip = getLocalIp(context) ?: run { onError("Local IP address not found"); return }
-        val videoUrl = "http://$ip:$PORT/video"
-        val subtitleUrl = when {
-            source.subtitleFile != null -> "http://$ip:$PORT/subtitle"
-            source.subtitleUrl != null -> {
-                "http://$ip:$PORT/subtitle"
-            }
-            else -> null
-        }
+        val success = sendDlnaPlay(
+            location = device.location,
+            videoUrl = "http://$ip:$PORT/video",
+            subtitleUrl = source.toSubtitleUrl(ip, PORT),
+            title = source.toTitle(),
+            mimeType = source.toMimeType(),
+        )
 
-        val title = when (source) {
-            is CastMediaSource.LocalFile -> source.file.nameWithoutExtension
-            is CastMediaSource.RemoteUrl -> source.url.substringAfterLast("/").substringBeforeLast(".")
-        }
-        val mimeType = getMimeType(source)
-
-        val success = sendDlnaPlay(device.location, videoUrl, subtitleUrl, title, mimeType)
         if (success) {
             currentDevice = device
             currentCastingPath = mediaId
@@ -338,17 +328,14 @@ object DlnaManager {
         source: CastMediaSource,
         device: DlnaDevice,
     ) = withContext(Dispatchers.IO) {
-        val mediaId = when (source) {
-            is CastMediaSource.LocalFile -> source.file.absolutePath
-            is CastMediaSource.RemoteUrl -> source.url
-        }
+        val mediaId = source.toMediaId()
 
         _playbackState.update {
             it.copy(
                 positionMs = 0L,
                 durationMs = 0L,
                 transportState = DlnaTransportState.TRANSITIONING,
-                mediaId = mediaId
+                mediaId = mediaId,
             )
         }
 
@@ -356,36 +343,13 @@ object DlnaManager {
         server?.updateSource(source)
 
         val ip = getLocalIp(context) ?: return@withContext
-        val videoUrl = "http://$ip:$PORT/video"
-        val subtitleUrl = source.subtitleFile?.let { "http://$ip:$PORT/subtitle" }
-        val title = when (source) {
-            is CastMediaSource.LocalFile -> source.file.nameWithoutExtension
-            is CastMediaSource.RemoteUrl -> source.url.substringAfterLast("/").substringBeforeLast(".")
-        }
-        val mimeType = getMimeType(source)
-
-        sendDlnaPlay(device.location, videoUrl, subtitleUrl, title, mimeType)
-    }
-
-    private fun getMimeType(source: CastMediaSource): String {
-        val ext = when (source) {
-            is CastMediaSource.LocalFile -> source.file.extension.lowercase()
-            is CastMediaSource.RemoteUrl -> {
-                val lastSegment = source.url.substringBefore("?").substringAfterLast("/")
-                if (lastSegment.contains(".")) lastSegment.substringAfterLast(".").lowercase() else ""
-            }
-        }
-        return when (ext) {
-            "mp4" -> "video/mp4"
-            "mkv" -> "video/x-matroska"
-            "webm" -> "video/webm"
-            "avi" -> "video/x-msvideo"
-            "ts"  -> "video/mp2t"
-            "mp3" -> "audio/mpeg"
-            "flac" -> "audio/flac"
-            "aac"  -> "audio/aac"
-            else  -> "video/mp4"
-        }
+        sendDlnaPlay(
+            location = device.location,
+            videoUrl = "http://$ip:$PORT/video",
+            subtitleUrl = source.toSubtitleUrl(ip, PORT),
+            title = source.toTitle(),
+            mimeType = source.toMimeType(),
+        )
     }
 
     suspend fun stopCasting(context: Context) = withContext(Dispatchers.IO) {

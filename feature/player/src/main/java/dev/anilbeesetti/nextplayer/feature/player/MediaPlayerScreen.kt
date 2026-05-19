@@ -196,7 +196,7 @@ fun MediaPlayerScreen(
     // dlna
     val dlnaDevices by viewModel.dlnaDevices.collectAsStateWithLifecycle()
     val isDlnaSearching by viewModel.isDlnaSearching.collectAsStateWithLifecycle()
-    val currentUri = player.currentMediaItem?.localConfiguration?.uri?.toString()
+    val currentUri = player.currentMediaItem?.mediaId
     val dlnaPlaybackState by viewModel.dlnaPlaybackState.collectAsStateWithLifecycle()
     var isDlnaMenuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -205,7 +205,7 @@ fun MediaPlayerScreen(
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                val uri = mediaItem?.localConfiguration?.uri?.toString() ?: return
+                val uri = mediaItem?.mediaId ?: return
 
                 if (isCastingActiveRef.value &&
                     reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT

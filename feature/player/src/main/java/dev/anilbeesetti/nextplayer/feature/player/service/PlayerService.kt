@@ -103,6 +103,8 @@ class PlayerService : MediaSessionService() {
     @Inject
     lateinit var imageLoader: ImageLoader
 
+    internal lateinit var okHttpClient: OkHttpClient
+
     private val playerPreferences: PlayerPreferences
         get() = preferencesRepository.playerPreferences.value
 
@@ -567,7 +569,7 @@ class PlayerService : MediaSessionService() {
             )
         }
 
-        val okHttpClient = OkHttpClient.Builder()
+        okHttpClient = OkHttpClient.Builder()
             .setupUnsafeSsl()
             .addInterceptor { chain ->
                 val request = chain.request()
@@ -833,9 +835,29 @@ class PlayerService : MediaSessionService() {
         .build()
 
     private suspend fun resolveMediaSourceFromPlayer(): CastMediaSource? {
-        val uri = mediaSession?.player?.currentMediaItem
-            ?.localConfiguration?.uri?.toString() ?: return null
-        return resolveMediaSource(uri) { mediaRepository.getVideoByUri(it)?.path }
+        val uriString = mediaSession?.player?.currentMediaItem?.mediaId ?: return null
+
+        return resolveMediaSource(
+            uri = uriString,
+            authHeaders = webdavCredentials,
+            okHttpClient = okHttpClient,
+            getVideoPath = {
+                mediaRepository.getVideoByUri(it)?.path
+                    ?: applicationContext.getPath(it.toUri())
+            }
+        )
+    }
+
+    suspend fun resolveMediaSourceForUri(uri: String): CastMediaSource? {
+        return resolveMediaSource(
+            uri = uri,
+            authHeaders = webdavCredentials,
+            okHttpClient = okHttpClient,
+            getVideoPath = {
+                mediaRepository.getVideoByUri(it)?.path
+                    ?: applicationContext.getPath(it.toUri())
+            }
+        )
     }
 
     private suspend fun updateCastingToCurrentItem(context: Context) {

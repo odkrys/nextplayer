@@ -5,18 +5,23 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumStateDao
+import dev.anilbeesetti.nextplayer.core.database.dao.WebdavServerDao
 import dev.anilbeesetti.nextplayer.core.database.entities.MediumStateEntity
+import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
 
 @Database(
     entities = [
         MediumStateEntity::class,
+        WebdavServerEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
 
     abstract fun mediumStateDao(): MediumStateDao
+
+    abstract fun webdavServerDao(): WebdavServerDao
 
     companion object {
         const val DATABASE_NAME = "media_db"
@@ -176,6 +181,28 @@ abstract class MediaDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE IF EXISTS `audio_stream_info`")
                 db.execSQL("DROP TABLE IF EXISTS `video_stream_info`")
                 db.execSQL("DROP TABLE IF EXISTS `subtitle_stream_info`")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `webdav_servers` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
+                        `name` TEXT NOT NULL, 
+                        `host` TEXT NOT NULL, 
+                        `port` INTEGER NOT NULL, 
+                        `path` TEXT NOT NULL, 
+                        `username` TEXT NOT NULL, 
+                        `password` TEXT NOT NULL, 
+                        `useSsl` INTEGER NOT NULL, 
+                        `allowSelfSigned` INTEGER NOT NULL, 
+                        `createdAt` INTEGER NOT NULL, 
+                        `updatedAt` INTEGER NOT NULL
+                    )
+                """.trimIndent()
+                )
             }
         }
     }

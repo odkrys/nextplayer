@@ -34,6 +34,7 @@ fun NavGraphBuilder.mediaPickerScreen(
     onPlayVideo: (uri: Uri) -> Unit,
     onPlayVideos: (uris: List<Uri>) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
+    onRemoteClick: () -> Unit = {},
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
 ) {
@@ -43,6 +44,7 @@ fun NavGraphBuilder.mediaPickerScreen(
             onPlayVideos = onPlayVideos,
             onNavigateUp = onNavigateUp,
             onFolderClick = onFolderClick,
+            onRemoteClick = onRemoteClick,
             onSettingsClick = onSettingsClick,
             onSearchClick = onSearchClick,
         )

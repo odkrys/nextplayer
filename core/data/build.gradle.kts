@@ -38,6 +38,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.github.anilbeesetti.nextlib.mediainfo)
 
+    // Webdav
+    implementation(libs.okhttp)
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

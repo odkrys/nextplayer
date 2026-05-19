@@ -116,6 +116,7 @@ fun MediaPickerRoute(
     onPlayVideo: (uri: Uri) -> Unit,
     onPlayVideos: (uris: List<Uri>) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
+    onRemoteClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
     onNavigateUp: () -> Unit,
@@ -133,6 +134,7 @@ fun MediaPickerRoute(
         onPlayVideo = onPlayVideo,
         onNavigateUp = onNavigateUp,
         onFolderClick = onFolderClick,
+        onRemoteClick = onRemoteClick,
         onSettingsClick = onSettingsClick,
         onSearchClick = onSearchClick,
         onAction = viewModel::onAction,
@@ -146,6 +148,7 @@ internal fun MediaPickerScreen(
     onNavigateUp: () -> Unit = {},
     onPlayVideo: (Uri) -> Unit = {},
     onFolderClick: (String) -> Unit = {},
+    onRemoteClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onAction: (MediaPickerAction) -> Unit = {},
@@ -248,6 +251,12 @@ internal fun MediaPickerScreen(
                             Icon(
                                 imageVector = NextIcons.DashBoard,
                                 contentDescription = stringResource(id = R.string.menu),
+                            )
+                        }
+                        IconButton(onClick = onRemoteClick) {
+                            Icon(
+                                imageVector = NextIcons.Storage,
+                                contentDescription = "Remote Server",
                             )
                         }
                         IconButton(onClick = onSettingsClick) {

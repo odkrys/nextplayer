@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
+import android.os.PowerManager
 import android.util.Log
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.CoroutineScope
@@ -70,6 +71,9 @@ object DlnaManager {
     private var cachedAvTransportUrl: String? = null
     private var cachedLocation: String? = null
 
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+
     data class DlnaDevice(
         val name: String,
         val location: String,
@@ -92,6 +96,38 @@ object DlnaManager {
             multicastLock?.release()
         }
         multicastLock = null
+    }
+
+    private fun acquireCastingLocks(context: Context) {
+        val appContext = context.applicationContext
+
+        if (wakeLock == null) {
+            val powerManager = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "NextPlayer::DlnaWakeLock").apply {
+                acquire(6 * 60 * 60 * 1000L)
+            }
+        }
+
+        if (wifiLock == null) {
+            val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "NextPlayer::DlnaWifiLock").apply {
+                acquire()
+            }
+        }
+    }
+
+    private fun releaseCastingLocks() {
+        try { wakeLock?.takeIf { it.isHeld }?.release() } catch (e: Exception) { Log.w(TAG, "WakeLock release error: $e") }
+        wakeLock = null
+
+        try { wifiLock?.takeIf { it.isHeld }?.release() } catch (e: Exception) { Log.w(TAG, "WifiLock release error: $e") }
+        wifiLock = null
+    }
+
+    fun ensureWakeLock(context: Context) {
+        if (wakeLock?.isHeld != true || wifiLock?.isHeld != true) {
+            acquireCastingLocks(context)
+        }
     }
 
     suspend fun searchDevices(context: Context): List<DlnaDevice> = withContext(Dispatchers.IO) {
@@ -272,6 +308,7 @@ object DlnaManager {
         _playbackState.value = DlnaPlaybackState()
         currentDevice = null
         stopServer()
+        releaseCastingLocks()
     }
 
     suspend fun startCasting(
@@ -286,6 +323,8 @@ object DlnaManager {
             onError("File not found")
             return
         }
+
+        acquireCastingLocks(context)
 
         stopServer()
         try {
@@ -329,6 +368,8 @@ object DlnaManager {
         device: DlnaDevice,
     ) = withContext(Dispatchers.IO) {
         val mediaId = source.toMediaId()
+
+        ensureWakeLock(context)
 
         _playbackState.update {
             it.copy(

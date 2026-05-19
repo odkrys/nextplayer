@@ -875,6 +875,9 @@ class PlayerService : MediaSessionService() {
 
         serviceScope.launch {
             delay(100)
+            if (DlnaManager.currentDevice != null) {
+                DlnaManager.ensureWakeLock(context)
+            }
             updateCastingToCurrentItem(context)
         }
     }

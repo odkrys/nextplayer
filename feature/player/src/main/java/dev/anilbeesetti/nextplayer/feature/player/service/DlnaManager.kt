@@ -124,7 +124,7 @@ object DlnaManager {
         wifiLock = null
     }
 
-    fun ensureWakeLock(context: Context) {
+    fun ensureCastingLocks(context: Context) {
         if (wakeLock?.isHeld != true || wifiLock?.isHeld != true) {
             acquireCastingLocks(context)
         }
@@ -369,7 +369,7 @@ object DlnaManager {
     ) = withContext(Dispatchers.IO) {
         val mediaId = source.toMediaId()
 
-        ensureWakeLock(context)
+        ensureCastingLocks(context)
 
         _playbackState.update {
             it.copy(

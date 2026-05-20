@@ -42,6 +42,18 @@ class CastingService : Service() {
     override fun onCreate() {
         super.onCreate()
         startForeground(NOTIFICATION_ID, buildNotification())
+
+        serviceScope.launch {
+            var hasStarted = false
+            DlnaManager.playbackState.collect { state ->
+                if (state.isActive) {
+                    hasStarted = true
+                } else if (hasStarted && !state.isActive) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

@@ -39,13 +39,16 @@ enum class DlnaTransportState {
     }
 }
 
+enum class StopReason { NONE, DEVICE_UNREACHABLE }
+
 data class DlnaPlaybackState(
     val isActive: Boolean = false,
     val mediaId: String = "",
     val transportState: DlnaTransportState = DlnaTransportState.UNKNOWN,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
-    val currentDevice: DlnaManager.DlnaDevice? = null
+    val currentDevice: DlnaManager.DlnaDevice? = null,
+    val stopReason: StopReason = StopReason.NONE
 ) {
     val isPlaying get() = transportState == DlnaTransportState.PLAYING
 }
@@ -269,6 +272,19 @@ object DlnaManager {
             while (isActive) {
                 try {
                     val stateStr = pollPlaybackState(device)
+
+                    if (stateStr == null) {
+                        errorCount++
+                        if (errorCount >= 3) {
+                            _playbackState.update { it.copy(stopReason = StopReason.DEVICE_UNREACHABLE) }
+                            stopCastingInternal()
+                            break
+                        }
+                        delay(1000)
+                        continue
+                    }
+
+                    errorCount = 0
                     val transportState = DlnaTransportState.fromString(stateStr)
 
                     var position = _playbackState.value.positionMs
@@ -288,10 +304,10 @@ object DlnaManager {
                             durationMs = duration
                         )
                     }
-                    errorCount = 0
                 } catch (e: Exception) {
                     errorCount++
                     if (errorCount >= 3) {
+                        _playbackState.update { it.copy(stopReason = StopReason.DEVICE_UNREACHABLE) }
                         stopCastingInternal()
                         break
                     }
@@ -305,7 +321,7 @@ object DlnaManager {
         cachedAvTransportUrl = null
         cachedLocation = null
         pollingJob?.cancel()
-        _playbackState.value = DlnaPlaybackState()
+        _playbackState.update { current -> DlnaPlaybackState(stopReason = current.stopReason) }
         currentDevice = null
         stopServer()
         releaseCastingLocks()
@@ -681,12 +697,13 @@ object DlnaManager {
     }
 
     suspend fun seekTo(device: DlnaDevice, positionMs: Long) = withContext(Dispatchers.IO) {
-        val avTransportUrl = getAvTransportUrl(device.location) ?: return@withContext
-        val h = positionMs / 3600000
-        val m = (positionMs % 3600000) / 60000
-        val s = (positionMs % 60000) / 1000
-        val target = "%02d:%02d:%02d".format(h, m, s)
-        val body = """<?xml version="1.0" encoding="utf-8"?>
+        try {
+            val avTransportUrl = getAvTransportUrl(device.location) ?: return@withContext
+            val h = positionMs / 3600000
+            val m = (positionMs % 3600000) / 60000
+            val s = (positionMs % 60000) / 1000
+            val target = "%02d:%02d:%02d".format(h, m, s)
+            val body = """<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body>
     <u:Seek xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
@@ -696,24 +713,35 @@ object DlnaManager {
     </u:Seek>
   </s:Body>
 </s:Envelope>"""
-        soapPost(avTransportUrl, "urn:schemas-upnp-org:service:AVTransport:1#Seek", body)
+            soapPost(avTransportUrl, "urn:schemas-upnp-org:service:AVTransport:1#Seek", body)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to seek: ${e.message}")
+        }
     }
 
     suspend fun pause(device: DlnaDevice) = withContext(Dispatchers.IO) {
-        val url = getAvTransportUrl(device.location) ?: return@withContext
-        val body = """<?xml version="1.0" encoding="utf-8"?>
+        try {
+            val url = getAvTransportUrl(device.location) ?: return@withContext
+            val body = """<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body><u:Pause xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID></u:Pause></s:Body>
 </s:Envelope>"""
-        soapPost(url, "urn:schemas-upnp-org:service:AVTransport:1#Pause", body)
+            soapPost(url, "urn:schemas-upnp-org:service:AVTransport:1#Pause", body)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to pause: ${e.message}")
+        }
     }
 
     suspend fun play(device: DlnaDevice) = withContext(Dispatchers.IO) {
-        val url = getAvTransportUrl(device.location) ?: return@withContext
-        val body = """<?xml version="1.0" encoding="utf-8"?>
+        try {
+            val url = getAvTransportUrl(device.location) ?: return@withContext
+            val body = """<?xml version="1.0" encoding="utf-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
   <s:Body><u:Play xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play></s:Body>
 </s:Envelope>"""
-        soapPost(url, "urn:schemas-upnp-org:service:AVTransport:1#Play", body)
+            soapPost(url, "urn:schemas-upnp-org:service:AVTransport:1#Play", body)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to pause: ${e.message}")
+        }
     }
 }

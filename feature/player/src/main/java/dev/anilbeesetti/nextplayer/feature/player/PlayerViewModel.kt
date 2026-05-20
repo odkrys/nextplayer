@@ -21,6 +21,7 @@ import dev.anilbeesetti.nextplayer.feature.player.service.DlnaManager
 import dev.anilbeesetti.nextplayer.feature.player.service.DlnaTransportState
 import dev.anilbeesetti.nextplayer.feature.player.service.CastMediaSource
 import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
+import dev.anilbeesetti.nextplayer.feature.player.service.StopReason
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 import dev.anilbeesetti.nextplayer.feature.player.state.VideoZoomEvent
 import javax.inject.Inject
@@ -87,6 +88,10 @@ class PlayerViewModel @Inject constructor(
                             }
                         }
                     }
+                } else if (!state.isActive && state.stopReason == StopReason.DEVICE_UNREACHABLE) {
+                    autoStopJob?.cancel()
+                    autoStopJob = null
+                    _castingEvent.emit(CastingEvent.StopCasting)
                 } else if (state.isActive && state.isPlaying) {
                     autoStopJob?.cancel()
                     autoStopJob = null

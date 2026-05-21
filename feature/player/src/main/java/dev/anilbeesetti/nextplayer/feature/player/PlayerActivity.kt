@@ -236,7 +236,8 @@ class PlayerActivity : ComponentActivity() {
         val mediaItems = playlist.mapIndexed { index, uri ->
             MediaItem.Builder().apply {
                 setUri(uri)
-                setMediaId(uri)
+                //setMediaId(uri)
+                setMediaId(Uri.parse(uri).buildUpon().fragment(null).build().toString())
                 if (index == mediaItemIndexToPlay) {
                     setMediaMetadata(
                         MediaMetadata.Builder().apply {

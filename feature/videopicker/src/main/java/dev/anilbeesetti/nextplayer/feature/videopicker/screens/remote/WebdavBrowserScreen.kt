@@ -8,37 +8,45 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
@@ -57,6 +65,11 @@ fun WebdavBrowserScreen(
 
     LaunchedEffect(serverId) {
         viewModel.initServer(serverId)
+    }
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshProgress()
+        onPauseOrDispose {}
     }
 
     BackHandler {
@@ -155,6 +168,8 @@ private fun WebdavBrowserContent(
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
+    var showClearDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -212,8 +227,10 @@ private fun WebdavBrowserContent(
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::refresh) {
-                        Icon(NextIcons.Refresh, contentDescription = "Refresh")
+                    if (uiState.playbackProgress.isNotEmpty()) {
+                        IconButton(onClick = { showClearDialog = true }) {
+                            Icon(NextIcons.History, contentDescription = "Clear Playback History")
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -243,6 +260,7 @@ private fun WebdavBrowserContent(
                 else -> {
                     FileList(
                         files = uiState.files,
+                        playbackProgress = uiState.playbackProgress,
                         onDirectoryClick = viewModel::navigateTo,
                         onFileClick = { file ->
                             val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
@@ -255,12 +273,36 @@ private fun WebdavBrowserContent(
                 }
             }
         }
+
+        if (showClearDialog) {
+            AlertDialog(
+                onDismissRequest = { showClearDialog = false },
+                title = { Text("Clear Playback History") },
+                text = { Text("Are you sure you want to clear the playback history for all videos in this folder?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.clearPlaybackHistory()
+                            showClearDialog = false
+                        }
+                    ) {
+                        Text("Clear", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 }
 
 @Composable
 private fun FileList(
     files: List<WebdavFile>,
+    playbackProgress: Map<String, Float>,
     onDirectoryClick: (WebdavFile) -> Unit,
     onFileClick: (WebdavFile) -> Unit,
     isPlayable: (WebdavFile) -> Boolean,
@@ -272,10 +314,12 @@ private fun FileList(
     ) {
         items(files, key = { it.href }) { file ->
             val playable = isPlayable(file)
+            val progress = playbackProgress[file.href]
 
             FileListItem(
                 file = file,
                 playable = playable,
+                progress = progress,
                 onClick = {
                     if (file.isDirectory) {
                         onDirectoryClick(file)
@@ -285,7 +329,7 @@ private fun FileList(
                 },
             )
             HorizontalDivider(
-                modifier = Modifier.padding(start = 72.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 thickness = 0.5.dp,
                 color = MaterialTheme.colorScheme.outlineVariant,
             )
@@ -297,56 +341,72 @@ private fun FileList(
 private fun FileListItem(
     file: WebdavFile,
     playable: Boolean,
+    progress: Float?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ListItem(
-        modifier = modifier.clickable(onClick = onClick),
-        leadingContent = {
-            Icon(
-                imageVector = file.icon(),
-                contentDescription = null,
-                modifier = Modifier.size(28.dp),
-                tint = when {
-                    file.isDirectory -> MaterialTheme.colorScheme.primary
-                    playable -> MaterialTheme.colorScheme.secondary
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        },
-        headlineContent = {
-            Text(
-                text = file.name,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        supportingContent = {
-            val infoText = listOf(file.displaySize, file.lastModified)
-                .filter { it.isNotEmpty() }
-                .joinToString(" • ")
-
-            if (infoText.isNotEmpty()) {
+    Column(modifier = modifier) {
+        ListItem(
+            modifier = Modifier.clickable(onClick = onClick),
+            leadingContent = {
+                Icon(
+                    imageVector = file.icon(),
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = when {
+                        file.isDirectory -> MaterialTheme.colorScheme.primary
+                        playable -> MaterialTheme.colorScheme.secondary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            },
+            headlineContent = {
                 Text(
-                    text = infoText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = file.name,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-            }
-        },
-        trailingContent = if (playable) {
-            {
-                Icon(
-                    imageVector = NextIcons.Play,
-                    contentDescription = "Playable",
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-        } else null,
-    )
+            },
+            supportingContent = {
+                val infoText = listOf(file.displaySize, file.lastModified)
+                    .filter { it.isNotEmpty() }
+                    .joinToString(" • ")
+
+                if (infoText.isNotEmpty()) {
+                    Text(
+                        text = infoText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            },
+            trailingContent = if (playable) {
+                {
+                    Icon(
+                        imageVector = NextIcons.Play,
+                        contentDescription = "Playable",
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else null,
+        )
+
+        if (progress != null) {
+            LinearProgressIndicator(
+                progress = progress,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .height(3.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeCap = StrokeCap.Round,
+            )
+        }
+    }
 }
 
 @Composable
@@ -406,7 +466,7 @@ private fun buildFileUrl(server: WebdavServer, file: WebdavFile, allFiles: List<
     val hostAndPort = uri.authority ?: "${server.host}:${server.port}"
 
     val videoBaseName = file.name.substringBeforeLast(".")
-    val subExtensions = setOf("srt", "ssa", "ass", "vtt", "ttml", "xml", "dfxp")
+    val subExtensions = listOf("srt", "ssa", "ass", "vtt", "ttml", "xml", "dfxp")
     val existingSubs = allFiles
         .filter { f ->
             !f.isDirectory &&

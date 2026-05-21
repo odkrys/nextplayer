@@ -26,4 +26,7 @@ interface MediumStateDao {
 
     @Query("DELETE FROM media_state WHERE uri in (:uris)")
     suspend fun delete(uris: List<String>)
+
+    @Query("UPDATE media_state SET duration_ms = :durationMs WHERE uri = :uri")
+    suspend fun updateDuration(uri: String, durationMs: Long)
 }

@@ -254,12 +254,38 @@ class PlayerService : MediaSessionService() {
             }
 
             if (playbackState == Player.STATE_READY) {
+ /*
                 mediaSession?.player?.let {
                     serviceScope.launch {
                         mediaRepository.updateMediumLastPlayedTime(
                             uri = it.currentMediaItem?.mediaId ?: return@launch,
                             lastPlayedTime = System.currentTimeMillis(),
                         )
+                    }
+                }
+*/
+                val player = mediaSession?.player ?: return
+                val currentMediaItem = player.currentMediaItem ?: return
+                val duration = player.duration.coerceAtLeast(0)
+                val mediaId = currentMediaItem.mediaId
+                val uri = android.net.Uri.parse(mediaId)
+                val isRemote = uri.scheme == "http" || uri.scheme == "https"
+
+                serviceScope.launch {
+                    try {
+                        mediaRepository.updateMediumLastPlayedTime(
+                            uri = mediaId,
+                            lastPlayedTime = System.currentTimeMillis(),
+                        )
+
+                        if (isRemote && duration > 0 && duration != C.TIME_UNSET) {
+                            mediaRepository.updateMediumDuration(
+                                uri = mediaId,
+                                durationMs = duration,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
             }
@@ -295,12 +321,38 @@ class PlayerService : MediaSessionService() {
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             super.onIsPlayingChanged(isPlaying)
+/*
             mediaSession?.run {
                 serviceScope.launch {
                     mediaRepository.updateMediumPosition(
                         uri = player.currentMediaItem?.mediaId ?: return@launch,
                         position = player.currentPosition,
                     )
+                }
+*/
+            mediaSession?.run {
+                val currentMediaItem = player.currentMediaItem ?: return
+                val mediaId = currentMediaItem.mediaId
+                val duration = player.duration.coerceAtLeast(0)
+                val uri = android.net.Uri.parse(mediaId)
+                val isRemote = uri.scheme == "http" || uri.scheme == "https"
+
+                serviceScope.launch {
+                    try {
+                        mediaRepository.updateMediumPosition(
+                            uri = player.currentMediaItem?.mediaId ?: return@launch,
+                            position = player.currentPosition,
+                        )
+
+                        if (isRemote && duration > 0 && duration != C.TIME_UNSET) {
+                            mediaRepository.updateMediumDuration(
+                                uri = mediaId,
+                                durationMs = duration,
+                            )
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
         }
@@ -707,8 +759,10 @@ class PlayerService : MediaSessionService() {
 
                 val existingSubConfigurations = mediaItem.localConfiguration?.subtitleConfigurations ?: emptyList()
 
+                val sourceUri = mediaItem.localConfiguration?.uri ?: uri
+
                 val remoteSubConfigurations = if (filePath == null && (uri.scheme == "http" || uri.scheme == "https")) {
-                    val fragment = uri.fragment
+                    val fragment = sourceUri.fragment
                     if (!fragment.isNullOrBlank()) {
                         fragment.split("&").mapNotNull { pairs ->
                             val kv = pairs.split("=", limit = 2)

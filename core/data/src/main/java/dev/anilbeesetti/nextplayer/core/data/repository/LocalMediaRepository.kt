@@ -190,4 +190,12 @@ class LocalMediaRepository @Inject constructor(
             ),
         )
     }
+
+    override suspend fun updateMediumDuration(uri: String, durationMs: Long) {
+        mediumStateDao.updateDuration(uri, durationMs)
+    }
+
+    override suspend fun delete(uris: List<String>) {
+        mediumStateDao.delete(uris)
+    }
 }

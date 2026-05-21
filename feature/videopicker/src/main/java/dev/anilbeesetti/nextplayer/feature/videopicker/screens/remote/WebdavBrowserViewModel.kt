@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServerByIdUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.ListWebdavFilesUseCase
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
@@ -21,12 +22,14 @@ data class WebdavBrowserUiState(
     val files: List<WebdavFile> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val playbackProgress: Map<String, Float> = emptyMap(),
 )
 
 @HiltViewModel
 class WebdavBrowserViewModel @Inject constructor(
     private val getWebdavServerByIdUseCase: GetWebdavServerByIdUseCase,
     private val listWebdavFilesUseCase: ListWebdavFilesUseCase,
+    private val mediaRepository: MediaRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WebdavBrowserUiState())
@@ -46,7 +49,7 @@ class WebdavBrowserViewModel @Inject constructor(
                             currentPath = "/",
                             pathStack = listOf("/"),
                             files = emptyList(),
-                            isLoading = false
+                            isLoading = false,
                         )
                     }
                     loadFiles("/")
@@ -77,6 +80,7 @@ class WebdavBrowserViewModel @Inject constructor(
                             isLoading = false,
                         )
                     }
+                    remotePlaybackProgress(server, sortedFiles)
                 }
                 .onFailure { e ->
                     _uiState.update {
@@ -84,6 +88,59 @@ class WebdavBrowserViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    private fun remotePlaybackProgress(server: WebdavServer, files: List<WebdavFile>) {
+        val playableFiles = files.filter { isPlayable(it) && !it.isDirectory }
+        if (playableFiles.isEmpty()) return
+
+        viewModelScope.launch {
+            val progressMap = mutableMapOf<String, Float>()
+
+            playableFiles.forEach { file ->
+                try {
+                    val url = buildMediaId(server, file)
+                    val state = mediaRepository.getVideoState(url) ?: return@forEach
+
+                    val position = state.position ?: return@forEach
+                    if (position <= 0L) return@forEach
+
+                    val duration = state.durationMs ?: return@forEach
+                    if (duration <= 0L) return@forEach
+
+                    progressMap[file.href] = (position.toFloat() / duration).coerceIn(0f, 1f)
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            _uiState.update {
+                it.copy(playbackProgress = progressMap)
+            }
+        }
+    }
+
+    private fun buildMediaId(server: WebdavServer, file: WebdavFile): String {
+        val base = server.baseUrl.trimEnd('/')
+        val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
+            file.href
+        } else {
+            "$base/${file.href.trimStart('/')}"
+        }
+
+        val decodedUrl = runCatching {
+            java.net.URLDecoder.decode(rawUrl, "UTF-8")
+        }.getOrDefault(rawUrl)
+
+        return decodedUrl.substringBefore("#")
+    }
+
+    fun refreshProgress() {
+        val server = _uiState.value.server ?: return
+        val files = _uiState.value.files
+        if (files.isEmpty()) return
+        remotePlaybackProgress(server, files)
     }
 
     fun navigateTo(directory: WebdavFile) {
@@ -114,7 +171,7 @@ class WebdavBrowserViewModel @Inject constructor(
         val ext = file.name.substringAfterLast('.', "").lowercase()
         val playableExt = setOf(
             "mp4", "mkv", "avi", "mov", "webm", "ts", "m2ts", "flv", "wmv", "asf",
-            "mp3", "flac", "wav", "m4a", "aac", "ogg", "wma", "ape", "opus"
+            "mp3", "flac", "wav", "m4a", "aac", "ogg", "wma", "ape", "opus",
         )
         return ext in playableExt
     }
@@ -130,5 +187,27 @@ class WebdavBrowserViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun clearPlaybackHistory() {
+        val server = _uiState.value.server ?: return
+        val files = _uiState.value.files
+
+        val playableFiles = files.filter { isPlayable(it) && !it.isDirectory }
+        if (playableFiles.isEmpty()) return
+
+        viewModelScope.launch {
+            val urisToDelete = playableFiles.map { buildMediaId(server, it) }
+
+            try {
+                mediaRepository.delete(urisToDelete)
+
+                _uiState.update {
+                    it.copy(playbackProgress = emptyMap())
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }

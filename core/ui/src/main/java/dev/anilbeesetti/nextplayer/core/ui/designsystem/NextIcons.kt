@@ -62,7 +62,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material.icons.rounded.ResetTv
 import androidx.compose.material.icons.rounded.ScreenRotationAlt
@@ -112,7 +111,7 @@ object NextIcons {
     val DashBoard = Icons.Rounded.Dashboard
     val Decoder = Icons.Rounded.DeveloperBoard
     val Delete = Icons.Rounded.Delete
-    val Devices =  Icons.Rounded.Devices
+    val Devices = Icons.Rounded.Devices
     val DoubleTap = Icons.Rounded.DoubleArrow
     val Edit = Icons.Rounded.Edit
     val Fast = Icons.Rounded.FastForward
@@ -180,5 +179,4 @@ object NextIcons {
     val Movie1 = Icons.Rounded.Movie
     val Music = Icons.Rounded.MusicNote
     val Files = Icons.AutoMirrored.Rounded.InsertDriveFile
-    val Refresh = Icons.Rounded.Refresh
 }

@@ -14,7 +14,8 @@ import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
         MediumStateEntity::class,
         WebdavServerEntity::class,
     ],
-    version = 6,
+    //version = 5,
+    version = 7,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
@@ -202,6 +203,14 @@ abstract class MediaDatabase : RoomDatabase() {
                         `updatedAt` INTEGER NOT NULL
                     )
                 """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `media_state` ADD COLUMN `duration_ms` INTEGER"
                 )
             }
         }

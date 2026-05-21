@@ -15,5 +15,6 @@ fun MediumStateEntity.toVideoState(): VideoState {
         videoScale = videoScale,
         subtitleDelayMilliseconds = subtitleDelayMilliseconds,
         subtitleSpeed = subtitleSpeed,
+        durationMs = durationMs,
     )
 }

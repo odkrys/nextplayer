@@ -149,7 +149,7 @@ fun MediaPlayerScreen(
     val pictureInPictureState = rememberPictureInPictureState(
         player = player,
         autoEnter = playerPreferences.autoPip,
-        onEnterPip = { videoZoomAndContentScaleState.resetZoomAndOffset() }
+        onEnterPip = { videoZoomAndContentScaleState.resetZoomAndOffset(showIndicator = false) }
     )
     val brightnessState = rememberBrightnessState()
     val volumeAndBrightnessGestureState = rememberVolumeAndBrightnessGestureState(

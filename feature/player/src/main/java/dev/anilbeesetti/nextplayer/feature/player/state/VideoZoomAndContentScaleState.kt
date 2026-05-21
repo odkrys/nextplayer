@@ -177,7 +177,7 @@ class VideoZoomAndContentScaleState(
         }
     }
 
-    fun resetZoomAndOffset() {
+    fun resetZoomAndOffset(showIndicator: Boolean = true) {
         zoom = 1f
         offset = Offset.Zero
         isZooming = false
@@ -186,7 +186,9 @@ class VideoZoomAndContentScaleState(
         onEvent(
             VideoZoomEvent.ContentScaleChanged(VideoContentScale.BEST_FIT)
         )
-        showResetIndicator()
+        if (showIndicator) {
+            showResetIndicator()
+        }
     }
 }
 

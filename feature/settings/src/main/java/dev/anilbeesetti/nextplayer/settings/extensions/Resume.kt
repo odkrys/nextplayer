@@ -9,6 +9,8 @@ import dev.anilbeesetti.nextplayer.core.ui.R
 fun Resume.name(): String {
     val stringRes = when (this) {
         Resume.YES -> R.string.yes
+        Resume.LOCAL_ONLY -> R.string.resume_local_only
+        Resume.REMOTE_ONLY -> R.string.resume_remote_only
         Resume.NO -> R.string.no
     }
 

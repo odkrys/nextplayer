@@ -128,7 +128,8 @@ class PlayerService : MediaSessionService() {
                     playerSpecificSubtitleSpeed = metadata.subtitleSpeed ?: 1f
                 }
 
-                metadata.positionMs?.takeIf { playerPreferences.resume == Resume.YES }?.let {
+                //metadata.positionMs?.takeIf { playerPreferences.resume == Resume.YES }?.let {
+                metadata.positionMs?.takeIf { shouldResume(mediaItem?.mediaId) }?.let {
                     mediaSession?.player?.seekTo(it)
                 }
             }
@@ -897,6 +898,22 @@ class PlayerService : MediaSessionService() {
 
     fun hasNext(): Boolean {
         return mediaSession?.player?.hasNextMediaItem() ?: false
+    }
+
+    private fun shouldResume(mediaId: String?): Boolean {
+        val uriString = mediaId ?: return false
+        val uri = android.net.Uri.parse(uriString)
+
+        val isHttp = uri.scheme == "http" || uri.scheme == "https"
+        val isWebdavHost = uri.host?.let { webdavCredentials.containsKey(it) } == true
+        val isRemote = isHttp && isWebdavHost
+
+        return when (playerPreferences.resume) {
+            Resume.YES         -> true
+            Resume.LOCAL_ONLY  -> !isRemote
+            Resume.REMOTE_ONLY -> isRemote
+            Resume.NO          -> false
+        }
     }
 }
 

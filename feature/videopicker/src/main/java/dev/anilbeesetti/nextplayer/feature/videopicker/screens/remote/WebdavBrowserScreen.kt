@@ -396,7 +396,7 @@ private fun FileListItem(
 
         if (progress != null) {
             LinearProgressIndicator(
-                progress = progress,
+                progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
@@ -404,6 +404,7 @@ private fun FileListItem(
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 strokeCap = StrokeCap.Round,
+                gapSize = 0.dp
             )
         }
     }

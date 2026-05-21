@@ -307,4 +307,6 @@
     <string name="material_you_controls_description">Use material you style controls</string>
     <string name="manage_external_storage">Manage All Files Access</string>
     <string name="manage_external_storage_desc">Grant permission to access all files</string>
+    <string name="resume_local_only">Local Only</string>
+    <string name="resume_remote_only">Remote Only</string>
 </resources>

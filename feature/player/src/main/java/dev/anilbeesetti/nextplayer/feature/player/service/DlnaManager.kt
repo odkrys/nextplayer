@@ -275,7 +275,7 @@ object DlnaManager {
 
                     if (stateStr == null) {
                         errorCount++
-                        if (errorCount >= 3) {
+                        if (errorCount >= 5) {
                             _playbackState.update { it.copy(stopReason = StopReason.DEVICE_UNREACHABLE) }
                             stopCastingInternal()
                             break

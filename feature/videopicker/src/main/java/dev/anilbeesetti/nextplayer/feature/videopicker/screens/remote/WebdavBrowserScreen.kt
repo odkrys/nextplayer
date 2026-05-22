@@ -457,7 +457,7 @@ private fun buildFileUrl(server: WebdavServer, file: WebdavFile, allFiles: List<
     val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
         file.href
     } else {
-        "$base/${file.href.trimStart('/')}"
+        "$base/${file.path.trimStart('/')}"
     }
 
     val uri = Uri.parse(rawUrl)
@@ -481,7 +481,7 @@ private fun buildFileUrl(server: WebdavServer, file: WebdavFile, allFiles: List<
         val subRawUrl = if (subFile.href.startsWith("http://") || subFile.href.startsWith("https://")) {
             subFile.href
         } else {
-            "$base/${subFile.href.trimStart('/')}"
+            "$base/${subFile.path.trimStart('/')}"
         }
         val subFullUrl = Uri.parse(subRawUrl)
             .buildUpon()

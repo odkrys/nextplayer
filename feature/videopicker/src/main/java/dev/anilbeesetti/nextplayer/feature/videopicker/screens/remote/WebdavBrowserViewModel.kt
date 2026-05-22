@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -126,14 +127,19 @@ class WebdavBrowserViewModel @Inject constructor(
         val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
             file.href
         } else {
-            "$base/${file.href.trimStart('/')}"
+            "$base/${file.path.trimStart('/')}"
         }
 
-        val decodedUrl = runCatching {
-            java.net.URLDecoder.decode(rawUrl, "UTF-8")
-        }.getOrDefault(rawUrl)
+        val uri = Uri.parse(rawUrl)
+        val scheme = uri.scheme ?: (if (server.useSsl) "https" else "http")
+        val hostAndPort = uri.authority ?: "${server.host}:${server.port}"
 
-        return decodedUrl.substringBefore("#")
+        return uri.buildUpon()
+            .scheme(scheme)
+            .encodedAuthority(hostAndPort)
+            .build()
+            .toString()
+            .substringBefore("#")
     }
 
     fun refreshProgress() {

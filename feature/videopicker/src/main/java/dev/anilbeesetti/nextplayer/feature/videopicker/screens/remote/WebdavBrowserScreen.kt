@@ -227,10 +227,8 @@ private fun WebdavBrowserContent(
                     }
                 },
                 actions = {
-                    if (uiState.playbackProgress.isNotEmpty()) {
-                        IconButton(onClick = { showClearDialog = true }) {
-                            Icon(NextIcons.History, contentDescription = "Clear Playback History")
-                        }
+                    IconButton(onClick = { showClearDialog = true }) {
+                        Icon(NextIcons.History, contentDescription = "Clear Playback History")
                     }
                 },
                 scrollBehavior = scrollBehavior,

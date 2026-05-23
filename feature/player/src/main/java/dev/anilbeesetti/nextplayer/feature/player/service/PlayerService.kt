@@ -618,7 +618,8 @@ class PlayerService : MediaSessionService() {
             setParameters(
                 buildUponParameters()
                     .setPreferredAudioLanguage(playerPreferences.preferredAudioLanguage)
-                    .setPreferredTextLanguage(playerPreferences.preferredSubtitleLanguage),
+                    .setPreferredTextLanguage(playerPreferences.preferredSubtitleLanguage)
+                    .setSelectUndeterminedTextLanguage(true),
             )
         }
 

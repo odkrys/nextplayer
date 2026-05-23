@@ -25,4 +25,5 @@ interface MediaRepository {
     suspend fun updateSubtitleSpeed(uri: String, speed: Float)
     suspend fun updateMediumDuration(uri: String, durationMs: Long)
     suspend fun delete(uris: List<String>)
+    suspend fun getRecentUrlPrefix(urlPrefix: String): VideoState?
 }

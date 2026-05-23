@@ -65,4 +65,8 @@ class FakeMediaRepository : MediaRepository {
 
     override suspend fun delete(uris: List<String>) {
     }
+
+    override suspend fun getRecentUrlPrefix(urlPrefix: String): VideoState? {
+        return null
+    }
 }

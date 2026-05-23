@@ -149,7 +149,8 @@ class PlayerService : MediaSessionService() {
                 -> {
                     if (newPosition.mediaItem == null || oldMediaItem == newPosition.mediaItem) return
 
-                    val updatedPosition = oldPosition.positionMs.takeIf { reason == DISCONTINUITY_REASON_SEEK } ?: C.TIME_UNSET
+                    //val updatedPosition = oldPosition.positionMs.takeIf { reason == DISCONTINUITY_REASON_SEEK } ?: C.TIME_UNSET
+                    val updatedPosition = when (reason) { DISCONTINUITY_REASON_SEEK -> oldPosition.positionMs else -> 0L }
                     mediaSession?.player?.replaceMediaItem(
                         oldPosition.mediaItemIndex,
                         oldMediaItem.copy(positionMs = updatedPosition),
@@ -276,6 +277,11 @@ class PlayerService : MediaSessionService() {
                         mediaRepository.updateMediumLastPlayedTime(
                             uri = mediaId,
                             lastPlayedTime = System.currentTimeMillis(),
+                        )
+
+                        mediaRepository.updateMediumPosition(
+                            uri = mediaId,
+                            position = player.currentPosition,
                         )
 
                         if (isRemote && duration > 0 && duration != C.TIME_UNSET) {

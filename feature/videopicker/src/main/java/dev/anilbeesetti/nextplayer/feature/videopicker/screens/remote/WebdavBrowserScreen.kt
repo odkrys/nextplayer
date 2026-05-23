@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -235,6 +237,24 @@ private fun WebdavBrowserContent(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+
+        floatingActionButton = {
+            if (uiState.lastPlayedUrl != null) {
+                FloatingActionButton(
+                    onClick = {
+                        viewModel.playLastPlayed { urls, index ->
+                            onPlayFile(urls, index, server)
+                        }
+                    },
+                    modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)
+                ) {
+                    Icon(
+                        imageVector = NextIcons.Play,
+                        contentDescription = "Resume Last Played",
+                    )
+                }
+            }
+        },
     ) { innerPadding ->
 
         PullToRefreshBox(
@@ -259,10 +279,12 @@ private fun WebdavBrowserContent(
                     FileList(
                         files = uiState.files,
                         playbackProgress = uiState.playbackProgress,
+                        lastPlayedUrl = uiState.lastPlayedUrl,
+                        hasPlaybackHistory = uiState.hasPlaybackHistory,
                         onDirectoryClick = viewModel::navigateTo,
                         onFileClick = { file ->
                             val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
-                            val urls = playableFiles.map { buildFileUrl(server, it, uiState.files) }
+                            val urls = playableFiles.map { viewModel.buildFileUrl(it, uiState.files) }
                             val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
                             onPlayFile(urls, selectedIndex, server)
                         },
@@ -301,6 +323,8 @@ private fun WebdavBrowserContent(
 private fun FileList(
     files: List<WebdavFile>,
     playbackProgress: Map<String, Float>,
+    lastPlayedUrl: String?,
+    hasPlaybackHistory: Boolean,
     onDirectoryClick: (WebdavFile) -> Unit,
     onFileClick: (WebdavFile) -> Unit,
     isPlayable: (WebdavFile) -> Boolean,
@@ -313,11 +337,15 @@ private fun FileList(
         items(files, key = { it.href }) { file ->
             val playable = isPlayable(file)
             val progress = playbackProgress[file.href]
+            val isLastPlayed = hasPlaybackHistory &&
+                    lastPlayedUrl != null &&
+                    lastPlayedUrl.contains(file.path.trimStart('/'))
 
             FileListItem(
                 file = file,
                 playable = playable,
                 progress = progress,
+                isLastPlayed = isLastPlayed,
                 onClick = {
                     if (file.isDirectory) {
                         onDirectoryClick(file)
@@ -340,6 +368,7 @@ private fun FileListItem(
     file: WebdavFile,
     playable: Boolean,
     progress: Float?,
+    isLastPlayed: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -352,7 +381,7 @@ private fun FileListItem(
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
                     tint = when {
-                        file.isDirectory -> MaterialTheme.colorScheme.primary
+                        file.isDirectory -> Color(0xFFFFD97F)
                         playable -> MaterialTheme.colorScheme.secondary
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
@@ -363,10 +392,13 @@ private fun FileListItem(
                     text = file.name,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    color = if (isLastPlayed) MaterialTheme.colorScheme.primary
+                    else Color.Unspecified,
                 )
             },
             supportingContent = {
-                val infoText = listOf(file.displaySize, file.lastModified)
+                val extension = file.name.substringAfterLast('.', "").uppercase()
+                val infoText = listOf(extension, file.displaySize, file.lastModified)
                     .filter { it.isNotEmpty() }
                     .joinToString(" • ")
 
@@ -374,7 +406,8 @@ private fun FileListItem(
                     Text(
                         text = infoText,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isLastPlayed) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -450,54 +483,4 @@ private fun WebdavFile.icon(): ImageVector {
 
         else -> NextIcons.Files
     }
-}
-
-private fun buildFileUrl(server: WebdavServer, file: WebdavFile, allFiles: List<WebdavFile>): String {
-    val base = server.baseUrl.trimEnd('/')
-    val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
-        file.href
-    } else {
-        "$base/${file.path.trimStart('/')}"
-    }
-
-    val uri = Uri.parse(rawUrl)
-    val scheme = uri.scheme ?: (if (server.useSsl) "https" else "http")
-    val hostAndPort = uri.authority ?: "${server.host}:${server.port}"
-
-    val videoBaseName = file.name.substringBeforeLast(".")
-    val subExtensions = listOf("srt", "ssa", "ass", "vtt", "ttml", "xml", "dfxp")
-    val existingSubs = allFiles
-        .filter { f ->
-            !f.isDirectory &&
-                    f.name.substringBeforeLast(".") == videoBaseName &&
-                    f.name.substringAfterLast(".").lowercase() in subExtensions
-        }
-        .sortedBy { f ->
-            subExtensions.indexOf(f.name.substringAfterLast(".").lowercase())
-        }
-
-    val fragmentBuilder = StringBuilder()
-    existingSubs.forEach { subFile ->
-        val subRawUrl = if (subFile.href.startsWith("http://") || subFile.href.startsWith("https://")) {
-            subFile.href
-        } else {
-            "$base/${subFile.path.trimStart('/')}"
-        }
-        val subFullUrl = Uri.parse(subRawUrl)
-            .buildUpon()
-            .scheme(scheme)
-            .encodedAuthority(hostAndPort)
-            .build()
-            .toString()
-
-        if (fragmentBuilder.isNotEmpty()) fragmentBuilder.append("&")
-        fragmentBuilder.append("${subFile.name.substringAfterLast(".")}=${Uri.encode(subFullUrl)}")
-    }
-
-    return uri.buildUpon()
-        .scheme(scheme)
-        .encodedAuthority(hostAndPort)
-        .apply { if (fragmentBuilder.isNotEmpty()) fragment(fragmentBuilder.toString()) }
-        .build()
-        .toString()
 }

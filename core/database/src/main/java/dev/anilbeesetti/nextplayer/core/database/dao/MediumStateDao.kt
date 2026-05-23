@@ -29,4 +29,7 @@ interface MediumStateDao {
 
     @Query("UPDATE media_state SET duration_ms = :durationMs WHERE uri = :uri")
     suspend fun updateDuration(uri: String, durationMs: Long)
+
+    @Query("SELECT * FROM media_state WHERE uri LIKE :urlPrefix || '%' ORDER BY last_played_time DESC LIMIT 1")
+    suspend fun getRecentUrlPrefix(urlPrefix: String): MediumStateEntity?
 }

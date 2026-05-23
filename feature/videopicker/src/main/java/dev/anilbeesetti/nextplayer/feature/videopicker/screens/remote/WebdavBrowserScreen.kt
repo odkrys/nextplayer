@@ -181,7 +181,7 @@ private fun WebdavBrowserContent(
     val folderCount = uiState.files.count { it.isDirectory }
     val fileCount = uiState.files.count { !it.isDirectory }
 
-    val countText = remember(folderCount, fileCount) {
+    val countText = remember(folderCount, fileCount, uiState.isLoading) {
         buildString {
             if (folderCount > 0) {
                 append("$folderCount folder")
@@ -279,12 +279,13 @@ private fun WebdavBrowserContent(
                         files = uiState.files,
                         playbackProgress = uiState.playbackProgress,
                         markLastPlayedMedia = uiState.markLastPlayedMedia,
+                        serverBaseUrl = server.baseUrl,
                         lastPlayedUrl = uiState.lastPlayedUrl,
                         hasPlaybackHistory = uiState.hasPlaybackHistory,
                         onDirectoryClick = viewModel::navigateTo,
                         onFileClick = { file ->
                             val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
-                            val urls = playableFiles.map { viewModel.buildFileUrl(it, uiState.files) }
+                            val urls = playableFiles.map { viewModel.buildFileUrl(server, it, uiState.files) }
                             val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
                             onPlayFile(urls, selectedIndex, server)
                         },
@@ -324,6 +325,7 @@ private fun FileList(
     files: List<WebdavFile>,
     playbackProgress: Map<String, Float>,
     markLastPlayedMedia: Boolean,
+    serverBaseUrl: String,
     lastPlayedUrl: String?,
     hasPlaybackHistory: Boolean,
     onDirectoryClick: (WebdavFile) -> Unit,
@@ -335,12 +337,16 @@ private fun FileList(
         modifier = modifier,
         contentPadding = PaddingValues(vertical = 4.dp),
     ) {
+        val base = serverBaseUrl.trimEnd('/')
+
         items(files, key = { it.href }) { file ->
             val playable = isPlayable(file)
             val progress = playbackProgress[file.href]
+            val fileUrl = "$base/${file.path.trimStart('/')}"
             val isLastPlayed = hasPlaybackHistory &&
                     lastPlayedUrl != null &&
-                    lastPlayedUrl.contains(file.path.trimStart('/'))
+                    (lastPlayedUrl == fileUrl ||
+                            lastPlayedUrl.startsWith(fileUrl.trimEnd('/') + "/"))
 
             FileListItem(
                 file = file,
@@ -459,7 +465,6 @@ private fun EmptyDirectory(modifier: Modifier = Modifier) {
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             )
-            Spacer(Modifier.width(0.dp))
             Text(
                 text = "Folder is Empty",
                 style = MaterialTheme.typography.titleMedium,

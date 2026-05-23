@@ -202,4 +202,8 @@ class LocalMediaRepository @Inject constructor(
     override suspend fun getRecentUrlPrefix(urlPrefix: String): VideoState? {
         return mediumStateDao.getRecentUrlPrefix(urlPrefix)?.toVideoState()
     }
+
+    override suspend fun deleteByPrefix(urlPrefix: String) {
+        mediumStateDao.deleteByPrefix(urlPrefix)
+    }
 }

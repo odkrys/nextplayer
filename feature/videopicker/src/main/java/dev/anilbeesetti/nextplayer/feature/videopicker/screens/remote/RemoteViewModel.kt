@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.domain.webdav.DeleteWebdavServerUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServersUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.SaveWebdavServerUseCase
@@ -30,7 +31,8 @@ class RemoteViewModel @Inject constructor(
     private val saveWebdavServerUseCase: SaveWebdavServerUseCase,
     private val deleteWebdavServerUseCase: DeleteWebdavServerUseCase,
     private val testWebdavConnectionUseCase: TestWebdavConnectionUseCase,
-) : ViewModel() {
+    private val mediaRepository: MediaRepository,
+    ) : ViewModel() {
 
     val servers: StateFlow<List<WebdavServer>> = getWebdavServersUseCase()
         .stateIn(
@@ -66,12 +68,17 @@ class RemoteViewModel @Inject constructor(
         _uiState.update { it.copy(serverToDelete = null) }
     }
 
+
     fun confirmDelete() {
         val server = _uiState.value.serverToDelete ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, serverToDelete = null) }
             deleteWebdavServerUseCase(server.id)
                 .onSuccess {
+                    val scheme = if (server.useSsl) "https" else "http"
+                    val urlPrefix = "$scheme://${server.host}:${server.port}"
+                    mediaRepository.deleteByPrefix(urlPrefix)
+
                     _uiState.update {
                         it.copy(isLoading = false, successMessage = "${server.name} Deleted")
                     }

@@ -13,4 +13,5 @@ data class VideoState(
     val subtitleDelayMilliseconds: Long,
     val subtitleSpeed: Float,
     val durationMs: Long? = null,
+    val lastPlayedTime: Long? = null,
 )

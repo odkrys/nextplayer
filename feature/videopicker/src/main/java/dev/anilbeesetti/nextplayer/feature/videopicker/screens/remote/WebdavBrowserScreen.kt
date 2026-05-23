@@ -1,6 +1,5 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -279,6 +278,7 @@ private fun WebdavBrowserContent(
                     FileList(
                         files = uiState.files,
                         playbackProgress = uiState.playbackProgress,
+                        markLastPlayedMedia = uiState.markLastPlayedMedia,
                         lastPlayedUrl = uiState.lastPlayedUrl,
                         hasPlaybackHistory = uiState.hasPlaybackHistory,
                         onDirectoryClick = viewModel::navigateTo,
@@ -323,6 +323,7 @@ private fun WebdavBrowserContent(
 private fun FileList(
     files: List<WebdavFile>,
     playbackProgress: Map<String, Float>,
+    markLastPlayedMedia: Boolean,
     lastPlayedUrl: String?,
     hasPlaybackHistory: Boolean,
     onDirectoryClick: (WebdavFile) -> Unit,
@@ -345,6 +346,7 @@ private fun FileList(
                 file = file,
                 playable = playable,
                 progress = progress,
+                markLastPlayedMedia = markLastPlayedMedia,
                 isLastPlayed = isLastPlayed,
                 onClick = {
                     if (file.isDirectory) {
@@ -368,6 +370,7 @@ private fun FileListItem(
     file: WebdavFile,
     playable: Boolean,
     progress: Float?,
+    markLastPlayedMedia: Boolean,
     isLastPlayed: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -392,7 +395,7 @@ private fun FileListItem(
                     text = file.name,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = if (isLastPlayed) MaterialTheme.colorScheme.primary
+                    color = if (isLastPlayed && markLastPlayedMedia) MaterialTheme.colorScheme.primary
                     else Color.Unspecified,
                 )
             },
@@ -406,7 +409,7 @@ private fun FileListItem(
                     Text(
                         text = infoText,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isLastPlayed) MaterialTheme.colorScheme.primary
+                        color = if (isLastPlayed && markLastPlayedMedia) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

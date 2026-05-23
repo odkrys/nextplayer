@@ -26,4 +26,6 @@ interface MediaRepository {
     suspend fun updateMediumDuration(uri: String, durationMs: Long)
     suspend fun delete(uris: List<String>)
     suspend fun getRecentUrlPrefix(urlPrefix: String): VideoState?
+    suspend fun deleteByPrefix(urlPrefix: String)
+
 }

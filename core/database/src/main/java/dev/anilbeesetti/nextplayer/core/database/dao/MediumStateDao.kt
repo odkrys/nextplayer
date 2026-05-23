@@ -32,4 +32,6 @@ interface MediumStateDao {
 
     @Query("SELECT * FROM media_state WHERE uri LIKE :urlPrefix || '%' ORDER BY last_played_time DESC LIMIT 1")
     suspend fun getRecentUrlPrefix(urlPrefix: String): MediumStateEntity?
+    @Query("DELETE FROM media_state WHERE uri LIKE :urlPrefix || '%'")
+    suspend fun deleteByPrefix(urlPrefix: String)
 }

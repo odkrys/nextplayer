@@ -678,6 +678,7 @@ fun MediaPlayerScreen(
                 onDismiss = { overlayView = null },
                 onSelectSubtitleClick = onSelectSubtitleClick,
                 onSubtitleOptionEvent = viewModel::onSubtitleOptionEvent,
+                subtitleTextSize = playerPreferences.subtitleTextSize,
                 initialPosition = playerPreferences.subtitlePosition,
                 onVideoContentScaleChanged = { videoZoomAndContentScaleState.onVideoContentScaleChanged(it) },
             )

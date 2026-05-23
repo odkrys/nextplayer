@@ -141,7 +141,8 @@ class SubtitleOptionsState(
 }
 
 sealed interface SubtitleOptionsEvent {
+    data class UpdateSubtitleTextSize(val size: Int) : SubtitleOptionsEvent
+    data class UpdateSubtitlePosition(val position: Float) : SubtitleOptionsEvent
     data class DelayChanged(val mediaItem: MediaItem, val delay: Long) : SubtitleOptionsEvent
     data class SpeedChanged(val mediaItem: MediaItem, val speed: Float) : SubtitleOptionsEvent
-    data class UpdateSubtitlePosition(val position: Float) : SubtitleOptionsEvent
 }

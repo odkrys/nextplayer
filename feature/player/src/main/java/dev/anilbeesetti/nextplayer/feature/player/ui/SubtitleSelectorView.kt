@@ -67,6 +67,7 @@ fun BoxScope.SubtitleSelectorView(
     show: Boolean,
     player: Player,
     onSelectSubtitleClick: () -> Unit,
+    subtitleTextSize: Int,
     initialPosition: Float,
     onEvent: (SubtitleOptionsEvent) -> Unit = {},
     onDismiss: () -> Unit,
@@ -245,19 +246,26 @@ fun BoxScope.SubtitleSelectorView(
                         .verticalScroll(rememberScrollState())
                         .padding(bottom = 8.dp)
                 ) {
-                    DelayInput(
-                        value = subtitleOptionsState.delayMilliseconds,
-                        onValueChange = { subtitleOptionsState.setDelay(it) },
+                    PreferenceSlider(
+                        title = "Text Size: $subtitleTextSize",
+                        icon = NextIcons.FontSize,
+                        value = subtitleTextSize.toFloat(),
+                        valueRange = 10f..60f,
+                        onValueChange = { newValue ->
+                            currentAlpha = 0.4f
+                            onEvent(SubtitleOptionsEvent.UpdateSubtitleTextSize(newValue.toInt()))
+                        },
+                        onValueChangeFinished = {
+                            currentAlpha = 1f
+                        },
+                        trailingContent = {
+                            FilledIconButton(
+                                onClick = { onEvent(SubtitleOptionsEvent.UpdateSubtitleTextSize(20)) }
+                            ) {
+                                Icon(imageVector = NextIcons.History, contentDescription = "Reset")
+                            }
+                        },
                     )
-
-                    Spacer(modifier = Modifier.size(12.dp))
-
-                    SpeedInput(
-                        value = subtitleOptionsState.speedMultiplier,
-                        onValueChange = { subtitleOptionsState.setSpeed(it) },
-                    )
-
-                    Spacer(modifier = Modifier.size(12.dp))
 
                     PreferenceSlider(
                         title = "Position: ${(subtitleOptionsState.positionRatio * 100).toInt()}",
@@ -278,6 +286,20 @@ fun BoxScope.SubtitleSelectorView(
                                 Icon(imageVector = NextIcons.History, contentDescription = "Reset")
                             }
                         },
+                    )
+
+                    Spacer(modifier = Modifier.size(12.dp))
+
+                    DelayInput(
+                        value = subtitleOptionsState.delayMilliseconds,
+                        onValueChange = { subtitleOptionsState.setDelay(it) },
+                    )
+
+                    Spacer(modifier = Modifier.size(12.dp))
+
+                    SpeedInput(
+                        value = subtitleOptionsState.speedMultiplier,
+                        onValueChange = { subtitleOptionsState.setSpeed(it) },
                     )
                 }
             }

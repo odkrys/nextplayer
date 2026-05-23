@@ -150,14 +150,17 @@ class PlayerViewModel @Inject constructor(
 
     fun onSubtitleOptionEvent(event: SubtitleOptionsEvent) {
         when (event) {
+            is SubtitleOptionsEvent.UpdateSubtitleTextSize -> {
+                updateSubtitleTextSize(event.size)
+            }
+            is SubtitleOptionsEvent.UpdateSubtitlePosition -> {
+                updateSubtitlePosition(event.position)
+            }
             is SubtitleOptionsEvent.DelayChanged -> {
                 updateSubtitleDelay(event.mediaItem.mediaId, event.delay)
             }
             is SubtitleOptionsEvent.SpeedChanged -> {
                 updateSubtitleSpeed(event.mediaItem.mediaId, event.speed)
-            }
-            is SubtitleOptionsEvent.UpdateSubtitlePosition -> {
-                updateSubtitlePosition(event.position)
             }
         }
     }
@@ -171,6 +174,12 @@ class PlayerViewModel @Inject constructor(
     private fun updateSubtitleSpeed(uri: String, speed: Float) {
         viewModelScope.launch {
             mediaRepository.updateSubtitleSpeed(uri, speed)
+        }
+    }
+
+    private fun updateSubtitleTextSize(value: Int) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(subtitleTextSize = value) }
         }
     }
 

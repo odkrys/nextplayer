@@ -10,6 +10,8 @@ import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServerByIdUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.ListWebdavFilesUseCase
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,14 +43,18 @@ class WebdavBrowserViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WebdavBrowserUiState())
     val uiState: StateFlow<WebdavBrowserUiState> = _uiState.asStateFlow()
 
-    fun initServer(serverId: Long) {
-        if (_uiState.value.server?.id == serverId) return
+    private var fileLoadingJob: Job? = null
 
+    init {
         viewModelScope.launch {
             preferencesRepository.applicationPreferences.collect { prefs ->
                 _uiState.update { it.copy(markLastPlayedMedia = prefs.markLastPlayedMedia) }
             }
         }
+    }
+
+    fun initServer(serverId: Long) {
+        if (_uiState.value.server?.id == serverId) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -62,6 +68,10 @@ class WebdavBrowserViewModel @Inject constructor(
                             pathStack = listOf("/"),
                             files = emptyList(),
                             isLoading = false,
+
+                            lastPlayedUrl = null,
+                            hasPlaybackHistory = false,
+                            playbackProgress = emptyMap()
                         )
                     }
                     loadFiles("/")
@@ -76,26 +86,42 @@ class WebdavBrowserViewModel @Inject constructor(
 
     fun loadFiles(path: String) {
         val server = _uiState.value.server ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        fileLoadingJob?.cancel()
+
+        fileLoadingJob = viewModelScope.launch {
+            _uiState.update { it.copy(errorMessage = null) }
+
+            val spinnerJob = launch {
+                delay(250)
+                _uiState.update { it.copy(isLoading = true) }
+            }
+
             listWebdavFilesUseCase(server, path)
                 .onSuccess { files ->
+                    spinnerJob.cancel()
+
                     val sortedFiles = files.sortedWith(
                         compareBy<WebdavFile> { !it.isDirectory }
                             .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
                     )
 
+                    val progressMap = remotePlaybackProgress(server, sortedFiles)
+                    val (lastPlayed, hasHistory) = loadLastPlayedFile(server, path, sortedFiles)
+
                     _uiState.update {
                         it.copy(
                             currentPath = path,
                             files = sortedFiles,
+                            playbackProgress = progressMap,
+                            lastPlayedUrl = lastPlayed,
+                            hasPlaybackHistory = hasHistory,
                             isLoading = false,
                         )
                     }
-                    remotePlaybackProgress(server, sortedFiles)
-                    loadLastPlayedFile()
                 }
                 .onFailure { e ->
+                    spinnerJob.cancel()
                     _uiState.update {
                         it.copy(isLoading = false, errorMessage = e.message ?: e.toString())
                     }
@@ -103,12 +129,11 @@ class WebdavBrowserViewModel @Inject constructor(
         }
     }
 
-    private suspend fun remotePlaybackProgress(server: WebdavServer, files: List<WebdavFile>) {
+    private suspend fun remotePlaybackProgress(server: WebdavServer, files: List<WebdavFile>): Map<String, Float> {
         val playableFiles = files.filter { isPlayable(it) && !it.isDirectory }
-        if (playableFiles.isEmpty()) return
+        if (playableFiles.isEmpty()) return emptyMap()
 
         val progressMap = mutableMapOf<String, Float>()
-
         playableFiles.forEach { file ->
             try {
                 val url = buildMediaId(server, file)
@@ -121,15 +146,11 @@ class WebdavBrowserViewModel @Inject constructor(
                 if (duration <= 0L) return@forEach
 
                 progressMap[file.href] = (position.toFloat() / duration).coerceIn(0f, 1f)
-
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
-
-        _uiState.update {
-            it.copy(playbackProgress = progressMap)
-        }
+        return progressMap
     }
 
     private fun buildMediaId(server: WebdavServer, file: WebdavFile): String {
@@ -155,50 +176,59 @@ class WebdavBrowserViewModel @Inject constructor(
     fun refreshProgress() {
         val server = _uiState.value.server ?: return
         val files = _uiState.value.files
+        val path = _uiState.value.currentPath
         if (files.isEmpty()) return
 
         viewModelScope.launch {
-            remotePlaybackProgress(server, files)
-            loadLastPlayedFile()
-        }
-    }
-
-    private fun loadLastPlayedFile() {
-        val server = _uiState.value.server ?: return
-        val currentPath = _uiState.value.currentPath
-        viewModelScope.launch {
-            val scheme = if (server.useSsl) "https" else "http"
-            val urlPrefix = "$scheme://${server.host}:${server.port}${currentPath.trimEnd('/')}"
-            val state = mediaRepository.getRecentUrlPrefix(urlPrefix)
-
-            val hasHistory = state != null && state.lastPlayedTime != null
-            val url = if (hasHistory) {
-                val stateUrl = state!!.path
-                val existsInFiles = _uiState.value.files.any { file ->
-                    if (file.isDirectory) {
-                        stateUrl.contains("/${file.name}/") || stateUrl.contains("/${file.name}")
-                    } else {
-                        buildMediaId(server, file) == stateUrl
-                    }
-                }
-                if (existsInFiles) stateUrl
-                else {
-                    mediaRepository.delete(listOf(stateUrl))
-                    val firstPlayable = _uiState.value.files.firstOrNull { isPlayable(it) }
-                    firstPlayable?.let { buildMediaId(server, it) }
-                }
-            } else {
-                val firstPlayable = _uiState.value.files.firstOrNull { isPlayable(it) }
-                firstPlayable?.let { buildMediaId(server, it) }
-            }
+            val progressMap = remotePlaybackProgress(server, files)
+            val (lastPlayed, hasHistory) = loadLastPlayedFile(server, path, files)
 
             _uiState.update {
                 it.copy(
-                    lastPlayedUrl = url,
-                    hasPlaybackHistory = hasHistory && url == state?.path,
+                    playbackProgress = progressMap,
+                    lastPlayedUrl = lastPlayed,
+                    hasPlaybackHistory = hasHistory,
                 )
             }
         }
+    }
+
+    private suspend fun loadLastPlayedFile(
+        server: WebdavServer,
+        currentPath: String,
+        files: List<WebdavFile>
+    ): Pair<String?, Boolean> {
+        val base = server.baseUrl.trimEnd('/')
+        val normalizedPath = if (currentPath == "/") "" else currentPath.trimEnd('/')
+        val urlPrefix = "$base$normalizedPath"
+        val state = mediaRepository.getRecentUrlPrefix(urlPrefix)
+
+        val hasHistory = state != null && state.lastPlayedTime != null
+        var url: String? = null
+
+        if (hasHistory) {
+            val stateUrl = state!!.path
+            val existsInFiles = files.any { file ->
+                if (file.isDirectory) {
+                    val folderMediaId = buildMediaId(server, file)
+                    stateUrl.startsWith(folderMediaId)
+                } else {
+                    buildMediaId(server, file) == stateUrl
+                }
+            }
+            if (existsInFiles) {
+                url = stateUrl
+            } else {
+                mediaRepository.delete(listOf(stateUrl))
+                val firstPlayable = files.firstOrNull { isPlayable(it) }
+                url = firstPlayable?.let { buildMediaId(server, it) }
+            }
+        } else {
+            val firstPlayable = files.firstOrNull { isPlayable(it) }
+            url = firstPlayable?.let { buildMediaId(server, it) }
+        }
+
+        return Pair(url, hasHistory && url == state?.path)
     }
 
     fun playLastPlayed(
@@ -209,7 +239,15 @@ class WebdavBrowserViewModel @Inject constructor(
 
         viewModelScope.launch {
             val uri = Uri.parse(lastUrl)
-            val folderPath = uri.path?.substringBeforeLast("/") ?: "/"
+            val fullPath = uri.path ?: "/"
+
+            val basePath = Uri.parse(server.baseUrl).path?.trimEnd('/') ?: ""
+            val relativePath = if (basePath.isNotEmpty() && fullPath.startsWith(basePath)) {
+                fullPath.substring(basePath.length)
+            } else {
+                fullPath
+            }
+            val folderPath = relativePath.substringBeforeLast("/")
 
             val files = listWebdavFilesUseCase(server, folderPath)
                 .getOrNull() ?: run {
@@ -217,13 +255,18 @@ class WebdavBrowserViewModel @Inject constructor(
                 return@launch
             }
 
-            val playableFiles = files.filter { isPlayable(it) }
+            val sortedFiles = files.sortedWith(
+                compareBy<WebdavFile> { !it.isDirectory }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            )
+
+            val playableFiles = sortedFiles.filter { isPlayable(it) }
             if (playableFiles.isEmpty()) {
                 onPlay(listOf(lastUrl), 0)
                 return@launch
             }
 
-            val urls = playableFiles.map { buildFileUrl(it, files) }
+            val urls = playableFiles.map { buildFileUrl(server,it, sortedFiles) }
             val index = urls.indexOfFirst {
                 it.substringBefore("#") == lastUrl.substringBefore("#")
             }.coerceAtLeast(0)
@@ -232,8 +275,7 @@ class WebdavBrowserViewModel @Inject constructor(
         }
     }
 
-    fun buildFileUrl(file: WebdavFile, allFiles: List<WebdavFile>): String {
-        val server = _uiState.value.server ?: return buildMediaId(_uiState.value.server!!, file)
+    fun buildFileUrl(server: WebdavServer, file: WebdavFile, allFiles: List<WebdavFile>): String {
         val base = server.baseUrl.trimEnd('/')
         val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
             file.href
@@ -341,11 +383,7 @@ class WebdavBrowserViewModel @Inject constructor(
 
             try {
                 mediaRepository.delete(urisToDelete)
-
-                _uiState.update {
-                    it.copy(playbackProgress = emptyMap())
-                }
-                loadLastPlayedFile()
+                refreshProgress()
             } catch (e: Exception) {
                 e.printStackTrace()
             }

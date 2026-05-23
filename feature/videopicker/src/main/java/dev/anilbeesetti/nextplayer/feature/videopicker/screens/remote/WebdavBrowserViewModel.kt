@@ -173,13 +173,31 @@ class WebdavBrowserViewModel @Inject constructor(
 
             val hasHistory = state != null && state.lastPlayedTime != null
             val url = if (hasHistory) {
-                state!!.path
+                val stateUrl = state!!.path
+                val existsInFiles = _uiState.value.files.any { file ->
+                    if (file.isDirectory) {
+                        stateUrl.contains("/${file.name}/") || stateUrl.contains("/${file.name}")
+                    } else {
+                        buildMediaId(server, file) == stateUrl
+                    }
+                }
+                if (existsInFiles) stateUrl
+                else {
+                    mediaRepository.delete(listOf(stateUrl))
+                    val firstPlayable = _uiState.value.files.firstOrNull { isPlayable(it) }
+                    firstPlayable?.let { buildMediaId(server, it) }
+                }
             } else {
-                val firstPlayable = _uiState.value.files.firstOrNull { isPlayable(it) } ?: return@launch
-                buildMediaId(server, firstPlayable)
+                val firstPlayable = _uiState.value.files.firstOrNull { isPlayable(it) }
+                firstPlayable?.let { buildMediaId(server, it) }
             }
 
-            _uiState.update { it.copy(lastPlayedUrl = url, hasPlaybackHistory = hasHistory) }
+            _uiState.update {
+                it.copy(
+                    lastPlayedUrl = url,
+                    hasPlaybackHistory = hasHistory && url == state?.path,
+                )
+            }
         }
     }
 

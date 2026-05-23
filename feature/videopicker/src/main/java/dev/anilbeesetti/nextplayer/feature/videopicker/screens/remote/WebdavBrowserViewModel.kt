@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
+import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServerByIdUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.ListWebdavFilesUseCase
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
@@ -26,6 +27,7 @@ data class WebdavBrowserUiState(
     val playbackProgress: Map<String, Float> = emptyMap(),
     val lastPlayedUrl: String? = null,
     val hasPlaybackHistory: Boolean = false,
+    val markLastPlayedMedia: Boolean = true,
 )
 
 @HiltViewModel
@@ -33,6 +35,7 @@ class WebdavBrowserViewModel @Inject constructor(
     private val getWebdavServerByIdUseCase: GetWebdavServerByIdUseCase,
     private val listWebdavFilesUseCase: ListWebdavFilesUseCase,
     private val mediaRepository: MediaRepository,
+    private val preferencesRepository: PreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WebdavBrowserUiState())
@@ -40,6 +43,12 @@ class WebdavBrowserViewModel @Inject constructor(
 
     fun initServer(serverId: Long) {
         if (_uiState.value.server?.id == serverId) return
+
+        viewModelScope.launch {
+            preferencesRepository.applicationPreferences.collect { prefs ->
+                _uiState.update { it.copy(markLastPlayedMedia = prefs.markLastPlayedMedia) }
+            }
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }

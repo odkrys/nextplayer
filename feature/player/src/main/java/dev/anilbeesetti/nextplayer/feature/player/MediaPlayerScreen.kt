@@ -218,12 +218,6 @@ fun MediaPlayerScreen(
         onDispose { player.removeListener(listener) }
     }
 
-    LaunchedEffect(dlnaPlaybackState.isActive) {
-        if (dlnaPlaybackState.isActive) {
-            player.pause()
-        }
-    }
-
     LaunchedEffect(isDlnaMenuExpanded) {
         if (isDlnaMenuExpanded) {
             controlsVisibilityState.keepVisible()
@@ -257,9 +251,19 @@ fun MediaPlayerScreen(
     }
 
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
-        val dlnaPlaybackState by viewModel.dlnaPlaybackState.collectAsStateWithLifecycle()
         var interactionTick by remember { mutableIntStateOf(0) }
         val autoHideTimeout = playerPreferences.controllerAutoHideTimeout.seconds
+        var wasCasting by remember { mutableStateOf(false) }
+
+        LaunchedEffect(dlnaPlaybackState.isActive) {
+            if (dlnaPlaybackState.isActive) {
+                wasCasting = true
+                player.pause()
+            } else if (wasCasting) {
+                wasCasting = false
+                controlsVisibilityState.showControls()
+            }
+        }
 
         Box {
             Box(

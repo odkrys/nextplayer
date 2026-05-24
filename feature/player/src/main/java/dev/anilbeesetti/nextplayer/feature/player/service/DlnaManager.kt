@@ -48,7 +48,8 @@ data class DlnaPlaybackState(
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val currentDevice: DlnaManager.DlnaDevice? = null,
-    val stopReason: StopReason = StopReason.NONE
+    val stopReason: StopReason = StopReason.NONE,
+    val isManualTransition: Boolean = false,
 ) {
     val isPlaying get() = transportState == DlnaTransportState.PLAYING
 }
@@ -295,14 +296,22 @@ object DlnaManager {
                             position = pos
                             duration = dur
                         }
-                    }
-
-                    _playbackState.update {
-                        it.copy(
-                            transportState = transportState,
-                            positionMs = position,
-                            durationMs = duration
-                        )
+                        _playbackState.update {
+                            it.copy(
+                                transportState = transportState,
+                                positionMs = position,
+                                durationMs = duration,
+                                isManualTransition = false,
+                            )
+                        }
+                    } else {
+                        _playbackState.update {
+                            it.copy(
+                                transportState = transportState,
+                                positionMs = position,
+                                durationMs = duration,
+                            )
+                        }
                     }
                 } catch (e: Exception) {
                     errorCount++
@@ -393,6 +402,7 @@ object DlnaManager {
                 durationMs = 0L,
                 transportState = DlnaTransportState.TRANSITIONING,
                 mediaId = mediaId,
+                isManualTransition = true,
             )
         }
 

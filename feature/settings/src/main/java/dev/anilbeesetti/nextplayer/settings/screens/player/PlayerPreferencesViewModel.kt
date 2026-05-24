@@ -41,7 +41,7 @@ class PlayerPreferencesViewModel @Inject constructor(
             is PlayerPreferencesUiEvent.ShowDialog -> showDialog(event.value)
             is PlayerPreferencesUiEvent.UpdatePlaybackResume -> updatePlaybackResume(event.resume)
             PlayerPreferencesUiEvent.ToggleAutoplay -> toggleAutoplay()
-            PlayerPreferencesUiEvent.ToggleDlnaAutoplay -> toggleDlnaAutoplay()
+            PlayerPreferencesUiEvent.ToggleDlnaCast -> toggleDlnaCast()
             PlayerPreferencesUiEvent.ToggleAutoPip -> toggleAutoPip()
             PlayerPreferencesUiEvent.ToggleAutoBackgroundPlay -> toggleAutoBackgroundPlay()
             PlayerPreferencesUiEvent.ToggleRememberBrightnessLevel -> toggleRememberBrightnessLevel()
@@ -78,10 +78,10 @@ class PlayerPreferencesViewModel @Inject constructor(
         }
     }
 
-    private fun toggleDlnaAutoplay() {
+    private fun toggleDlnaCast() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
-                it.copy(dlnaAutoplay = !it.dlnaAutoplay)
+                it.copy(dlnaCast = !it.dlnaCast)
             }
         }
     }
@@ -175,7 +175,7 @@ sealed interface PlayerPreferencesUiEvent {
     data class ShowDialog(val value: PlayerPreferenceDialog?) : PlayerPreferencesUiEvent
     data class UpdatePlaybackResume(val resume: Resume) : PlayerPreferencesUiEvent
     data object ToggleAutoplay : PlayerPreferencesUiEvent
-    data object ToggleDlnaAutoplay : PlayerPreferencesUiEvent
+    data object ToggleDlnaCast : PlayerPreferencesUiEvent
     data object ToggleAutoPip : PlayerPreferencesUiEvent
     data object ToggleAutoBackgroundPlay : PlayerPreferencesUiEvent
     data object ToggleRememberBrightnessLevel : PlayerPreferencesUiEvent

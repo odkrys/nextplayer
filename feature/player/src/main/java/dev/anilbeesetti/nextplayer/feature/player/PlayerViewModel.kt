@@ -72,32 +72,56 @@ class PlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             DlnaManager.playbackState.collect { state ->
-                if (state.isActive && state.transportState == DlnaTransportState.STOPPED) {
-                    if (autoStopJob == null) {
-                        autoStopJob = launch {
-                            delay(2000)
+                when {
+                    state.isActive && state.transportState == DlnaTransportState.STOPPED -> {
+                        if (autoStopJob == null && !state.isManualTransition) {
+                            autoStopJob = launch {
+                                delay(1000)
 
-                            if (internalUiState.value.playerPreferences?.dlnaAutoplay == true) {
-                                if (PlayerService.instance?.hasNext() == true) {
-                                    PlayerService.instance?.playNext(appContext) ?: _castingEvent.emit(CastingEvent.PlayNext)
+                                val device = DlnaManager.currentDevice
+                                if (device != null) {
+                                    repeat(2) {
+                                        val liveState = DlnaTransportState.fromString(DlnaManager.pollPlaybackState(device))
+                                        if (liveState != DlnaTransportState.STOPPED) {
+                                            autoStopJob = null
+                                            return@launch
+                                        }
+                                        if (it < 1) delay(500)
+                                    }
+                                }
+
+                                if (internalUiState.value.playerPreferences?.dlnaAutoplay == true) {
+                                    if (PlayerService.instance?.hasNext() == true) {
+                                        PlayerService.instance?.playNext(appContext)
+                                            ?: _castingEvent.emit(CastingEvent.PlayNext)
+                                    } else {
+                                        stopCasting(appContext)
+                                    }
                                 } else {
                                     stopCasting(appContext)
                                 }
-                            } else {
-                                stopCasting(appContext)
                             }
                         }
                     }
-                } else if (!state.isActive && state.stopReason == StopReason.DEVICE_UNREACHABLE) {
-                    autoStopJob?.cancel()
-                    autoStopJob = null
-                    _castingEvent.emit(CastingEvent.StopCasting)
-                } else if (state.isActive && state.isPlaying) {
-                    autoStopJob?.cancel()
-                    autoStopJob = null
-                } else if (!state.isActive) {
-                    autoStopJob?.cancel()
-                    autoStopJob = null
+
+                    state.isActive && (
+                            state.transportState == DlnaTransportState.TRANSITIONING ||
+                            state.transportState == DlnaTransportState.PLAYING
+                    ) -> {
+                        autoStopJob?.cancel()
+                        autoStopJob = null
+                    }
+
+                    !state.isActive && state.stopReason == StopReason.DEVICE_UNREACHABLE -> {
+                        autoStopJob?.cancel()
+                        autoStopJob = null
+                        _castingEvent.emit(CastingEvent.StopCasting)
+                    }
+
+                    !state.isActive -> {
+                        autoStopJob?.cancel()
+                        autoStopJob = null
+                    }
                 }
             }
         }

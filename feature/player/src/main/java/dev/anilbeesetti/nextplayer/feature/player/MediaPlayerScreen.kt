@@ -605,7 +605,7 @@ fun MediaPlayerScreen(
                     }
                 }
 
-                if (!dlnaPlaybackState.isActive) {
+                if (playerPreferences.dlnaCast && !dlnaPlaybackState.isActive) {
                     AnimatedVisibility(
                         modifier = Modifier
                             .align(Alignment.TopEnd)

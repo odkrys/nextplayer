@@ -17,6 +17,7 @@ data class PlayerPreferences(
     val autoBackgroundPlay: Boolean = false,
     val loopMode: LoopMode = LoopMode.OFF,
     val shuffleMode: Boolean = false,
+    val dlnaCast: Boolean = false,
     val dlnaAutoplay: Boolean = false,
 
     // Controls (Gestures)

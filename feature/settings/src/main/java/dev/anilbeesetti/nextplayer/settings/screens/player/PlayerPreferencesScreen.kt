@@ -153,13 +153,13 @@ private fun PlayerPreferencesContent(
                     onClick = { onEvent(PlayerPreferencesUiEvent.ToggleAutoplay) },
                 )
                 PreferenceSwitch(
-                    title = stringResource(id = R.string.dlna_autoplay_settings),
+                    title = stringResource(id = R.string.dlna_cast_settings),
                     description = stringResource(
-                        id = R.string.dlna_autoplay_settings_description,
+                        id = R.string.dlna_cast_settings_description,
                     ),
                     icon = NextIcons.Cast,
-                    isChecked = uiState.preferences.dlnaAutoplay,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleDlnaAutoplay) },
+                    isChecked = uiState.preferences.dlnaCast,
+                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleDlnaCast) },
                 )
                 if (LocalContext.current.isPipFeatureSupported) {
                     PreferenceSwitch(

@@ -15,6 +15,8 @@ fun BoxScope.OverlayShowView(
     player: Player,
     overlayView: OverlayView?,
     videoContentScale: VideoContentScale,
+    isDrcEnabled: Boolean = false,
+    onDrcToggle: (Boolean) -> Unit = {},
     onAlphaChange: (Float) -> Unit = {},
     subtitleTextSize: Int = 20,
     initialPosition: Float = 0.08f,
@@ -38,6 +40,8 @@ fun BoxScope.OverlayShowView(
     AudioTrackSelectorView(
         show = overlayView == OverlayView.AUDIO_SELECTOR,
         player = player,
+        isDrcEnabled = isDrcEnabled,
+        onDrcToggle = onDrcToggle,
         onDismiss = onDismiss,
     )
 

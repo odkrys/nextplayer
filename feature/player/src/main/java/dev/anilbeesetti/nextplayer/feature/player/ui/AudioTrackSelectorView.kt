@@ -1,21 +1,42 @@
 package dev.anilbeesetti.nextplayer.feature.player.ui
 
 import androidx.annotation.OptIn
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
 import dev.anilbeesetti.nextplayer.core.ui.R
+import dev.anilbeesetti.nextplayer.core.ui.components.NextSwitch
 import dev.anilbeesetti.nextplayer.feature.player.extensions.getName
+import dev.anilbeesetti.nextplayer.feature.player.service.getIsDrcSupported
+import dev.anilbeesetti.nextplayer.feature.player.service.setDrcEnabled
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberTracksState
 
 @OptIn(UnstableApi::class)
@@ -24,9 +45,19 @@ fun BoxScope.AudioTrackSelectorView(
     modifier: Modifier = Modifier,
     show: Boolean,
     player: Player,
+    isDrcEnabled: Boolean,
+    onDrcToggle: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val audioTracksState = rememberTracksState(player, C.TRACK_TYPE_AUDIO)
+    var isDrcSupported by remember { mutableStateOf(false) }
+
+    LaunchedEffect(player) {
+        isDrcSupported = when (player) {
+            is MediaController -> player.getIsDrcSupported()
+            else -> false
+        }
+    }
 
     OverlayView(
         modifier = modifier,
@@ -58,6 +89,41 @@ fun BoxScope.AudioTrackSelectorView(
                     onDismiss()
                 },
             )
+
+            if (isDrcSupported) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .toggleable(
+                            value = isDrcEnabled,
+                            onValueChange = { enabled ->
+                                onDrcToggle(enabled)
+                                if (player is MediaController) player.setDrcEnabled(enabled)
+                            },
+                        )
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .semantics(mergeDescendants = true) {},
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.dynamic_range_compressor),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    NextSwitch(
+                        checked = isDrcEnabled,
+                        onCheckedChange = null,
+                    )
+                }
+            }
         }
     }
 }

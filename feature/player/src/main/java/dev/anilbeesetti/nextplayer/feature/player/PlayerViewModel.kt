@@ -311,6 +311,14 @@ class PlayerViewModel @Inject constructor(
             }
         }
     }
+
+    fun toggleDrc() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { currentPrefs ->
+                currentPrefs.copy(enableDrc = !currentPrefs.enableDrc)
+            }
+        }
+    }
 }
 
 @Stable

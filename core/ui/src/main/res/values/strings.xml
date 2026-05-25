@@ -309,4 +309,5 @@
     <string name="manage_external_storage_desc">Grant permission to access all files</string>
     <string name="resume_local_only">Local Only</string>
     <string name="resume_remote_only">Remote Only</string>
+	<string name="dynamic_range_compressor">Dynamic Range Compressor</string>
 </resources>

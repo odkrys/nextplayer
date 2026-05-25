@@ -19,6 +19,8 @@ enum class CustomCommands(val customAction: String) {
     IS_LOUDNESS_GAIN_SUPPORTED(customAction = "IS_LOUDNESS_GAIN_SUPPORTED"),
     SET_LOUDNESS_GAIN(customAction = "SET_LOUDNESS_GAIN"),
     GET_LOUDNESS_GAIN(customAction = "GET_LOUDNESS_GAIN"),
+    SET_DRC_ENABLED(customAction = "SET_DRC_ENABLED"),
+    IS_DRC_SUPPORTED(customAction = "IS_DRC_SUPPORTED"),
     ;
 
     val sessionCommand = SessionCommand(customAction, Bundle.EMPTY)
@@ -39,6 +41,8 @@ enum class CustomCommands(val customAction: String) {
         const val SUBTITLE_SPEED_KEY = "subtitle_speed"
         const val LOUDNESS_GAIN_KEY = "loudness_gain"
         const val IS_LOUDNESS_GAIN_SUPPORTED_KEY = "is_loudness_gain_supported"
+        const val DRC_ENABLED_KEY = "drc_enabled"
+        const val IS_DRC_SUPPORTED_KEY = "is_drc_supported"
     }
 }
 
@@ -111,4 +115,16 @@ suspend fun MediaController.getLoudnessGain(): Int {
 suspend fun MediaController.getIsLoudnessGainSupported(): Boolean {
     val result = sendCustomCommand(CustomCommands.IS_LOUDNESS_GAIN_SUPPORTED.sessionCommand, Bundle.EMPTY)
     return result.await().extras.getBoolean(CustomCommands.IS_LOUDNESS_GAIN_SUPPORTED_KEY, false)
+}
+
+fun MediaController.setDrcEnabled(enabled: Boolean) {
+    val args = Bundle().apply {
+        putBoolean(CustomCommands.DRC_ENABLED_KEY, enabled)
+    }
+    sendCustomCommand(CustomCommands.SET_DRC_ENABLED.sessionCommand, args)
+}
+
+suspend fun MediaController.getIsDrcSupported(): Boolean {
+    val result = sendCustomCommand(CustomCommands.IS_DRC_SUPPORTED.sessionCommand, Bundle.EMPTY)
+    return result.await().extras.getBoolean(CustomCommands.IS_DRC_SUPPORTED_KEY, false)
 }

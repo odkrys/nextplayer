@@ -49,6 +49,7 @@ data class PlayerPreferences(
     val requireAudioFocus: Boolean = true,
     val showSystemVolumePanel: Boolean = true,
     val enableVolumeBoost: Boolean = false,
+    val enableDrc: Boolean = false,
 
     // Subtitle Preferences
     val useSystemCaptionStyle: Boolean = false,

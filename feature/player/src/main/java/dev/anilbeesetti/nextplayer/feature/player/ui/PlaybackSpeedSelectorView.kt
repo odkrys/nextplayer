@@ -209,7 +209,7 @@ fun BoxScope.PlaybackSpeedSelectorView(
                     .padding(top = 0.dp, bottom = 8.dp)
             ) {
                 Text(
-                    text = "Skip Intro",
+                    text = "Auto-Skip Intro",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,

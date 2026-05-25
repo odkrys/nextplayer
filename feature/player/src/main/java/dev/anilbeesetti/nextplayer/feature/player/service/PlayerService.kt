@@ -53,6 +53,7 @@ import dev.anilbeesetti.nextplayer.core.model.Resume
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
+import dev.anilbeesetti.nextplayer.feature.player.extensions.DynamicRangeCompressor
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
 import dev.anilbeesetti.nextplayer.feature.player.extensions.copy
@@ -114,6 +115,8 @@ class PlayerService : MediaSessionService() {
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var currentVolumeGain: Int = 0
+
+    private var dynamicRangeCompressor: DynamicRangeCompressor? = null
 
     private val playbackStateListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -294,6 +297,26 @@ class PlayerService : MediaSessionService() {
                         e.printStackTrace()
                     }
                 }
+
+                val exoPlayer = mediaSession?.player as? ExoPlayer ?: return
+                val audioSessionId = exoPlayer.audioSessionId
+                if (audioSessionId != C.AUDIO_SESSION_ID_UNSET) {
+                    val channelCount = exoPlayer.audioFormat?.channelCount?.takeIf { it > 0 } ?: 2
+
+                    if (channelCount != dynamicRangeCompressor?.channelCount) {
+                        if (exoPlayer.audioFormat == null) {
+                            return
+                        }
+
+                        dynamicRangeCompressor?.release()
+                        dynamicRangeCompressor = DynamicRangeCompressor(
+                            audioSessionId = audioSessionId,
+                            channelCount = channelCount,
+                        ).apply {
+                            enabled = playerPreferences.enableDrc
+                        }
+                    }
+                }
             }
         }
 
@@ -390,6 +413,7 @@ class PlayerService : MediaSessionService() {
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
             super.onAudioSessionIdChanged(audioSessionId)
+/*
             if (!playerPreferences.enableVolumeBoost) return
             if (audioSessionId == C.AUDIO_SESSION_ID_UNSET) return
             try {
@@ -401,6 +425,34 @@ class PlayerService : MediaSessionService() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 loudnessEnhancer = null
+            }
+*/
+            if (audioSessionId == C.AUDIO_SESSION_ID_UNSET) return
+
+            if (playerPreferences.enableVolumeBoost) {
+                try {
+                    loudnessEnhancer?.release()
+                    loudnessEnhancer = LoudnessEnhancer(audioSessionId)
+                    if (currentVolumeGain > 0) {
+                        setEnhancerTargetGain(currentVolumeGain)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    loudnessEnhancer = null
+                }
+            }
+
+            val channelCount = (mediaSession?.player as? ExoPlayer)
+                ?.audioFormat?.channelCount ?: 2
+
+            dynamicRangeCompressor?.release()
+            dynamicRangeCompressor = null
+
+            dynamicRangeCompressor = DynamicRangeCompressor(
+                audioSessionId = audioSessionId,
+                channelCount = channelCount,
+            ).apply {
+                enabled = playerPreferences.enableDrc
             }
         }
     }
@@ -541,6 +593,21 @@ class PlayerService : MediaSessionService() {
                             putInt(CustomCommands.LOUDNESS_GAIN_KEY, currentVolumeGain)
                         },
                     )
+                }
+
+                CustomCommands.IS_DRC_SUPPORTED -> {
+                    return@future SessionResult(
+                        SessionResult.RESULT_SUCCESS,
+                        Bundle().apply {
+                            putBoolean(CustomCommands.IS_DRC_SUPPORTED_KEY, dynamicRangeCompressor?.isAvailable ?: false)
+                        }
+                    )
+                }
+
+                CustomCommands.SET_DRC_ENABLED -> {
+                    val enabled = args.getBoolean(CustomCommands.DRC_ENABLED_KEY)
+                    dynamicRangeCompressor?.enabled = enabled
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
                 CustomCommands.GET_SUBTITLE_DELAY -> {
@@ -717,6 +784,8 @@ class PlayerService : MediaSessionService() {
         artworkLoadJob?.cancel()
         loudnessEnhancer?.release()
         loudnessEnhancer = null
+        dynamicRangeCompressor?.release()
+        dynamicRangeCompressor = null
         mediaSession?.run {
             player.clearMediaItems()
             player.stop()

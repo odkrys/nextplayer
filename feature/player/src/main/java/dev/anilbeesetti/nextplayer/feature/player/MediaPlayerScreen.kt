@@ -183,7 +183,7 @@ fun MediaPlayerScreen(
             currentPositionMs = player.currentPosition
 
             val skipIntroMs = playerPreferences.skipIntroTime * 1000L
-            val isInIntro = playerPreferences.enableSkipIntro && skipIntroMs > 0 && currentPositionMs < skipIntroMs
+            val isInIntro = skipIntroMs > 0 && currentPositionMs < skipIntroMs
 
             if (controlsVisibilityState.controlsVisible || isInIntro) {
                 delay(500L)
@@ -646,7 +646,7 @@ fun MediaPlayerScreen(
                                         val durationMs = player.duration
 
                                         val isLongEnough = durationMs == C.TIME_UNSET || durationMs > skipIntroTimeMs
-                                        if (isLandscape && playerPreferences.enableSkipIntro &&
+                                        if (isLandscape && !dlnaPlaybackState.isActive &&
                                             skipIntroTimeMs > 0 && currentPositionMs < skipIntroTimeMs && isLongEnough
                                         ) {
                                             Box(

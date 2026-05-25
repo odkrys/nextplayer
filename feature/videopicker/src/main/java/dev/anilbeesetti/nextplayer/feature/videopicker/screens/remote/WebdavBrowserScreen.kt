@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -44,7 +43,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -397,26 +399,51 @@ private fun FileListItem(
                 )
             },
             headlineContent = {
+                val nameDisplay = if (file.isDirectory) {
+                    file.name
+                } else {
+                    file.name.substringBeforeLast('.', file.name)
+                }
+                val displayTitle = nameDisplay.replace(".", ".\u200B")
                 Text(
-                    text = file.name,
-                    maxLines = 1,
+                    text = displayTitle,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = if (isLastPlayed && markLastPlayedMedia) MaterialTheme.colorScheme.primary
                     else Color.Unspecified,
                 )
             },
             supportingContent = {
-                val extension = file.name.substringAfterLast('.', "").uppercase()
-                val infoText = listOf(extension, file.displaySize, file.lastModified)
-                    .filter { it.isNotEmpty() }
-                    .joinToString(" • ")
+                val extension = if (file.isDirectory) "" else file.name.substringAfterLast('.', "").uppercase()
+                val otherInfo = listOf(file.displaySize, file.lastModified).filter { it.isNotEmpty() }
+
+                val infoText = buildAnnotatedString {
+                    if (extension.isNotEmpty()) {
+                        val extensionColor = if (isLastPlayed && markLastPlayedMedia) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.secondary
+
+                        withStyle(style = SpanStyle(color = extensionColor)) {
+                            append(extension)
+                        }
+                    }
+
+                    if (otherInfo.isNotEmpty()) {
+                        val infoColor = if (isLastPlayed && markLastPlayedMedia) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+
+                        withStyle(style = SpanStyle(color = infoColor)) {
+                            if (extension.isNotEmpty()) {
+                                append(" • ")
+                            }
+                            append(otherInfo.joinToString(" • "))
+                        }
+                    }
+                }
 
                 if (infoText.isNotEmpty()) {
                     Text(
                         text = infoText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (isLastPlayed && markLastPlayedMedia) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

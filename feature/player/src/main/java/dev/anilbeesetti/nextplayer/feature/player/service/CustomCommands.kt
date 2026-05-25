@@ -21,6 +21,10 @@ enum class CustomCommands(val customAction: String) {
     GET_LOUDNESS_GAIN(customAction = "GET_LOUDNESS_GAIN"),
     SET_DRC_ENABLED(customAction = "SET_DRC_ENABLED"),
     IS_DRC_SUPPORTED(customAction = "IS_DRC_SUPPORTED"),
+    SET_SKIP_INTRO_ENABLED(customAction = "SET_SKIP_INTRO_ENABLED"),
+    GET_SKIP_INTRO_ENABLED(customAction = "GET_SKIP_INTRO_ENABLED"),
+    SET_SKIP_INTRO_TIME(customAction = "SET_SKIP_INTRO_TIME"),
+    GET_SKIP_INTRO_TIME(customAction = "GET_SKIP_INTRO_TIME"),
     ;
 
     val sessionCommand = SessionCommand(customAction, Bundle.EMPTY)
@@ -43,6 +47,8 @@ enum class CustomCommands(val customAction: String) {
         const val IS_LOUDNESS_GAIN_SUPPORTED_KEY = "is_loudness_gain_supported"
         const val DRC_ENABLED_KEY = "drc_enabled"
         const val IS_DRC_SUPPORTED_KEY = "is_drc_supported"
+        const val SKIP_INTRO_ENABLED_KEY = "skip_intro_enabled"
+        const val SKIP_INTRO_TIME_KEY = "skip_intro_time"
     }
 }
 
@@ -127,4 +133,28 @@ fun MediaController.setDrcEnabled(enabled: Boolean) {
 suspend fun MediaController.getIsDrcSupported(): Boolean {
     val result = sendCustomCommand(CustomCommands.IS_DRC_SUPPORTED.sessionCommand, Bundle.EMPTY)
     return result.await().extras.getBoolean(CustomCommands.IS_DRC_SUPPORTED_KEY, false)
+}
+
+suspend fun MediaController.getSkipIntroEnabled(): Boolean {
+    val result = sendCustomCommand(CustomCommands.GET_SKIP_INTRO_ENABLED.sessionCommand, Bundle.EMPTY)
+    return result.await().extras.getBoolean(CustomCommands.SKIP_INTRO_ENABLED_KEY, false)
+}
+
+fun MediaController.setSkipIntroEnabled(enabled: Boolean) {
+    val args = Bundle().apply {
+        putBoolean(CustomCommands.SKIP_INTRO_ENABLED_KEY, enabled)
+    }
+    sendCustomCommand(CustomCommands.SET_SKIP_INTRO_ENABLED.sessionCommand, args)
+}
+
+suspend fun MediaController.getSkipIntroTime(): Int {
+    val result = sendCustomCommand(CustomCommands.GET_SKIP_INTRO_TIME.sessionCommand, Bundle.EMPTY)
+    return result.await().extras.getInt(CustomCommands.SKIP_INTRO_TIME_KEY, 0)
+}
+
+fun MediaController.setSkipIntroTime(timeSeconds: Int) {
+    val args = Bundle().apply {
+        putInt(CustomCommands.SKIP_INTRO_TIME_KEY, timeSeconds)
+    }
+    sendCustomCommand(CustomCommands.SET_SKIP_INTRO_TIME.sessionCommand, args)
 }

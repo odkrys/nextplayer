@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.player
 
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
@@ -7,6 +8,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -37,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -44,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -54,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -166,6 +172,28 @@ fun MediaPlayerScreen(
     )
     val errorState = rememberErrorState(player = player)
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    var currentPositionMs by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(player) {
+        if (player == null) return@LaunchedEffect
+
+        while (true) {
+            currentPositionMs = player.currentPosition
+
+            val skipIntroMs = playerPreferences.skipIntroTime * 1000L
+            val isInIntro = playerPreferences.enableSkipIntro && skipIntroMs > 0 && currentPositionMs < skipIntroMs
+
+            if (controlsVisibilityState.controlsVisible || isInIntro) {
+                delay(500L)
+            } else {
+                delay(2000L)
+            }
+        }
+    }
+
     LaunchedEffect(pictureInPictureState.isInPictureInPictureMode) {
         if (pictureInPictureState.isInPictureInPictureMode) {
             controlsVisibilityState.hideControls()
@@ -212,6 +240,14 @@ fun MediaPlayerScreen(
                 ) {
                     viewModel.castCurrentMediaToActiveDevice(uri, context)
                 }
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int
+            ) {
+                currentPositionMs = newPosition.positionMs
             }
         }
         player.addListener(listener)
@@ -559,46 +595,83 @@ fun MediaPlayerScreen(
                                     exit = fadeOut(),
                                 ) {
                                     val context = LocalContext.current
-                                    ControlsBottomView(
-                                        player = player,
-                                        mediaPresentationState = mediaPresentationState,
-                                        controlsAlignment = when (playerPreferences.controlButtonsPosition) {
-                                            ControlButtonsPosition.LEFT -> Alignment.Start
-                                            ControlButtonsPosition.RIGHT -> Alignment.End
-                                        },
-                                        videoContentScale = videoZoomAndContentScaleState.videoContentScale,
-                                        isPipSupported = pictureInPictureState.isPipSupported,
-                                        onSeek = seekGestureState::onSeek,
-                                        onSeekEnd = seekGestureState::onSeekEnd,
-                                        //onRotateClick = rotationState::rotate,
-                                        onRotateClick = {
-                                            controlsVisibilityState.showControls()
-                                            rotationState.rotate()
-                                        },
-                                        onPlayInBackgroundClick = onPlayInBackgroundClick,
-                                        onLockControlsClick = {
-                                            controlsVisibilityState.showControls()
-                                            controlsVisibilityState.lockControls()
-                                        },
-                                        onVideoContentScaleClick = {
-                                            controlsVisibilityState.showControls()
-                                            videoZoomAndContentScaleState.switchToNextVideoContentScale()
-                                        },
-                                        onVideoContentScaleLongClick = {
-                                            //controlsVisibilityState.hideControls()
-                                            //overlayView = OverlayView.VIDEO_CONTENT_SCALE
-                                            controlsVisibilityState.showControls()
-                                            videoZoomAndContentScaleState.resetZoomAndOffset()
-                                        },
-                                        onPictureInPictureClick = {
-                                            if (!pictureInPictureState.hasPipPermission) {
-                                                Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
-                                                pictureInPictureState.openPictureInPictureSettings()
-                                            } else {
-                                                pictureInPictureState.enterPictureInPictureMode()
+                                    Box(modifier = Modifier.fillMaxWidth()) {
+                                        ControlsBottomView(
+                                            player = player,
+                                            mediaPresentationState = mediaPresentationState,
+                                            controlsAlignment = when (playerPreferences.controlButtonsPosition) {
+                                                ControlButtonsPosition.LEFT -> Alignment.Start
+                                                ControlButtonsPosition.RIGHT -> Alignment.End
+                                            },
+                                            videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                                            isPipSupported = pictureInPictureState.isPipSupported,
+                                            onSeek = seekGestureState::onSeek,
+                                            onSeekEnd = seekGestureState::onSeekEnd,
+                                            //onRotateClick = rotationState::rotate,
+                                            onRotateClick = {
+                                                controlsVisibilityState.showControls()
+                                                rotationState.rotate()
+                                            },
+                                            onPlayInBackgroundClick = onPlayInBackgroundClick,
+                                            onLockControlsClick = {
+                                                controlsVisibilityState.showControls()
+                                                controlsVisibilityState.lockControls()
+                                            },
+                                            onVideoContentScaleClick = {
+                                                controlsVisibilityState.showControls()
+                                                videoZoomAndContentScaleState.switchToNextVideoContentScale()
+                                            },
+                                            onVideoContentScaleLongClick = {
+                                                //controlsVisibilityState.hideControls()
+                                                //overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                                controlsVisibilityState.showControls()
+                                                videoZoomAndContentScaleState.resetZoomAndOffset()
+                                            },
+                                            onPictureInPictureClick = {
+                                                if (!pictureInPictureState.hasPipPermission) {
+                                                    Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
+                                                    pictureInPictureState.openPictureInPictureSettings()
+                                                } else {
+                                                    pictureInPictureState.enterPictureInPictureMode()
+                                                }
+                                            },
+                                        )
+
+                                        val skipIntroTimeMs = playerPreferences.skipIntroTime * 1000L
+                                        val durationMs = player.duration
+
+                                        val isLongEnough = durationMs == C.TIME_UNSET || durationMs > skipIntroTimeMs
+                                        if (isLandscape && playerPreferences.enableSkipIntro &&
+                                            skipIntroTimeMs > 0 && currentPositionMs < skipIntroTimeMs && isLongEnough
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .safeDrawingPadding()
+                                                    .padding(end = 24.dp, bottom = 24.dp)
+                                                    .background(
+                                                        color = Color.Black.copy(alpha = 0.6f),
+                                                        shape = CircleShape,
+                                                    )
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = Color.White.copy(alpha = 0.4f),
+                                                        shape = CircleShape,
+                                                    )
+                                                    .clickable {
+                                                        player.seekTo(skipIntroTimeMs)
+                                                    }
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Text(
+                                                    text = "Skip",
+                                                    color = Color.White,
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                )
                                             }
-                                        },
-                                    )
+                                        }
+                                    }
                                 }
                             },
                         )

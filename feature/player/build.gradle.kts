@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.compose.foundation)
     ksp(libs.hilt.compiler)
     ksp(libs.kotlin.metadata.jvm)
     kspAndroidTest(libs.hilt.compiler)

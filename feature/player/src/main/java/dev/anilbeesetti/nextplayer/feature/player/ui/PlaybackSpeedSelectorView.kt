@@ -15,15 +15,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,7 +41,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -40,6 +51,7 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.round
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSwitch
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberPlaybackParametersState
+import dev.anilbeesetti.nextplayer.feature.player.state.rememberSkipIntroState
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -50,6 +62,7 @@ fun BoxScope.PlaybackSpeedSelectorView(
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val playbackParametersState = rememberPlaybackParametersState(player)
+    val skipIntroState = rememberSkipIntroState(player)
 
     OverlayView(
         modifier = modifier,
@@ -181,6 +194,89 @@ fun BoxScope.PlaybackSpeedSelectorView(
                 )
             }
  */
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 8.dp, bottom = 0.dp)
+            )
+
+            var showDialog by remember { mutableStateOf(false) }
+            var inputText by remember { mutableStateOf("") }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 0.dp, bottom = 8.dp)
+            ) {
+                Text(
+                    text = "Skip Intro",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .clickable {
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            inputText = skipIntroState.skipIntroTime.toString()
+                            showDialog = true
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${skipIntroState.skipIntroTime}s",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                NextSwitch(
+                    checked = skipIntroState.skipIntroEnabled,
+                    onCheckedChange = { isChecked ->
+                        skipIntroState.updateSkipIntroEnabled(isChecked)
+                    }
+                )
+            }
+
+            if (showDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDialog = false },
+                    title = { Text(text = "Skip intro duration (sec)") },
+                    text = {
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { newValue ->
+                                inputText = newValue.filter { it.isDigit() }
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val newTime = inputText.toIntOrNull() ?: 0
+                            skipIntroState.updateSkipIntroTime(newTime)
+                            showDialog = false
+                        }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
     }
 }

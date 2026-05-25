@@ -19,6 +19,8 @@ data class PlayerPreferences(
     val shuffleMode: Boolean = false,
     val dlnaCast: Boolean = false,
     val dlnaAutoplay: Boolean = false,
+    val enableSkipIntro: Boolean = false,
+    val skipIntroTime: Int = 0,
 
     // Controls (Gestures)
     @Deprecated(message = "Use individual enableVolumeSwipeGesture and enableBrightnessSwipeGesture instead")

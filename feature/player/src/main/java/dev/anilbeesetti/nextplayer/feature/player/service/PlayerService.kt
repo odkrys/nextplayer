@@ -118,9 +118,14 @@ class PlayerService : MediaSessionService() {
 
     private var dynamicRangeCompressor: DynamicRangeCompressor? = null
 
+    private var pendingSkipIntroMs: Long = 0L
+
     private val playbackStateListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
+
+            pendingSkipIntroMs = 0L
+
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) return
             isMediaItemReady = false
             loadArtworkForCurrentMediaItem()
@@ -132,8 +137,13 @@ class PlayerService : MediaSessionService() {
                 }
 
                 //metadata.positionMs?.takeIf { playerPreferences.resume == Resume.YES }?.let {
-                metadata.positionMs?.takeIf { shouldResume(mediaItem?.mediaId) }?.let {
-                    mediaSession?.player?.seekTo(it)
+                val resumePosition = metadata.positionMs?.takeIf { shouldResume(mediaItem?.mediaId) }
+                if (resumePosition != null && resumePosition > 0L) {
+                    mediaSession?.player?.seekTo(resumePosition)
+                } else {
+                    if (playerPreferences.enableSkipIntro) {
+                        pendingSkipIntroMs = playerPreferences.skipIntroTime * 1000L
+                    }
                 }
             }
         }
@@ -268,6 +278,22 @@ class PlayerService : MediaSessionService() {
                     }
                 }
 */
+                if (pendingSkipIntroMs > 0) {
+                    if (playerPreferences.enableSkipIntro) {
+                        val player = mediaSession?.player
+                        val duration = player?.duration ?: C.TIME_UNSET
+
+                        if (duration != C.TIME_UNSET) {
+                            if (duration > pendingSkipIntroMs) {
+                                player?.seekTo(pendingSkipIntroMs)
+                            }
+                            pendingSkipIntroMs = 0L
+                        }
+                    } else {
+                        pendingSkipIntroMs = 0L
+                    }
+                }
+
                 val player = mediaSession?.player ?: return
                 val currentMediaItem = player.currentMediaItem ?: return
                 val duration = player.duration.coerceAtLeast(0)
@@ -543,6 +569,44 @@ class PlayerService : MediaSessionService() {
                         player.addAdditionalSubtitleConfiguration(newSubConfiguration)
                     }
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.SET_SKIP_INTRO_ENABLED -> {
+                    val enabled = args.getBoolean(CustomCommands.SKIP_INTRO_ENABLED_KEY)
+                    serviceScope.launch {
+                        preferencesRepository.updatePlayerPreferences {
+                            it.copy(enableSkipIntro = enabled)
+                        }
+                    }
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.GET_SKIP_INTRO_ENABLED -> {
+                    return@future SessionResult(
+                        SessionResult.RESULT_SUCCESS,
+                        Bundle().apply {
+                            putBoolean(CustomCommands.SKIP_INTRO_ENABLED_KEY, playerPreferences.enableSkipIntro)
+                        }
+                    )
+                }
+
+                CustomCommands.SET_SKIP_INTRO_TIME -> {
+                    val time = args.getInt(CustomCommands.SKIP_INTRO_TIME_KEY)
+                    serviceScope.launch {
+                        preferencesRepository.updatePlayerPreferences {
+                            it.copy(skipIntroTime = time)
+                        }
+                    }
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.GET_SKIP_INTRO_TIME -> {
+                    return@future SessionResult(
+                        SessionResult.RESULT_SUCCESS,
+                        Bundle().apply {
+                            putInt(CustomCommands.SKIP_INTRO_TIME_KEY, playerPreferences.skipIntroTime)
+                        }
+                    )
                 }
 
                 CustomCommands.SET_SKIP_SILENCE_ENABLED -> {

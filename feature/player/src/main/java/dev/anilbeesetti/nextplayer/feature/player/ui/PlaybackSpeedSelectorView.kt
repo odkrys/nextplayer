@@ -156,7 +156,7 @@ fun BoxScope.PlaybackSpeedSelectorView(
                     }
                 }
             }
-
+/*
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
@@ -180,6 +180,7 @@ fun BoxScope.PlaybackSpeedSelectorView(
                     onCheckedChange = null,
                 )
             }
+ */
         }
     }
 }

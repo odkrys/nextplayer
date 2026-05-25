@@ -37,6 +37,7 @@ import dev.anilbeesetti.nextplayer.core.ui.components.NextSwitch
 import dev.anilbeesetti.nextplayer.feature.player.extensions.getName
 import dev.anilbeesetti.nextplayer.feature.player.service.getIsDrcSupported
 import dev.anilbeesetti.nextplayer.feature.player.service.setDrcEnabled
+import dev.anilbeesetti.nextplayer.feature.player.state.rememberSkipSilenceState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberTracksState
 
 @OptIn(UnstableApi::class)
@@ -50,6 +51,7 @@ fun BoxScope.AudioTrackSelectorView(
     onDismiss: () -> Unit,
 ) {
     val audioTracksState = rememberTracksState(player, C.TRACK_TYPE_AUDIO)
+    val skipSilenceState = rememberSkipSilenceState(player)
     var isDrcSupported by remember { mutableStateOf(false) }
 
     LaunchedEffect(player) {
@@ -90,11 +92,35 @@ fun BoxScope.AudioTrackSelectorView(
                 },
             )
 
-            if (isDrcSupported) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
 
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .toggleable(
+                        value = skipSilenceState.skipSilenceEnabled,
+                        onValueChange = { skipSilenceState.setSkipSilence(it) },
+                    )
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .semantics(mergeDescendants = true) {},
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.skip_silence),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                NextSwitch(
+                    checked = skipSilenceState.skipSilenceEnabled,
+                    onCheckedChange = null,
+                )
+            }
+
+            if (isDrcSupported) {
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))

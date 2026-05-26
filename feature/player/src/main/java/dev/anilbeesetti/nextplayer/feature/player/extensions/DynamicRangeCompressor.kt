@@ -41,13 +41,13 @@ class DynamicRangeCompressor(
             DrcPreset.LIGHT -> {
                 threshold = -20f
                 ratio = 4f
-                postGain = 8f
+                postGain = 6f
                 attackTime = 10f
                 releaseTime = 250f
             }
             DrcPreset.STRONG -> {
-                threshold = -25f
-                ratio = 8f
+                threshold = -28f
+                ratio = 10f
                 postGain = 12f
                 attackTime = 5f
                 releaseTime = 200f

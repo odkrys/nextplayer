@@ -1,7 +1,11 @@
 package dev.anilbeesetti.nextplayer.feature.player.ui
 
 import androidx.annotation.OptIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +27,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,11 +38,13 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
+import dev.anilbeesetti.nextplayer.core.model.DrcPreset
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSwitch
 import dev.anilbeesetti.nextplayer.feature.player.extensions.getName
 import dev.anilbeesetti.nextplayer.feature.player.service.getIsDrcSupported
 import dev.anilbeesetti.nextplayer.feature.player.service.setDrcEnabled
+import dev.anilbeesetti.nextplayer.feature.player.service.setDrcPreset
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberSkipSilenceState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberTracksState
 
@@ -47,7 +55,9 @@ fun BoxScope.AudioTrackSelectorView(
     show: Boolean,
     player: Player,
     isDrcEnabled: Boolean,
+    drcPreset: DrcPreset,
     onDrcToggle: (Boolean) -> Unit,
+    onDrcPresetChange: (DrcPreset) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val audioTracksState = rememberTracksState(player, C.TRACK_TYPE_AUDIO)
@@ -120,35 +130,99 @@ fun BoxScope.AudioTrackSelectorView(
                 )
             }
 
-            if (isDrcSupported) {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .toggleable(
-                            value = isDrcEnabled,
-                            onValueChange = { enabled ->
-                                onDrcToggle(enabled)
-                                if (player is MediaController) player.setDrcEnabled(enabled)
-                            },
+            when (isDrcSupported) {
+                null -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(8.dp).alpha(0f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.dynamic_range_compressor),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
                         )
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                        .semantics(mergeDescendants = true) {},
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.dynamic_range_compressor),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    NextSwitch(
-                        checked = isDrcEnabled,
-                        onCheckedChange = null,
-                    )
+                        NextSwitch(checked = false, onCheckedChange = null)
+                    }
                 }
+                true -> {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .toggleable(
+                                value = isDrcEnabled,
+                                onValueChange = { enabled ->
+                                    onDrcToggle(enabled)
+                                    if (player is MediaController) player.setDrcEnabled(enabled)
+                                },
+                            )
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .semantics(mergeDescendants = true) {},
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.dynamic_range_compressor),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        NextSwitch(checked = isDrcEnabled, onCheckedChange = null)
+                    }
+                    if (isDrcEnabled) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.drc_preset),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            listOf(DrcPreset.LIGHT, DrcPreset.STRONG).forEach { preset ->
+                                val selected = drcPreset == preset
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            if (selected) MaterialTheme.colorScheme.primaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (selected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                                            shape = RoundedCornerShape(6.dp),
+                                        )
+                                        .clickable {
+                                            onDrcPresetChange(preset)
+                                            if (player is MediaController) player.setDrcPreset(preset)
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = stringResource(
+                                            when (preset) {
+                                                DrcPreset.LIGHT -> R.string.drc_preset_light
+                                                DrcPreset.STRONG -> R.string.drc_preset_strong
+                                            }
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                false -> Unit
             }
         }
     }

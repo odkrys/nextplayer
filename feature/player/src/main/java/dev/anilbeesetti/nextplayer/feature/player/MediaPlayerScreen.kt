@@ -726,6 +726,8 @@ fun MediaPlayerScreen(
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
                 isDrcEnabled = playerPreferences.enableDrc,
                 onDrcToggle = { viewModel.toggleDrc() },
+                drcPreset = playerPreferences.drcPreset,
+                onDrcPresetChange = { viewModel.setDrcPreset(it) },
                 onDismiss = { overlayView = null },
                 onSelectSubtitleClick = onSelectSubtitleClick,
                 onSubtitleOptionEvent = viewModel::onSubtitleOptionEvent,

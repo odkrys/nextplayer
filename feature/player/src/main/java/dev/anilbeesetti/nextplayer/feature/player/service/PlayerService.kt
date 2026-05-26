@@ -47,6 +47,7 @@ import dev.anilbeesetti.nextplayer.core.data.remote.setupUnsafeSsl
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.DecoderPriority
+import dev.anilbeesetti.nextplayer.core.model.DrcPreset
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Resume
@@ -345,6 +346,7 @@ class PlayerService : MediaSessionService() {
                             channelCount = channelCount,
                         ).apply {
                             enabled = playerPreferences.enableDrc
+                            applyPreset(playerPreferences.drcPreset)
                         }
                     }
                 }
@@ -484,6 +486,8 @@ class PlayerService : MediaSessionService() {
                 channelCount = channelCount,
             ).apply {
                 enabled = playerPreferences.enableDrc
+                applyPreset(playerPreferences.drcPreset)
+
             }
         }
     }
@@ -676,6 +680,14 @@ class PlayerService : MediaSessionService() {
                 CustomCommands.SET_DRC_ENABLED -> {
                     val enabled = args.getBoolean(CustomCommands.DRC_ENABLED_KEY)
                     dynamicRangeCompressor?.enabled = enabled
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.SET_DRC_PRESET -> {
+                    val presetName = args.getString(CustomCommands.DRC_PRESET_KEY) ?: return@future SessionResult(SessionError.ERROR_BAD_VALUE)
+                    val preset = runCatching { DrcPreset.valueOf(presetName) }.getOrNull()
+                        ?: return@future SessionResult(SessionError.ERROR_BAD_VALUE)
+                    dynamicRangeCompressor?.applyPreset(preset)
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
@@ -980,7 +992,7 @@ class PlayerService : MediaSessionService() {
             }
         }.awaitAll()
     }
-    
+
     private fun getDefaultArtworkUri(): Uri = Uri.Builder().apply {
         val defaultArtwork = R.drawable.artwork_default
         scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)

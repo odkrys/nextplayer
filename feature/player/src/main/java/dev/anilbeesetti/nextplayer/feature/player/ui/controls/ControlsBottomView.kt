@@ -59,6 +59,7 @@ import dev.anilbeesetti.nextplayer.feature.player.LocalUseMaterialYouControls
 import dev.anilbeesetti.nextplayer.feature.player.buttons.LoopButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.ShuffleButton
+import dev.anilbeesetti.nextplayer.feature.player.buttons.SkipIntroButton
 import dev.anilbeesetti.nextplayer.feature.player.extensions.drawableRes
 import dev.anilbeesetti.nextplayer.feature.player.extensions.noRippleClickable
 import dev.anilbeesetti.nextplayer.feature.player.state.MediaPresentationState
@@ -81,6 +82,8 @@ fun ControlsBottomView(
     onPictureInPictureClick: () -> Unit,
     onRotateClick: () -> Unit,
     onPlayInBackgroundClick: () -> Unit,
+    showSkipIntroButton: Boolean = false,
+    onSkipIntroClick: () -> Unit = {},
     onSeek: (Long) -> Unit,
     onSeekEnd: () -> Unit,
 ) {
@@ -146,42 +149,56 @@ fun ControlsBottomView(
             onSeek = { onSeek(it.toLong()) },
             onSeekFinished = { onSeekEnd() },
         )
+
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = controlsAlignment),
         ) {
-            PlayerButton(onClick = onLockControlsClick) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lock_open),
-                    contentDescription = null,
-                )
-            }
-            PlayerButton(
-                onClick = onVideoContentScaleClick,
-                onLongClick = onVideoContentScaleLongClick,
+            Row(
+                modifier = Modifier
+                    //.fillMaxWidth()
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = controlsAlignment),
             ) {
-                Icon(
-                    painter = painterResource(videoContentScale.drawableRes()),
-                    contentDescription = null,
-                )
-            }
-            LoopButton(player = player)
-            ShuffleButton(player = player)
-            if (isPipSupported) {
-                PlayerButton(onClick = onPictureInPictureClick) {
+                PlayerButton(onClick = onLockControlsClick) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_pip),
+                        painter = painterResource(R.drawable.ic_lock_open),
+                        contentDescription = null,
+                    )
+                }
+                PlayerButton(
+                    onClick = onVideoContentScaleClick,
+                    onLongClick = onVideoContentScaleLongClick,
+                ) {
+                    Icon(
+                        painter = painterResource(videoContentScale.drawableRes()),
+                        contentDescription = null,
+                    )
+                }
+                LoopButton(player = player)
+                ShuffleButton(player = player)
+                if (isPipSupported) {
+                    PlayerButton(onClick = onPictureInPictureClick) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_pip),
+                            contentDescription = null,
+                        )
+                    }
+                }
+                PlayerButton(onClick = onPlayInBackgroundClick) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_headset),
                         contentDescription = null,
                     )
                 }
             }
-            PlayerButton(onClick = onPlayInBackgroundClick) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_headset),
-                    contentDescription = null,
+
+            if (showSkipIntroButton) {
+                SkipIntroButton(
+                    onClick = onSkipIntroClick,
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
         }

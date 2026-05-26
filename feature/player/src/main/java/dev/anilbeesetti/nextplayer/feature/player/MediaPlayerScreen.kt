@@ -8,8 +8,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -73,6 +71,7 @@ import dev.anilbeesetti.nextplayer.feature.player.buttons.NextButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayPauseButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PreviousButton
+import dev.anilbeesetti.nextplayer.feature.player.extensions.nameRes
 import dev.anilbeesetti.nextplayer.feature.player.state.ControlsVisibilityState
 import dev.anilbeesetti.nextplayer.feature.player.state.VerticalGesture
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberBrightnessState
@@ -87,7 +86,6 @@ import dev.anilbeesetti.nextplayer.feature.player.state.rememberTapGestureState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVideoZoomAndContentScaleState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVolumeAndBrightnessGestureState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVolumeState
-import dev.anilbeesetti.nextplayer.feature.player.extensions.nameRes
 import dev.anilbeesetti.nextplayer.feature.player.state.seekAmountFormatted
 import dev.anilbeesetti.nextplayer.feature.player.state.seekToPositionFormated
 import dev.anilbeesetti.nextplayer.feature.player.ui.CastingControllerView
@@ -600,83 +598,57 @@ fun MediaPlayerScreen(
                                     exit = fadeOut(),
                                 ) {
                                     val context = LocalContext.current
-                                    Box(modifier = Modifier.fillMaxWidth()) {
-                                        ControlsBottomView(
-                                            player = player,
-                                            mediaPresentationState = mediaPresentationState,
-                                            controlsAlignment = when (playerPreferences.controlButtonsPosition) {
-                                                ControlButtonsPosition.LEFT -> Alignment.Start
-                                                ControlButtonsPosition.RIGHT -> Alignment.End
-                                            },
-                                            videoContentScale = videoZoomAndContentScaleState.videoContentScale,
-                                            isPipSupported = pictureInPictureState.isPipSupported,
-                                            onSeek = seekGestureState::onSeek,
-                                            onSeekEnd = seekGestureState::onSeekEnd,
-                                            //onRotateClick = rotationState::rotate,
-                                            onRotateClick = {
-                                                controlsVisibilityState.showControls()
-                                                rotationState.rotate()
-                                            },
-                                            onPlayInBackgroundClick = onPlayInBackgroundClick,
-                                            onLockControlsClick = {
-                                                controlsVisibilityState.showControls()
-                                                controlsVisibilityState.lockControls()
-                                            },
-                                            onVideoContentScaleClick = {
-                                                controlsVisibilityState.showControls()
-                                                videoZoomAndContentScaleState.switchToNextVideoContentScale()
-                                            },
-                                            onVideoContentScaleLongClick = {
-                                                //controlsVisibilityState.hideControls()
-                                                //overlayView = OverlayView.VIDEO_CONTENT_SCALE
-                                                controlsVisibilityState.showControls()
-                                                videoZoomAndContentScaleState.resetZoomAndOffset()
-                                            },
-                                            onPictureInPictureClick = {
-                                                if (!pictureInPictureState.hasPipPermission) {
-                                                    Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
-                                                    pictureInPictureState.openPictureInPictureSettings()
-                                                } else {
-                                                    pictureInPictureState.enterPictureInPictureMode()
-                                                }
-                                            },
-                                        )
 
-                                        val skipIntroTimeMs = playerPreferences.skipIntroTime * 1000L
-                                        val durationMs = player.duration
+                                    val skipIntroTimeMs = playerPreferences.skipIntroTime * 1000L
+                                    val durationMs = player.duration
+                                    val isLongEnough = durationMs == C.TIME_UNSET || durationMs > skipIntroTimeMs
 
-                                        val isLongEnough = durationMs == C.TIME_UNSET || durationMs > skipIntroTimeMs
-                                        if (isLandscape && !dlnaPlaybackState.isActive &&
-                                            skipIntroTimeMs > 0 && currentPositionMs < skipIntroTimeMs && isLongEnough
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .align(Alignment.BottomEnd)
-                                                    .safeDrawingPadding()
-                                                    .padding(end = 24.dp, bottom = 24.dp)
-                                                    .background(
-                                                        color = Color.Black.copy(alpha = 0.6f),
-                                                        shape = CircleShape,
-                                                    )
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = Color.White.copy(alpha = 0.4f),
-                                                        shape = CircleShape,
-                                                    )
-                                                    .clickable {
-                                                        player.seekTo(skipIntroTimeMs)
-                                                    }
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Text(
-                                                    text = "Skip",
-                                                    color = Color.White,
-                                                    style = MaterialTheme.typography.labelLarge,
-                                                )
+                                    val showSkipIntro = isLandscape && skipIntroTimeMs > 0 &&
+                                            currentPositionMs < skipIntroTimeMs &&
+                                            isLongEnough && !dlnaPlaybackState.isActive
+
+                                    ControlsBottomView(
+                                        player = player,
+                                        mediaPresentationState = mediaPresentationState,
+                                        controlsAlignment = when (playerPreferences.controlButtonsPosition) {
+                                            ControlButtonsPosition.LEFT -> Alignment.Start
+                                            ControlButtonsPosition.RIGHT -> Alignment.End
+                                        },
+                                        videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                                        isPipSupported = pictureInPictureState.isPipSupported,
+                                        onSeek = seekGestureState::onSeek,
+                                        onSeekEnd = seekGestureState::onSeekEnd,
+                                        //onRotateClick = rotationState::rotate,
+                                        onRotateClick = {
+                                            controlsVisibilityState.showControls()
+                                            rotationState.rotate()
+                                        },
+                                        onPlayInBackgroundClick = onPlayInBackgroundClick,
+                                        onLockControlsClick = {
+                                            controlsVisibilityState.showControls()
+                                            controlsVisibilityState.lockControls()
+                                        },
+                                        onVideoContentScaleClick = {
+                                            controlsVisibilityState.showControls()
+                                            videoZoomAndContentScaleState.switchToNextVideoContentScale()
+                                        },
+                                        onVideoContentScaleLongClick = {
+                                            //controlsVisibilityState.hideControls()
+                                            //overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                            controlsVisibilityState.showControls()
+                                            videoZoomAndContentScaleState.resetZoomAndOffset()
+                                        },
+                                        onPictureInPictureClick = {
+                                            if (!pictureInPictureState.hasPipPermission) {
+                                                Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
+                                                pictureInPictureState.openPictureInPictureSettings()
+                                            } else {
+                                                pictureInPictureState.enterPictureInPictureMode()
                                             }
-                                        }
-                                    }
+                                        },
+                                        showSkipIntroButton = showSkipIntro,
+                                        onSkipIntroClick = { player.seekTo(skipIntroTimeMs) },
+                                    )
                                 }
                             },
                         )

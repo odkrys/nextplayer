@@ -128,7 +128,8 @@ private fun VideoListItem(
         },
         content = {
             Text(
-                text = if (preferences.showExtensionField) video.nameWithExtension else video.displayName,
+                //text = if (preferences.showExtensionField) video.nameWithExtension else video.displayName,
+                text = video.displayName,
                 maxLines = 2,
                 style = MaterialTheme.typography.titleMedium,
                 overflow = TextOverflow.Ellipsis,
@@ -151,11 +152,20 @@ private fun VideoListItem(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
+                    if (preferences.showExtensionField) {
+                        val extension = video.nameWithExtension.substringAfterLast('.', "").uppercase()
+                        if (extension.isNotEmpty()) {
+                            InfoChip(text = extension)
+                        }
+                    }
                     if (preferences.showSizeField) {
                         InfoChip(text = video.formattedFileSize)
                     }
-                    if (preferences.showResolutionField && video.height > 0) {
-                        InfoChip(text = "${video.height}p")
+                    //if (preferences.showResolutionField && video.height > 0) {
+                    //    InfoChip(text = "${video.height}p")
+                    //}
+                    if (preferences.showResolutionField && video.width > 0 && video.height > 0) {
+                        InfoChip(text = "${video.width}x${video.height}")
                     }
                 }
             }
@@ -207,7 +217,8 @@ private fun VideoGridItem(
                     preferences = preferences,
                 )
                 Text(
-                    text = if (preferences.showExtensionField) video.nameWithExtension else video.displayName,
+                    //text = if (preferences.showExtensionField) video.nameWithExtension else video.displayName,
+                    text = video.displayName,
                     maxLines = 2,
                     style = MaterialTheme.typography.titleMedium,
                     overflow = TextOverflow.Ellipsis,

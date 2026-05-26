@@ -264,6 +264,11 @@ class PlayerService : MediaSessionService() {
 
             if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
                 mediaSession?.player?.trackSelectionParameters = TrackSelectionParameters.DEFAULT
+                    .buildUpon()
+                    .setPreferredAudioLanguage(playerPreferences.preferredAudioLanguage)
+                    .setPreferredTextLanguage(playerPreferences.preferredSubtitleLanguage)
+                    .setSelectUndeterminedTextLanguage(true)
+                    .build()
                 mediaSession?.player?.setPlaybackSpeed(playerPreferences.defaultPlaybackSpeed)
             }
 

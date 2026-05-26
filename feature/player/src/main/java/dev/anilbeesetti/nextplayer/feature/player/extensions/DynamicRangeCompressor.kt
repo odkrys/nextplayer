@@ -4,6 +4,8 @@ import android.media.audiofx.DynamicsProcessing
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.media3.common.util.UnstableApi
+import dev.anilbeesetti.nextplayer.core.model.DrcPreset
+
 
 @OptIn(UnstableApi::class)
 class DynamicRangeCompressor(
@@ -22,7 +24,7 @@ class DynamicRangeCompressor(
         }
 
     var attackTime: Float = 10f
-    var releaseTime: Float = 200f
+    var releaseTime: Float = 250f
     var ratio: Float = 4f
     var threshold: Float = -20f
     var kneeWidth: Float = 6f
@@ -31,6 +33,52 @@ class DynamicRangeCompressor(
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             setup()
+        }
+    }
+
+    fun applyPreset(preset: DrcPreset) {
+        when (preset) {
+            DrcPreset.LIGHT -> {
+                threshold = -20f
+                ratio = 4f
+                postGain = 8f
+                attackTime = 10f
+                releaseTime = 250f
+            }
+            DrcPreset.STRONG -> {
+                threshold = -25f
+                ratio = 8f
+                postGain = 12f
+                attackTime = 5f
+                releaseTime = 200f
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            updateBands()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun updateBands() {
+        val dp = dynamicsProcessing ?: run {
+            return
+        }
+        try {
+            for (ch in 0 until channelCount) {
+                val band = dp.getMbcBandByChannelIndex(ch, 0).apply {
+                    this.attackTime = this@DynamicRangeCompressor.attackTime
+                    this.releaseTime = this@DynamicRangeCompressor.releaseTime
+                    this.ratio = this@DynamicRangeCompressor.ratio
+                    this.threshold = this@DynamicRangeCompressor.threshold
+                    this.kneeWidth = this@DynamicRangeCompressor.kneeWidth
+                    this.postGain = this@DynamicRangeCompressor.postGain
+                }
+                dp.setMbcBandByChannelIndex(ch, 0, band)
+            }
+            dp.enabled = false
+            dp.enabled = enabled
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

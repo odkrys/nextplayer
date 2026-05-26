@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
+import dev.anilbeesetti.nextplayer.core.model.DrcPreset
 import kotlinx.coroutines.guava.await
 
 enum class CustomCommands(val customAction: String) {
@@ -20,6 +21,7 @@ enum class CustomCommands(val customAction: String) {
     SET_LOUDNESS_GAIN(customAction = "SET_LOUDNESS_GAIN"),
     GET_LOUDNESS_GAIN(customAction = "GET_LOUDNESS_GAIN"),
     SET_DRC_ENABLED(customAction = "SET_DRC_ENABLED"),
+    SET_DRC_PRESET(customAction = "SET_DRC_PRESET"),
     IS_DRC_SUPPORTED(customAction = "IS_DRC_SUPPORTED"),
     SET_SKIP_INTRO_ENABLED(customAction = "SET_SKIP_INTRO_ENABLED"),
     GET_SKIP_INTRO_ENABLED(customAction = "GET_SKIP_INTRO_ENABLED"),
@@ -46,6 +48,7 @@ enum class CustomCommands(val customAction: String) {
         const val LOUDNESS_GAIN_KEY = "loudness_gain"
         const val IS_LOUDNESS_GAIN_SUPPORTED_KEY = "is_loudness_gain_supported"
         const val DRC_ENABLED_KEY = "drc_enabled"
+        const val DRC_PRESET_KEY = "drc_preset"
         const val IS_DRC_SUPPORTED_KEY = "is_drc_supported"
         const val SKIP_INTRO_ENABLED_KEY = "skip_intro_enabled"
         const val SKIP_INTRO_TIME_KEY = "skip_intro_time"
@@ -128,6 +131,13 @@ fun MediaController.setDrcEnabled(enabled: Boolean) {
         putBoolean(CustomCommands.DRC_ENABLED_KEY, enabled)
     }
     sendCustomCommand(CustomCommands.SET_DRC_ENABLED.sessionCommand, args)
+}
+
+fun MediaController.setDrcPreset(preset: DrcPreset) {
+    val args = Bundle().apply {
+        putString(CustomCommands.DRC_PRESET_KEY, preset.name)
+    }
+    sendCustomCommand(CustomCommands.SET_DRC_PRESET.sessionCommand, args)
 }
 
 suspend fun MediaController.getIsDrcSupported(): Boolean {

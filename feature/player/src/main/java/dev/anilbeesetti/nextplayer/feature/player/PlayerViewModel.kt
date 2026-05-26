@@ -12,6 +12,7 @@ import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedPlaylistUseCase
 import dev.anilbeesetti.nextplayer.core.media.sync.MediaInfoSynchronizer
+import dev.anilbeesetti.nextplayer.core.model.DrcPreset
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
@@ -316,6 +317,14 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { currentPrefs ->
                 currentPrefs.copy(enableDrc = !currentPrefs.enableDrc)
+            }
+        }
+    }
+
+    fun setDrcPreset(preset: DrcPreset) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { currentPrefs ->
+                currentPrefs.copy(drcPreset = preset)
             }
         }
     }

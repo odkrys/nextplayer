@@ -8,9 +8,13 @@ import androidx.navigation.navigation
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
 import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerApi
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToPlaylistDetail
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.playlistDetailScreen
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.playlistScreen
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.MediaPickerRoute
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.mediaPickerScreen
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToMediaPickerScreen
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToPlaylist
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToRemoteHome
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToSearch
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.searchScreen
@@ -48,6 +52,8 @@ fun NavGraphBuilder.mediaNavGraph(
             onSettingsClick = navController::navigateToSettings,
             onSearchClick = navController::navigateToSearch,
             onRemoteClick = navController::navigateToRemoteHome,
+            onAddToPlaylistClick = navController::navigateToPlaylist,
+            onPlaylistClick = { navController.navigateToPlaylist(emptyList()) },
         )
 
         searchScreen(
@@ -90,6 +96,37 @@ fun NavGraphBuilder.mediaNavGraph(
                 }
                 context.startActivity(intent)
             }
+        )
+
+        playlistScreen(
+            onPlaylistClick = { playlistId, _ ->
+                navController.navigateToPlaylistDetail(playlistId)
+            },
+            onBackClick = navController::popBackStack,
+        )
+
+        playlistDetailScreen(
+            onPlayClick = { playlistId, uris, startIndex ->
+                val androidUris = ArrayList(uris.map { android.net.Uri.parse(it) })
+                val intent = Intent(context, PlayerActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    data = androidUris[startIndex]
+                    putParcelableArrayListExtra(PlayerApi.API_PLAYLIST, androidUris)
+                    putExtra("EXTRA_PLAYLIST_ID", playlistId)
+                }
+                context.startActivity(intent)
+            },
+            onVideoClick = { playlistId, uris, index ->
+                val androidUris = ArrayList(uris.map { android.net.Uri.parse(it) })
+                val intent = Intent(context, PlayerActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    data = androidUris[index]
+                    putParcelableArrayListExtra(PlayerApi.API_PLAYLIST, androidUris)
+                    putExtra("EXTRA_PLAYLIST_ID", playlistId)
+                }
+                context.startActivity(intent)
+            },
+            onBackClick = navController::popBackStack,
         )
     }
 }

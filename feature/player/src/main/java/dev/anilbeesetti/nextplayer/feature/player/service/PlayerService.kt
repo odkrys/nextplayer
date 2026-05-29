@@ -46,6 +46,7 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.subtitleCacheDir
 import dev.anilbeesetti.nextplayer.core.data.remote.setupUnsafeSsl
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
+import dev.anilbeesetti.nextplayer.core.domain.playlist.UpdatePlaylistLastPlayedUseCase
 import dev.anilbeesetti.nextplayer.core.model.DecoderPriority
 import dev.anilbeesetti.nextplayer.core.model.DrcPreset
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
@@ -105,6 +106,9 @@ class PlayerService : MediaSessionService() {
     @Inject
     lateinit var imageLoader: ImageLoader
 
+    @Inject
+    lateinit var updatePlaylistLastPlayedUseCase: UpdatePlaylistLastPlayedUseCase
+
     internal lateinit var okHttpClient: OkHttpClient
 
     private val playerPreferences: PlayerPreferences
@@ -145,6 +149,15 @@ class PlayerService : MediaSessionService() {
                     if (playerPreferences.enableSkipIntro) {
                         pendingSkipIntroMs = playerPreferences.skipIntroTime * 1000L
                     }
+                }
+            }
+
+            val mediaId = mediaItem?.mediaId ?: return
+            val playlistId = mediaItem.mediaMetadata.extras?.getLong("EXTRA_PLAYLIST_ID", -1L) ?: -1L
+
+            if (playlistId != -1L) {
+                serviceScope.launch {
+                    updatePlaylistLastPlayedUseCase(playlistId, mediaId)
                 }
             }
         }
@@ -895,6 +908,8 @@ class PlayerService : MediaSessionService() {
                 val video = mediaRepository.getVideoByUri(uri = mediaItem.mediaId)
                 val videoState = mediaRepository.getVideoState(uri = mediaItem.mediaId)
 
+                val existingPlaylistId = mediaItem.mediaMetadata.extras?.getLong("EXTRA_PLAYLIST_ID", -1L) ?: -1L
+
                 val externalSubs = videoState?.externalSubs ?: emptyList()
 /*
                 val localSubs = (videoState?.path ?: getPath(uri))?.let {
@@ -970,7 +985,7 @@ class PlayerService : MediaSessionService() {
                 val subtitleTrackIndex = mediaItem.mediaMetadata.subtitleTrackIndex ?: videoState?.subtitleTrackIndex
                 val subtitleDelay = mediaItem.mediaMetadata.subtitleDelayMilliseconds ?: videoState?.subtitleDelayMilliseconds
                 val subtitleSpeed = mediaItem.mediaMetadata.subtitleSpeed ?: videoState?.subtitleSpeed
-
+/*
                 mediaItem.buildUpon().apply {
                     setSubtitleConfigurations(existingSubConfigurations + subConfigurations)
                     setMediaMetadata(
@@ -988,6 +1003,33 @@ class PlayerService : MediaSessionService() {
                             )
                         }.build(),
                     )
+                }.build()
+            }
+        }.awaitAll()
+ */
+                val metadata = MediaMetadata.Builder().apply {
+                    setTitle(title)
+                    setArtworkUri(artworkUri)
+                    setExtras(
+                        positionMs = positionMs,
+                        videoScale = videoScale,
+                        playbackSpeed = playbackSpeed,
+                        audioTrackIndex = audioTrackIndex,
+                        subtitleTrackIndex = subtitleTrackIndex,
+                        subtitleDelayMilliseconds = subtitleDelay,
+                        subtitleSpeed = subtitleSpeed,
+                    )
+                }.build()
+
+                val finalMetadata = metadata.buildUpon().setExtras(
+                    Bundle(metadata.extras ?: Bundle()).apply {
+                        putLong("EXTRA_PLAYLIST_ID", existingPlaylistId)
+                    }
+                ).build()
+
+                mediaItem.buildUpon().apply {
+                    setSubtitleConfigurations(existingSubConfigurations + subConfigurations)
+                    setMediaMetadata(finalMetadata)
                 }.build()
             }
         }.awaitAll()

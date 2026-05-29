@@ -63,6 +63,8 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.runtime)
+    implementation(libs.androidx.material3)
     ksp(libs.hilt.compiler)
     ksp(libs.kotlin.metadata.jvm)
     kspAndroidTest(libs.hilt.compiler)

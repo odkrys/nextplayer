@@ -37,6 +37,8 @@ fun NavGraphBuilder.mediaPickerScreen(
     onRemoteClick: () -> Unit = {},
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
+    onAddToPlaylistClick: (List<String>) -> Unit,
+    onPlaylistClick: () -> Unit,
 ) {
     composable<MediaPickerRoute> {
         MediaPickerRoute(
@@ -47,6 +49,8 @@ fun NavGraphBuilder.mediaPickerScreen(
             onRemoteClick = onRemoteClick,
             onSettingsClick = onSettingsClick,
             onSearchClick = onSearchClick,
+            onAddToPlaylistClick = onAddToPlaylistClick,
+            onPlaylistClick = onPlaylistClick,
         )
     }
 }

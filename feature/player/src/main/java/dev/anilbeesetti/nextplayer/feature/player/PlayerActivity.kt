@@ -233,19 +233,40 @@ class PlayerActivity : ComponentActivity() {
             it == (mediaContentUri ?: uri).toString()
         }.takeIf { it >= 0 } ?: 0
 
+        val playlistId = intent.getLongExtra("EXTRA_PLAYLIST_ID", -1L)
+
         val mediaItems = playlist.mapIndexed { index, uri ->
             MediaItem.Builder().apply {
                 setUri(uri)
                 //setMediaId(uri)
                 setMediaId(Uri.parse(uri).buildUpon().fragment(null).build().toString())
+
+                val baseMetadata = if (index == mediaItemIndexToPlay) {
+                    MediaMetadata.Builder().apply {
+                        setTitle(playerApi.title)
+                        setExtras(positionMs = playerApi.position?.toLong())
+                    }.build()
+                } else {
+                    MediaMetadata.Builder().build()
+                }
+
+                val finalMetadata = baseMetadata.buildUpon().setExtras(
+                    Bundle(baseMetadata.extras ?: Bundle()).apply {
+                        putLong("EXTRA_PLAYLIST_ID", playlistId)
+                    },
+                ).build()
+
+                setMediaMetadata(finalMetadata)
+
                 if (index == mediaItemIndexToPlay) {
+/*
                     setMediaMetadata(
                         MediaMetadata.Builder().apply {
                             setTitle(playerApi.title)
                             setExtras(positionMs = playerApi.position?.toLong())
                         }.build(),
                     )
-/*
+
                     val apiSubs = playerApi.getSubs().map { subtitle ->
                         uriToSubtitleConfiguration(
                             uri = subtitle.uri,
@@ -272,7 +293,7 @@ class PlayerActivity : ComponentActivity() {
                             )
                         }
                     }
-                setSubtitleConfigurations(apiSubs)
+                    setSubtitleConfigurations(apiSubs)
                 }
             }.build()
         }

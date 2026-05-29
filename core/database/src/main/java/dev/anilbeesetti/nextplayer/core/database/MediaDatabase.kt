@@ -7,11 +7,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.anilbeesetti.nextplayer.core.database.dao.DirectoryDao
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumDao
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumStateDao
+import dev.anilbeesetti.nextplayer.core.database.dao.PlaylistDao
 import dev.anilbeesetti.nextplayer.core.database.dao.WebdavServerDao
 import dev.anilbeesetti.nextplayer.core.database.entities.AudioStreamInfoEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.DirectoryEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.MediumEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.MediumStateEntity
+import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistEntity
+import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistMediumCrossEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.SubtitleStreamInfoEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.VideoStreamInfoEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
@@ -25,9 +28,11 @@ import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
         AudioStreamInfoEntity::class,
         SubtitleStreamInfoEntity::class,
         WebdavServerEntity::class,
+        PlaylistEntity::class,
+        PlaylistMediumCrossEntity::class,
     ],
     //version = 4,
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
@@ -39,6 +44,8 @@ abstract class MediaDatabase : RoomDatabase() {
     abstract fun directoryDao(): DirectoryDao
 
     abstract fun webdavServerDao(): WebdavServerDao
+
+    abstract fun playlistDao(): PlaylistDao
 
     companion object {
         const val DATABASE_NAME = "media_db"
@@ -217,6 +224,57 @@ abstract class MediaDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE `media_state` ADD COLUMN `duration_ms` INTEGER"
+                )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS `playlists` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL,
+                `last_played_uri` TEXT DEFAULT NULL
+            )
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            CREATE UNIQUE INDEX IF NOT EXISTS `index_playlists_name`
+            ON `playlists` (`name`)
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS `playlist_medium_cross_entity` (
+                `playlist_id` INTEGER NOT NULL,
+                `medium_uri` TEXT NOT NULL,
+                `position` INTEGER NOT NULL,
+                `added_at` INTEGER NOT NULL,
+                PRIMARY KEY(`playlist_id`, `medium_uri`),
+                FOREIGN KEY(`playlist_id`) REFERENCES `playlists`(`id`) ON DELETE CASCADE,
+                FOREIGN KEY(`medium_uri`) REFERENCES `media`(`uri`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_playlist_id`
+            ON `playlist_medium_cross_entity` (`playlist_id`)
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_medium_uri`
+            ON `playlist_medium_cross_entity` (`medium_uri`)
+            """.trimIndent()
                 )
             }
         }

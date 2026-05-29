@@ -5,9 +5,11 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dev.anilbeesetti.nextplayer.core.data.repository.LocalMediaRepository
+import dev.anilbeesetti.nextplayer.core.data.repository.LocalPlaylistRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.LocalPreferencesRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.LocalSearchHistoryRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
+import dev.anilbeesetti.nextplayer.core.data.repository.PlaylistRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.SearchHistoryRepository
 import javax.inject.Singleton
@@ -32,4 +34,10 @@ interface DataModule {
     fun bindsSearchHistoryRepository(
         searchHistoryRepository: LocalSearchHistoryRepository,
     ): SearchHistoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPlaylistRepository(
+        localPlaylistRepository: LocalPlaylistRepository,
+    ): PlaylistRepository
 }

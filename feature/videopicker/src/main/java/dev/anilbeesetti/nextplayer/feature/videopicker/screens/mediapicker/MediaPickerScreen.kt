@@ -120,6 +120,8 @@ fun MediaPickerRoute(
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
     onNavigateUp: () -> Unit,
+    onAddToPlaylistClick: (List<String>) -> Unit,
+    onPlaylistClick: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
 
@@ -138,6 +140,8 @@ fun MediaPickerRoute(
         onSettingsClick = onSettingsClick,
         onSearchClick = onSearchClick,
         onAction = viewModel::onAction,
+        onAddToPlaylistClick = onAddToPlaylistClick,
+        onPlaylistClick = onPlaylistClick,
     )
 }
 
@@ -152,6 +156,8 @@ internal fun MediaPickerScreen(
     onSettingsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onAction: (MediaPickerAction) -> Unit = {},
+    onAddToPlaylistClick: (List<String>) -> Unit = {},
+    onPlaylistClick: () -> Unit = {},
 ) {
     val selectionManager = rememberSelectionManager()
     val permissionState = rememberPermissionState(
@@ -259,6 +265,12 @@ internal fun MediaPickerScreen(
                                 contentDescription = "Remote Server",
                             )
                         }
+                        IconButton(onClick = onPlaylistClick) {
+                            Icon(
+                                imageVector = NextIcons.Bookmarks,
+                                contentDescription = "Playlist",
+                            )
+                        }
                         IconButton(onClick = onSettingsClick) {
                             Icon(
                                 imageVector = NextIcons.Settings,
@@ -301,6 +313,11 @@ internal fun MediaPickerScreen(
                     } else {
                         showDeleteVideosConfirmation = true
                     }
+                },
+                onAddToPlaylistAction = {
+                    val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                    onAddToPlaylistClick(uris)
+                    selectionManager.exitSelectionMode()
                 },
             )
         },
@@ -588,6 +605,7 @@ private fun SelectionActionsSheet(
     onShareAction: () -> Unit,
     onInfoAction: () -> Unit,
     onDeleteAction: () -> Unit,
+    onAddToPlaylistAction: () -> Unit,
 ) {
     AnimatedVisibility(
         modifier = modifier.padding(
@@ -645,6 +663,11 @@ private fun SelectionActionsSheet(
                         onClick = onInfoAction,
                     )
                 }
+                SelectionAction(
+                    imageVector = NextIcons.Add,
+                    title = "Playlist",
+                    onClick = onAddToPlaylistAction,
+                )
                 SelectionAction(
                     imageVector = NextIcons.Delete,
                     title = stringResource(id = R.string.delete),

@@ -32,6 +32,18 @@ class SelectionManager(
 
     val isSingleVideoSelected: Boolean by derivedStateOf { selectionItems.size == 1 && selectionItems.first() is SelectionItem.Video }
 
+    val selectedVideos: List<SelectionItem.Video> by derivedStateOf {
+        selectionItems.filterIsInstance<SelectionItem.Video>()
+    }
+
+    val selectedFolders: List<SelectionItem.Folder> by derivedStateOf {
+        selectionItems.filterIsInstance<SelectionItem.Folder>()
+    }
+
+    val allSelectedVideos: List<SelectionItem.Video> by derivedStateOf {
+        selectionItems.filterIsInstance<SelectionItem.Video>()
+    }
+
     fun toggleFolderSelection(folder: Folder) {
         val selectedFolder = selectionItems.find { it.id == folder.path }
         selectionItems = if (selectedFolder != null) {

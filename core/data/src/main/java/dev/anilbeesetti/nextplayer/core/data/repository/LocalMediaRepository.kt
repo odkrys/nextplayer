@@ -9,6 +9,7 @@ import dev.anilbeesetti.nextplayer.core.database.converter.UriListConverter
 import dev.anilbeesetti.nextplayer.core.database.dao.DirectoryDao
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumDao
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumStateDao
+import dev.anilbeesetti.nextplayer.core.database.entities.MediumEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.MediumStateEntity
 import dev.anilbeesetti.nextplayer.core.database.relations.DirectoryWithMedia
 import dev.anilbeesetti.nextplayer.core.database.relations.MediumWithInfo
@@ -159,5 +160,30 @@ class LocalMediaRepository @Inject constructor(
 
     override suspend fun deleteByPrefix(urlPrefix: String) {
         mediumStateDao.deleteByPrefix(urlPrefix)
+    }
+
+    override suspend fun upsertRemoteMedia(
+        uriString: String,
+        name: String,
+        parentPath: String,
+        size: Long,
+        format: String,
+    ) {
+        mediumDao.upsertAll(listOf(
+            MediumEntity(
+                uriString = uriString,
+                path = uriString,
+                name = name,
+                parentPath = parentPath,
+                modified = System.currentTimeMillis(),
+                size = size,
+                width = 0,
+                height = 0,
+                duration = 0,
+                mediaStoreId = 0L,
+                format = format,
+                thumbnailPath = null,
+            )
+        ))
     }
 }

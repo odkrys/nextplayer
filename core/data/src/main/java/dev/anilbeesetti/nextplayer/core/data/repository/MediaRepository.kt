@@ -27,5 +27,5 @@ interface MediaRepository {
     suspend fun delete(uris: List<String>)
     suspend fun getRecentUrlPrefix(urlPrefix: String): VideoState?
     suspend fun deleteByPrefix(urlPrefix: String)
-
+    suspend fun upsertRemoteMedia(uriString: String, name: String, parentPath: String, size: Long, format: String)
 }

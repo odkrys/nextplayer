@@ -58,6 +58,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.accompanist.permissions)
 
+    // Reorderable list for drag-and-drop
+    implementation(libs.reorderable)
+
+    // WebDAV
     implementation(libs.androidx.media3.datasource.okhttp)
 
     // Hilt
@@ -65,6 +69,7 @@ dependencies {
     implementation(libs.androidx.compose.runtime)
     implementation(libs.androidx.runtime)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.foundation)
     ksp(libs.hilt.compiler)
     ksp(libs.kotlin.metadata.jvm)
     kspAndroidTest(libs.hilt.compiler)

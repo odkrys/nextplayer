@@ -16,5 +16,6 @@ data class WebdavServerEntity(
     val useSsl: Boolean = true,
     val allowSelfSigned: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val position: Int = 0,
 )

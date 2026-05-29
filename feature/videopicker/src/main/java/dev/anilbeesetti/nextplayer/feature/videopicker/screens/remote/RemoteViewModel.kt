@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.domain.webdav.DeleteWebdavServerUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServersUseCase
+import dev.anilbeesetti.nextplayer.core.domain.webdav.ReorderWebdavServersUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.SaveWebdavServerUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.TestWebdavConnectionUseCase
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
@@ -31,6 +32,7 @@ class RemoteViewModel @Inject constructor(
     private val saveWebdavServerUseCase: SaveWebdavServerUseCase,
     private val deleteWebdavServerUseCase: DeleteWebdavServerUseCase,
     private val testWebdavConnectionUseCase: TestWebdavConnectionUseCase,
+    private val reorderWebdavServersUseCase: ReorderWebdavServersUseCase,
     private val mediaRepository: MediaRepository,
     ) : ViewModel() {
 
@@ -110,5 +112,11 @@ class RemoteViewModel @Inject constructor(
 
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+    }
+
+    fun reorderServers(ids: List<Long>) {
+        viewModelScope.launch {
+            reorderWebdavServersUseCase(ids)
+        }
     }
 }

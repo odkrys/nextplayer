@@ -1,4 +1,4 @@
-package dev.anilbeesetti.nextplayer.feature.playlist.navigation
+package dev.anilbeesetti.nextplayer.feature.videopicker.navigation
 
 import androidx.lifecycle.SavedStateHandle
 

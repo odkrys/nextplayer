@@ -147,6 +147,7 @@ class LocalMediaSynchronizer @Inject constructor(
 
         val unwantedMedia = mediumDao.getAllWithInfo().first()
             .filterNot { it.mediumEntity.uriString in currentMediaUris }
+            .filterNot { it.mediumEntity.uriString.startsWith("http") }
 
         val unwantedMediaUris = unwantedMedia.map { it.mediumEntity.uriString }
 

@@ -72,4 +72,7 @@ class FakeMediaRepository : MediaRepository {
 
     override suspend fun deleteByPrefix(urlPrefix: String) {
     }
+
+    override suspend fun upsertRemoteMedia(uriString: String, name: String, parentPath: String, size: Long, format: String) {
+    }
 }

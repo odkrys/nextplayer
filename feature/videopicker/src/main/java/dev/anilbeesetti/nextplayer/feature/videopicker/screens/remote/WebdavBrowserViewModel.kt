@@ -389,4 +389,32 @@ class WebdavBrowserViewModel @Inject constructor(
             }
         }
     }
+
+    fun prepareMediaForPlaylist(
+        server: WebdavServer,
+        files: List<WebdavFile>,
+        onReady: (List<String>) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val fullUrls = files.map { file ->
+                buildFileUrl(server, file, uiState.value.files)
+            }
+
+            val dbUrls = fullUrls.map { url ->
+                Uri.parse(url).buildUpon().fragment(null).build().toString()
+            }
+
+            files.forEachIndexed { index, file ->
+                mediaRepository.upsertRemoteMedia(
+                    uriString = dbUrls[index],
+                    name = file.name,
+                    parentPath = server.name,
+                    size = file.size ?: 1024L,
+                    format = file.name.substringAfterLast('.', "").lowercase(),
+                )
+            }
+
+            onReady(fullUrls)
+        }
+    }
 }

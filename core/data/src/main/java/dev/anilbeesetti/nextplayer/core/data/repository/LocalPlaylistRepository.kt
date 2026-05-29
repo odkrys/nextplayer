@@ -1,11 +1,13 @@
 package dev.anilbeesetti.nextplayer.core.data.repository
 
+import android.net.Uri
 import dev.anilbeesetti.nextplayer.core.data.mappers.toPlaylist
 import dev.anilbeesetti.nextplayer.core.database.dao.PlaylistDao
 import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistMediumCrossEntity
 import dev.anilbeesetti.nextplayer.core.database.relations.PlaylistWithMedia
 import dev.anilbeesetti.nextplayer.core.model.Playlist
+import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -21,17 +23,20 @@ class LocalPlaylistRepository @Inject constructor(
     override fun getPlaylistWithMediaFlow(playlistId: Long): Flow<Playlist?> {
         return combine(
             playlistDao.getAsFlow(playlistId),
-            playlistDao.getOrderedMediaForPlaylist(playlistId)
-        ) { playlistEntity, mediaEntities ->
+            playlistDao.getOrderedEntriesForPlaylist(playlistId),
+        ) { playlistEntity, entries ->
             if (playlistEntity == null) return@combine null
-
             Playlist(
                 id = playlistEntity.id,
                 name = playlistEntity.name,
                 createdAt = playlistEntity.createdAt,
                 updatedAt = playlistEntity.updatedAt,
                 lastPlayedUri = playlistEntity.lastPlayedUri,
-                mediaUris = mediaEntities.map { it.uriString }
+                mediaUris = entries.map { it.mediumUri },
+                mediaFullUrls = entries.map { it.fullUrl },
+                sortOption = runCatching {
+                    PlaylistSortOption.valueOf(playlistEntity.sortOption)
+                }.getOrDefault(PlaylistSortOption.ADDED_ASC),
             )
         }
     }
@@ -72,9 +77,11 @@ class LocalPlaylistRepository @Inject constructor(
         val currentMaxPosition = playlistDao.getMaxPosition(playlistId) ?: -1
 
         val crossRefs = mediumUris.mapIndexed { index, uri ->
+            val cleanUri = Uri.parse(uri).buildUpon().fragment(null).build().toString()
             PlaylistMediumCrossEntity(
                 playlistId = playlistId,
-                mediumUri = uri,
+                mediumUri = cleanUri,
+                fullUrl = uri,
                 position = currentMaxPosition + 1 + index,
             )
         }
@@ -102,5 +109,15 @@ class LocalPlaylistRepository @Inject constructor(
 
     override suspend fun updateLastPlayedUri(playlistId: Long, uri: String) {
         playlistDao.updateLastPlayedUri(playlistId, uri)
+    }
+
+    override suspend fun updateSortOption(playlistId: Long, sortOption: PlaylistSortOption) {
+        playlistDao.updateSortOption(playlistId, sortOption.name)
+    }
+
+    override suspend fun reorderPlaylists(ids: List<Long>) {
+        ids.forEachIndexed { index, id ->
+            playlistDao.updatePosition(id, index)
+        }
     }
 }

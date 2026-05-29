@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WebdavServerDao {
 
-    @Query("SELECT * FROM webdav_servers ORDER BY createdAt DESC")
+    @Query("SELECT * FROM webdav_servers ORDER BY position ASC, createdAt DESC")
     fun getAllServers(): Flow<List<WebdavServerEntity>>
 
     @Query("SELECT * FROM webdav_servers WHERE id = :id")
@@ -32,4 +32,7 @@ interface WebdavServerDao {
 
     @Query("SELECT COUNT(*) FROM webdav_servers")
     suspend fun getServerCount(): Int
+
+    @Query("UPDATE webdav_servers SET position = :position WHERE id = :id")
+    suspend fun updatePosition(id: Long, position: Int)
 }

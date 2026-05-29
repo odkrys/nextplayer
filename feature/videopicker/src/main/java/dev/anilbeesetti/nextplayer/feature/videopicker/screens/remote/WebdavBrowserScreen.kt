@@ -1,7 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
+ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -22,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -36,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +66,7 @@ fun WebdavBrowserScreen(
     serverId: Long,
     onNavigateUp: () -> Unit,
     onPlayFile: (urls: List<String>, index: Int, server: WebdavServer) -> Unit,
+    onAddToPlaylistClick: (List<String>) -> Unit,
     viewModel: WebdavBrowserViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -97,6 +103,7 @@ fun WebdavBrowserScreen(
                 snackbarHostState = snackbarHostState,
                 onNavigateUp = onNavigateUp,
                 onPlayFile = onPlayFile,
+                onAddToPlaylistClick = onAddToPlaylistClick,
                 viewModel = viewModel,
             )
         }
@@ -167,17 +174,29 @@ private fun WebdavBrowserContent(
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     onPlayFile: (urls: List<String>, index: Int, server: WebdavServer) -> Unit,
+    onAddToPlaylistClick: (List<String>) -> Unit,
     viewModel: WebdavBrowserViewModel,
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
-    var showClearDialog by remember { mutableStateOf(false) }
+    var showClearDialog by rememberSaveable { mutableStateOf(false) }
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedHrefs by rememberSaveable { mutableStateOf(emptySet<String>()) }
+
+    val selectedFiles = uiState.files.filter { it.href in selectedHrefs }.toSet()
+    val playableFilesCount = uiState.files.count { viewModel.isPlayable(it) }
+    val isAllSelected = selectedHrefs.size == playableFilesCount && playableFilesCount > 0
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
+    }
+
+    BackHandler(enabled = isSelectionMode) {
+        isSelectionMode = false
+        selectedHrefs = emptySet()
     }
 
     val folderCount = uiState.files.count { it.isDirectory }
@@ -204,43 +223,87 @@ private fun WebdavBrowserContent(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = "${server.name}  ($countText)",
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = viewModel.breadcrumb(),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (!viewModel.navigateUp()) onNavigateUp()
-                    }) {
-                        Icon(NextIcons.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showClearDialog = true }) {
-                        Icon(NextIcons.History, contentDescription = "Clear Playback History")
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-            )
+            if (isSelectionMode) {
+                TopAppBar(
+                    title = { Text("${selectedFiles.size} / $playableFilesCount selected") },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            isSelectionMode = false
+                            selectedHrefs = emptySet()
+                        }) {
+                            Icon(NextIcons.Close, contentDescription = "Clear selection")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            if (isAllSelected) {
+                                selectedHrefs = emptySet()
+                            } else {
+                                selectedHrefs = uiState.files.filter { viewModel.isPlayable(it) }.map { it.href }.toSet()
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (isAllSelected) NextIcons.DeselectAll else NextIcons.SelectAll,
+                                contentDescription = if (isAllSelected) "Deselect All" else "Select All"
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                viewModel.prepareMediaForPlaylist(server, selectedFiles.toList()) { authUrls ->
+                                    onAddToPlaylistClick(authUrls)
+                                    isSelectionMode = false
+                                    selectedHrefs = emptySet()
+                                }
+                            },
+                            enabled = selectedFiles.isNotEmpty(),
+                        ) {
+                            Icon(NextIcons.Bookmarks, contentDescription = "Add to Playlist")
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = "${server.name}  ($countText)",
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = viewModel.breadcrumb(),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                if (!viewModel.navigateUp()) onNavigateUp()
+                            }
+                        ) {
+                            Icon(NextIcons.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showClearDialog = true }) {
+                            Icon(NextIcons.History, contentDescription = "Clear Playback History")
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
 
         floatingActionButton = {
-            if (uiState.lastPlayedUrl != null) {
+            if (uiState.lastPlayedUrl != null && !isSelectionMode) {
                 FloatingActionButton(
                     onClick = {
                         viewModel.playLastPlayed { urls, index ->
@@ -279,6 +342,12 @@ private fun WebdavBrowserContent(
                 else -> {
                     FileList(
                         files = uiState.files,
+                        selectedFiles = selectedFiles,
+                        isSelectionMode = isSelectionMode,
+                        onToggleSelection = { file ->
+                            if (!isSelectionMode) isSelectionMode = true
+                            selectedHrefs = if (file.href in selectedHrefs) selectedHrefs - file.href else selectedHrefs + file.href
+                        },
                         playbackProgress = uiState.playbackProgress,
                         markLastPlayedMedia = uiState.markLastPlayedMedia,
                         serverBaseUrl = server.baseUrl,
@@ -286,10 +355,14 @@ private fun WebdavBrowserContent(
                         hasPlaybackHistory = uiState.hasPlaybackHistory,
                         onDirectoryClick = viewModel::navigateTo,
                         onFileClick = { file ->
-                            val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
-                            val urls = playableFiles.map { viewModel.buildFileUrl(server, it, uiState.files) }
-                            val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
-                            onPlayFile(urls, selectedIndex, server)
+                            if (isSelectionMode) {
+                                selectedHrefs = if (file.href in selectedHrefs) selectedHrefs - file.href else selectedHrefs + file.href
+                            } else {
+                                val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
+                                val urls = playableFiles.map { viewModel.buildFileUrl(server, it, uiState.files) }
+                                val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
+                                onPlayFile(urls, selectedIndex, server)
+                            }
                         },
                         isPlayable = viewModel::isPlayable,
                     )
@@ -322,9 +395,13 @@ private fun WebdavBrowserContent(
     }
 }
 
+
 @Composable
 private fun FileList(
     files: List<WebdavFile>,
+    selectedFiles: Set<WebdavFile>,
+    isSelectionMode: Boolean,
+    onToggleSelection: (WebdavFile) -> Unit,
     playbackProgress: Map<String, Float>,
     markLastPlayedMedia: Boolean,
     serverBaseUrl: String,
@@ -343,6 +420,7 @@ private fun FileList(
 
         items(files, key = { it.href }) { file ->
             val playable = isPlayable(file)
+            val isSelected = file in selectedFiles
             val progress = playbackProgress[file.href]
             val fileUrl = "$base/${file.path.trimStart('/')}"
             val isLastPlayed = hasPlaybackHistory &&
@@ -353,6 +431,9 @@ private fun FileList(
             FileListItem(
                 file = file,
                 playable = playable,
+                isSelected = isSelected,
+                isSelectionMode = isSelectionMode,
+                onToggleSelection = { if (playable) onToggleSelection(file) },
                 progress = progress,
                 markLastPlayedMedia = markLastPlayedMedia,
                 isLastPlayed = isLastPlayed,
@@ -377,6 +458,9 @@ private fun FileList(
 private fun FileListItem(
     file: WebdavFile,
     playable: Boolean,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
+    onToggleSelection: () -> Unit,
     progress: Float?,
     markLastPlayedMedia: Boolean,
     isLastPlayed: Boolean,
@@ -385,7 +469,18 @@ private fun FileListItem(
 ) {
     Column(modifier = modifier) {
         ListItem(
-            modifier = Modifier.clickable(onClick = onClick),
+            colors = ListItemDefaults.colors(
+                containerColor = if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f) else Color.Transparent
+            ),
+            modifier = Modifier.combinedClickable(
+                onClick = {
+                    if (isSelectionMode && playable && !file.isDirectory) onToggleSelection()
+                    else onClick()
+                },
+                onLongClick = {
+                    if (playable && !file.isDirectory) onToggleSelection()
+                }
+            ),
             leadingContent = {
                 Icon(
                     imageVector = file.icon(),
@@ -449,8 +544,8 @@ private fun FileListItem(
                     )
                 }
             },
-            trailingContent = if (playable) {
-                {
+            trailingContent = {
+                if (!isSelectionMode && playable) {
                     Icon(
                         imageVector = NextIcons.Play,
                         contentDescription = "Playable",
@@ -458,7 +553,7 @@ private fun FileListItem(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-            } else null,
+            }
         )
 
         if (progress != null) {

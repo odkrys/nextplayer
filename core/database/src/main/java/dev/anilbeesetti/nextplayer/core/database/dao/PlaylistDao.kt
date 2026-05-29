@@ -7,6 +7,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistMediumCrossEntity
+import dev.anilbeesetti.nextplayer.core.database.relations.PlaylistEntry
 import dev.anilbeesetti.nextplayer.core.database.relations.PlaylistWithMedia
 import kotlinx.coroutines.flow.Flow
 
@@ -15,7 +16,7 @@ interface PlaylistDao {
     @Upsert
     suspend fun upsert(playlist: PlaylistEntity): Long
 
-    @Query("SELECT * FROM playlists ORDER BY created_at DESC")
+    @Query("SELECT * FROM playlists ORDER BY position ASC, created_at DESC")
     fun getAll(): Flow<List<PlaylistEntity>>
 
     @Query("SELECT * FROM playlists WHERE id = :id")
@@ -31,7 +32,7 @@ interface PlaylistDao {
     suspend fun rename(id: Long, name: String, updatedAt: Long = System.currentTimeMillis())
 
     @Transaction
-    @Query("SELECT * FROM playlists ORDER BY created_at DESC")
+    @Query("SELECT * FROM playlists ORDER BY position ASC, created_at DESC")
     fun getAllWithMedia(): Flow<List<PlaylistWithMedia>>
 
     @Transaction
@@ -64,4 +65,13 @@ interface PlaylistDao {
 
     @Query("UPDATE playlists SET last_played_uri = :uri, updated_at = :updatedAt WHERE id = :playlistId")
     suspend fun updateLastPlayedUri(playlistId: Long, uri: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("""SELECT medium_uri, full_url, is_remote, display_name FROM playlist_medium_cross_entity WHERE playlist_id = :playlistId ORDER BY position ASC""")
+    fun getOrderedEntriesForPlaylist(playlistId: Long): Flow<List<PlaylistEntry>>
+
+    @Query("UPDATE playlists SET sort_option = :sortOption WHERE id = :playlistId")
+    suspend fun updateSortOption(playlistId: Long, sortOption: String)
+
+    @Query("UPDATE playlists SET position = :position WHERE id = :id")
+    suspend fun updatePosition(id: Long, position: Int)
 }

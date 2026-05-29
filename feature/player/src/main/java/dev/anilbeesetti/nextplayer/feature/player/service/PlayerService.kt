@@ -46,6 +46,7 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.subtitleCacheDir
 import dev.anilbeesetti.nextplayer.core.data.remote.setupUnsafeSsl
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
+import dev.anilbeesetti.nextplayer.core.data.repository.WebdavServerRepository
 import dev.anilbeesetti.nextplayer.core.domain.playlist.UpdatePlaylistLastPlayedUseCase
 import dev.anilbeesetti.nextplayer.core.model.DecoderPriority
 import dev.anilbeesetti.nextplayer.core.model.DrcPreset
@@ -83,6 +84,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -108,6 +110,9 @@ class PlayerService : MediaSessionService() {
 
     @Inject
     lateinit var updatePlaylistLastPlayedUseCase: UpdatePlaylistLastPlayedUseCase
+
+    @Inject
+    lateinit var webdavServerRepository: WebdavServerRepository
 
     internal lateinit var okHttpClient: OkHttpClient
 
@@ -771,6 +776,22 @@ class PlayerService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                webdavServerRepository.getAllServers().collectLatest { servers ->
+                    servers.forEach { server ->
+                        if (server.username.isNotEmpty()) {
+                            val auth = okhttp3.Credentials.basic(server.username, server.password)
+                            webdavCredentials[server.host] = auth
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         val renderersFactory = NextRenderersFactory(applicationContext)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(

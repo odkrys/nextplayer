@@ -1,6 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,10 +16,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,9 +37,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,6 +52,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
+import sh.calvin.reorderable.DragGestureDetector
+import sh.calvin.reorderable.ReorderableCollectionItemScope
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +75,7 @@ fun RemoteHomeScreen(
             viewModel.clearMessages()
         }
     }
+
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -83,11 +97,9 @@ fun RemoteHomeScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
         ) {
             when {
                 uiState.isLoading -> {
@@ -99,19 +111,14 @@ fun RemoteHomeScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(servers, key = { it.id }) { server ->
-                            ServerCard(
-                                server = server,
-                                onBrowse = { onBrowseServer(server) },
-                                onEdit = { onEditServer(server) },
-                                onDelete = { viewModel.requestDelete(server) },
-                            )
-                        }
-                    }
+                    ServerList(
+                        servers = servers,
+                        paddingValues = innerPadding,
+                        onBrowse = onBrowseServer,
+                        onEdit = onEditServer,
+                        onDelete = { viewModel.requestDelete(it) },
+                        onReorder = { ids -> viewModel.reorderServers(ids) },
+                    )
                 }
             }
         }
@@ -127,18 +134,96 @@ fun RemoteHomeScreen(
 }
 
 @Composable
-private fun ServerCard(
+private fun ServerList(
+    servers: List<WebdavServer>,
+    paddingValues: PaddingValues,
+    onBrowse: (WebdavServer) -> Unit,
+    onEdit: (WebdavServer) -> Unit,
+    onDelete: (WebdavServer) -> Unit,
+    onReorder: (List<Long>) -> Unit,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val lazyListState = rememberLazyListState()
+
+    var localServers by remember { mutableStateOf(servers) }
+    val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        localServers = localServers.toMutableList().apply {
+            add(to.index, removeAt(from.index))
+        }
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+    }
+
+    LaunchedEffect(servers) {
+        if (!reorderableLazyListState.isAnyItemDragging) {
+            localServers = servers
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer { clip = false }
+    ) {
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding() + 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 88.dp,
+                start = 16.dp,
+                end = 16.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(items = localServers, key = { it.id }) { server ->
+                ReorderableItem(
+                    state = reorderableLazyListState,
+                    key = server.id,
+                ) { isDragging ->
+                    ServerCard(
+                        server = server,
+                        isDragging = isDragging,
+                        onBrowse = { onBrowse(server) },
+                        onEdit = { onEdit(server) },
+                        onDelete = { onDelete(server) },
+                        onDragStopped = { onReorder(localServers.map { it.id }) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReorderableCollectionItemScope.ServerCard(
     server: WebdavServer,
+    isDragging: Boolean,
     onBrowse: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onDragStopped: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val hapticFeedback = LocalHapticFeedback.current
+    var showMenu by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .draggableHandle(
+                onDragStarted = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                },
+                onDragStopped = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                    onDragStopped()
+                },
+                interactionSource = interactionSource,
+                dragGestureDetector = DragGestureDetector.LongPress,
+            )
             .clickable(onClick = onBrowse),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp),
     ) {
         Row(
             modifier = Modifier
@@ -149,7 +234,7 @@ private fun ServerCard(
             Icon(
                 imageVector = NextIcons.Storage,
                 contentDescription = null,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
             Spacer(modifier = Modifier.width(16.dp))
@@ -170,15 +255,37 @@ private fun ServerCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onEdit) {
-                Icon(NextIcons.Edit, contentDescription = "Edit")
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    NextIcons.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error,
-                )
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(NextIcons.MoreVert, contentDescription = "More options")
+                }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        leadingIcon = { Icon(NextIcons.Edit, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            onEdit()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        leadingIcon = {
+                            Icon(
+                                NextIcons.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                    )
+                }
             }
         }
     }

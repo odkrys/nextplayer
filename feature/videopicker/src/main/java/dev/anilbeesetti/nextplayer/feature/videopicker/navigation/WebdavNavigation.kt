@@ -69,6 +69,7 @@ fun NavGraphBuilder.webdavNavGraph(
             serverId = serverId,
             onNavigateUp = { navController.navigateUp() },
             onPlayFile = onPlayFile,
+            onAddToPlaylistClick = { uris -> navController.navigateToPlaylist(uris) },
         )
     }
 }

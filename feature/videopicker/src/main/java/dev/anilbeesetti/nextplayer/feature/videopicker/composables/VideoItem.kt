@@ -55,6 +55,7 @@ fun VideoItem(
     isFirstItem: Boolean = false,
     isLastItem: Boolean = false,
     selected: Boolean = false,
+    playedPercentageOverride: Float? = null,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -69,6 +70,7 @@ fun VideoItem(
             selected = selected,
             onClick = onClick,
             onLongClick = onLongClick,
+            playedPercentageOverride = playedPercentageOverride,
         )
         MediaLayoutMode.GRID -> VideoGridItem(
             video = video,
@@ -96,6 +98,7 @@ private fun VideoListItem(
     selected: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
+    playedPercentageOverride: Float? = null,
 ) {
     NextSegmentedListItem(
         modifier = modifier,
@@ -122,6 +125,7 @@ private fun VideoListItem(
             ThumbnailView(
                 video = video,
                 preferences = preferences,
+                playedPercentageOverride = playedPercentageOverride,
                 modifier = Modifier
                     .width(min(150.dp, LocalConfiguration.current.screenWidthDp.dp * 0.35f)),
             )
@@ -239,8 +243,15 @@ private fun ThumbnailView(
     modifier: Modifier = Modifier,
     video: Video,
     preferences: ApplicationPreferences,
+    playedPercentageOverride: Float? = null,
 ) {
     val context = LocalContext.current
+    val effectivePlayedPercentage = when {
+        playedPercentageOverride != null -> playedPercentageOverride
+        video.duration > 0 -> video.playedPercentage ?: 0f
+        else -> 0f
+    }
+
     Box(
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
@@ -279,7 +290,8 @@ private fun ThumbnailView(
             )
         }
 
-        if (preferences.showPlayedProgress && video.playedPercentage != null) {
+        //if (preferences.showPlayedProgress && video.playedPercentage != null) {
+        if (preferences.showPlayedProgress && effectivePlayedPercentage > 0f) {
             Box(
                 modifier = Modifier
                     .height(4.dp)
@@ -293,7 +305,8 @@ private fun ThumbnailView(
                 )
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(video.playedPercentage!!)
+                        //.fillMaxWidth(video.playedPercentage!!)
+                        .fillMaxWidth(effectivePlayedPercentage)
                         .fillMaxHeight()
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary),

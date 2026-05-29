@@ -1,6 +1,7 @@
 package dev.anilbeesetti.nextplayer.core.data.repository
 
 import dev.anilbeesetti.nextplayer.core.model.Playlist
+import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
 import kotlinx.coroutines.flow.Flow
 
 interface PlaylistRepository {
@@ -16,4 +17,8 @@ interface PlaylistRepository {
     suspend fun clearPlaylist(playlistId: Long)
     suspend fun updateMediumPosition(playlistId: Long, mediumUri: String, position: Int)
     suspend fun updateLastPlayedUri(playlistId: Long, uri: String)
+    suspend fun updateSortOption(playlistId: Long, sortOption: PlaylistSortOption)
+    suspend fun reorderPlaylists(ids: List<Long>)
+
+
 }

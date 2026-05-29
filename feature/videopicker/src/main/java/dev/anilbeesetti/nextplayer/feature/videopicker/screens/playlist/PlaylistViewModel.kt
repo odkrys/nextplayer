@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist
 
+import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +10,7 @@ import dev.anilbeesetti.nextplayer.core.domain.playlist.CreatePlaylistUseCase
 import dev.anilbeesetti.nextplayer.core.domain.playlist.DeletePlaylistUseCase
 import dev.anilbeesetti.nextplayer.core.domain.playlist.GetPlaylistsUseCase
 import dev.anilbeesetti.nextplayer.core.domain.playlist.RenamePlaylistUseCase
+import dev.anilbeesetti.nextplayer.core.domain.playlist.ReorderPlaylistsUseCase
 import dev.anilbeesetti.nextplayer.core.model.Playlist
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import javax.inject.Inject
@@ -24,6 +26,7 @@ class PlaylistViewModel @Inject constructor(
     private val createPlaylistUseCase: CreatePlaylistUseCase,
     private val renamePlaylistUseCase: RenamePlaylistUseCase,
     private val deletePlaylistUseCase: DeletePlaylistUseCase,
+    private val reorderPlaylistsUseCase: ReorderPlaylistsUseCase,
 ) : ViewModel() {
 
     private val uiStateInternal = MutableStateFlow(PlaylistUiState())
@@ -47,6 +50,7 @@ class PlaylistViewModel @Inject constructor(
             is PlaylistUiEvent.RenamePlaylist -> renamePlaylist(event.playlistId, event.name)
             is PlaylistUiEvent.DeletePlaylist -> deletePlaylist(event.playlistId)
             is PlaylistUiEvent.AddMediaToPlaylist -> addMediaToPlaylist(event.playlistId, event.uris)
+            is PlaylistUiEvent.ReorderPlaylists -> reorderPlaylists(event.ids)
         }
     }
 
@@ -60,8 +64,26 @@ class PlaylistViewModel @Inject constructor(
 
     private fun addMediaToPlaylist(playlistId: Long, uris: List<String>) {
         viewModelScope.launch {
-            addMediumToPlaylistUseCase(playlistId, uris)
-            uiStateInternal.update { it.copy(isDone = true) }
+            val currentUris = (uiState.value.dataState as? DataState.Success)
+                ?.value
+                ?.find { it.id == playlistId }
+                ?.mediaUris
+                ?.toSet()
+                ?: emptySet()
+
+            val newUris = uris.filter { uri ->
+                val cleanUri = Uri.parse(uri).buildUpon().fragment(null).build().toString()
+                cleanUri !in currentUris
+            }
+
+            addMediumToPlaylistUseCase(playlistId, newUris)
+            uiStateInternal.update {
+                it.copy(
+                    isDone = true,
+                    addedCount = newUris.size,
+                    skippedCount = uris.size - newUris.size,
+                )
+            }
         }
     }
 
@@ -78,6 +100,12 @@ class PlaylistViewModel @Inject constructor(
             deletePlaylistUseCase(playlistId)
         }
     }
+
+    private fun reorderPlaylists(ids: List<Long>) {
+        viewModelScope.launch {
+            reorderPlaylistsUseCase(ids)
+        }
+    }
 }
 
 @Stable
@@ -85,6 +113,8 @@ data class PlaylistUiState(
     val dataState: DataState<List<Playlist>> = DataState.Loading,
     val errorMessage: String? = null,
     val isDone: Boolean = false,
+    val addedCount: Int = 0,
+    val skippedCount: Int = 0,
 )
 
 sealed interface PlaylistUiEvent {
@@ -92,4 +122,5 @@ sealed interface PlaylistUiEvent {
     data class RenamePlaylist(val playlistId: Long, val name: String) : PlaylistUiEvent
     data class DeletePlaylist(val playlistId: Long) : PlaylistUiEvent
     data class AddMediaToPlaylist(val playlistId: Long, val uris: List<String>) : PlaylistUiEvent
+    data class ReorderPlaylists(val ids: List<Long>) : PlaylistUiEvent
 }

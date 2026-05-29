@@ -24,4 +24,13 @@ data class PlaylistMediumCrossEntity(
 
     @ColumnInfo(name = "added_at")
     val addedAt: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "is_remote")
+    val isRemote: Boolean = false,
+
+    @ColumnInfo(name = "display_name")
+    val displayName: String = "",
+
+    @ColumnInfo(name = "full_url")
+    val fullUrl: String = mediumUri,
 )

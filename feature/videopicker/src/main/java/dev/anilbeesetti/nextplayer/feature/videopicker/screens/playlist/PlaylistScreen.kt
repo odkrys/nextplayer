@@ -2,17 +2,24 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -35,13 +42,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.Playlist
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
+import sh.calvin.reorderable.DragGestureDetector
+import sh.calvin.reorderable.ReorderableCollectionItemScope
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 @Composable
 fun PlaylistRoute(
@@ -56,11 +71,12 @@ fun PlaylistRoute(
     LaunchedEffect(uiState.isDone) {
         if (uiState.isDone) {
             if (selectedUris.isNotEmpty()) {
-                Toast.makeText(
-                    context,
-                    "Added ${selectedUris.size} videos to the playlist",
-                    Toast.LENGTH_SHORT
-                ).show()
+                val message = when {
+                    uiState.addedCount == 0 -> "All videos already in playlist"
+                    uiState.skippedCount == 0 -> "Added ${uiState.addedCount} videos to the playlist"
+                    else -> "Added ${uiState.addedCount} videos (${uiState.skippedCount} already existed)"
+                }
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
             onBackClick()
         }
@@ -86,6 +102,9 @@ fun PlaylistScreen(
 ) {
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
 
+    var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
+    var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -104,7 +123,6 @@ fun PlaylistScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
         ) {
             when (val state = uiState.dataState) {
                 is DataState.Loading -> {
@@ -116,6 +134,7 @@ fun PlaylistScreen(
                     } else {
                         PlaylistContent(
                             playlists = state.value,
+                            paddingValues = paddingValues,
                             onPlaylistClick = { playlistId ->
                                 if (selectedUris.isNotEmpty()) {
                                     onEvent(PlaylistUiEvent.AddMediaToPlaylist(playlistId, selectedUris))
@@ -123,12 +142,13 @@ fun PlaylistScreen(
                                     onPlaylistClick(playlistId, emptyList<String>())
                                 }
                             },
-                            onRename = { id, name ->
-                                onEvent(PlaylistUiEvent.RenamePlaylist(id, name))
+                            onRename = { playlistId, _ ->
+                                playlistToRename = state.value.find { it.id == playlistId }
                             },
-                            onDelete = { id ->
-                                onEvent(PlaylistUiEvent.DeletePlaylist(id))
+                            onDelete = { playlistId ->
+                                playlistToDelete = state.value.find { it.id == playlistId }
                             },
+                            onReorder = { ids -> onEvent(PlaylistUiEvent.ReorderPlaylists(ids)) },
                         )
                     }
                 }
@@ -146,6 +166,7 @@ fun PlaylistScreen(
     if (showCreateDialog) {
         PlaylistNameDialog(
             title = "Create playlist",
+            existingNames = (uiState.dataState as? DataState.Success)?.value?.map { it.name } ?: emptyList(),
             onConfirm = { name ->
                 onEvent(PlaylistUiEvent.CreatePlaylist(name))
                 showCreateDialog = false
@@ -153,149 +174,219 @@ fun PlaylistScreen(
             onDismiss = { showCreateDialog = false },
         )
     }
+
+    playlistToRename?.let { playlist ->
+        PlaylistNameDialog(
+            title = "Rename",
+            initialName = playlist.name,
+            existingNames = (uiState.dataState as? DataState.Success)?.value?.map { it.name } ?: emptyList(),
+            onConfirm = { name ->
+                onEvent(PlaylistUiEvent.RenamePlaylist(playlist.id, name))
+                playlistToRename = null
+            },
+            onDismiss = { playlistToRename = null },
+        )
+    }
+
+    playlistToDelete?.let { playlist ->
+        AlertDialog(
+            onDismissRequest = { playlistToDelete = null },
+            title = { Text("Delete playlist") },
+            text = { Text("Are you sure you want to delete '${playlist.name}'?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onEvent(PlaylistUiEvent.DeletePlaylist(playlist.id))
+                        playlistToDelete = null
+                    }
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { playlistToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
 }
 
 @Composable
 private fun PlaylistContent(
     playlists: List<Playlist>,
+    paddingValues: PaddingValues,
     onPlaylistClick: (Long) -> Unit,
     onRename: (Long, String) -> Unit,
     onDelete: (Long) -> Unit,
+    onReorder: (List<Long>) -> Unit,
 ) {
-    LazyColumn(
-        contentPadding = PaddingValues(vertical = 8.dp),
+    val hapticFeedback = LocalHapticFeedback.current
+    val lazyListState = rememberLazyListState()
+
+    var localPlaylists by remember { mutableStateOf(playlists) }
+    val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        localPlaylists = localPlaylists.toMutableList().apply {
+            add(to.index, removeAt(from.index))
+        }
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
+    }
+
+    LaunchedEffect(playlists) {
+        if (!reorderableLazyListState.isAnyItemDragging) {
+            localPlaylists = playlists
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer { clip = false }
     ) {
-        items(items = playlists, key = { it.id }) { playlist ->
-            PlaylistItem(
-                playlist = playlist,
-                onClick = { onPlaylistClick(playlist.id) },
-                onRename = { name -> onRename(playlist.id, name) },
-                onDelete = { onDelete(playlist.id) },
-            )
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = PaddingValues(
+                top = paddingValues.calculateTopPadding() + 16.dp,
+                bottom = paddingValues.calculateBottomPadding() + 88.dp,
+                start = 16.dp,
+                end = 16.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize(),
+            ) {
+            items(items = localPlaylists, key = { it.id }) { playlist ->
+                ReorderableItem(
+                    state = reorderableLazyListState,
+                    key = playlist.id,
+                ) { isDragging ->
+                    PlaylistItem(
+                        playlist = playlist,
+                        isDragging = isDragging,
+                        onClick = { onPlaylistClick(playlist.id) },
+                        onRename = { onRename(playlist.id, playlist.name) },
+                        onDelete = { onDelete(playlist.id) },
+                        onDragStopped = {
+                            onReorder(localPlaylists.map { it.id })
+                        }
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun PlaylistItem(
+private fun ReorderableCollectionItemScope.PlaylistItem(
     playlist: Playlist,
+    isDragging: Boolean,
     onClick: () -> Unit,
-    onRename: (String) -> Unit,
+    onRename: () -> Unit,
     onDelete: () -> Unit,
+    onDragStopped: () -> Unit,
 ) {
-    var showMenu by remember { mutableStateOf(false) }
-    var showRenameDialog by rememberSaveable { mutableStateOf(false) }
-    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val hapticFeedback = LocalHapticFeedback.current
 
-    Row(
+    var showMenu by remember { mutableStateOf(false) }
+
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+            .draggableHandle(
+                onDragStarted = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                },
+                onDragStopped = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                    onDragStopped()
+                },
+                interactionSource = interactionSource,
+                dragGestureDetector = DragGestureDetector.LongPress,
+            )
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp),
     ) {
-        Icon(
-            imageVector = NextIcons.Bookmark,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 16.dp)
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = playlist.name,
-                style = MaterialTheme.typography.bodyLarge,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = NextIcons.Bookmark,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 24.dp),
+                tint = MaterialTheme.colorScheme.primary,
             )
-            Text(
-                text = "${playlist.mediaUris.size} items",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(NextIcons.MoreVert, contentDescription = "More options")
-            }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Rename") },
-                    leadingIcon = { Icon(NextIcons.Edit, contentDescription = null) },
-                    onClick = {
-                        showMenu = false
-                        showRenameDialog = true
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Delete") },
-                    leadingIcon = { Icon(NextIcons.Delete, contentDescription = null) },
-                    onClick = {
-                        showMenu = false
-                        showDeleteDialog = true
-                    },
-                )
-            }
-        }
-    }
-
-    if (showRenameDialog) {
-        PlaylistNameDialog(
-            title = "Rename",
-            initialName = playlist.name,
-            onConfirm = { name ->
-                onRename(name)
-                showRenameDialog = false
-            },
-            onDismiss = { showRenameDialog = false },
-        )
-    }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete playlist") },
-            text = {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Delete '${playlist.name}'?"
+                    text = playlist.name,
+                    style = MaterialTheme.typography.titleMedium,
                 )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = "${playlist.mediaUris.size} items",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(NextIcons.MoreVert, contentDescription = "More options")
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Rename") },
+                        leadingIcon = { Icon(NextIcons.Edit, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            onRename()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        leadingIcon = {
+                            Icon(
+                                NextIcons.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                    )
                 }
             }
-        )
+        }
     }
 }
 
 @Composable
 private fun EmptyPlaylistContent(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
+        Icon(
+            imageVector = NextIcons.Bookmark,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "No playlists found",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Tap + to create playlist",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = "Tap the + button to create a playlist",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
         )
     }
 }
@@ -304,10 +395,15 @@ private fun EmptyPlaylistContent(modifier: Modifier = Modifier) {
 private fun PlaylistNameDialog(
     title: String,
     initialName: String = "",
+    existingNames: List<String> = emptyList(),
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf(initialName) }
+
+    val isDuplicate = existingNames
+        .filter { it != initialName }
+        .any { it.equals(name.trim(), ignoreCase = true) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -318,12 +414,16 @@ private fun PlaylistNameDialog(
                 onValueChange = { name = it },
                 singleLine = true,
                 placeholder = { Text("Enter playlist name") },
+                isError = isDuplicate,
+                supportingText = if (isDuplicate) {
+                    { Text("A playlist with this name already exists") }
+                } else null,
             )
         },
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(name) },
-                enabled = name.isNotBlank(),
+                enabled = name.isNotBlank() && !isDuplicate,
             ) {
                 Text("OK")
             }

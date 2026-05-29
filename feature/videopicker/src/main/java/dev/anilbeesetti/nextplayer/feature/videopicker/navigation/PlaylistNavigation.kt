@@ -6,7 +6,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import dev.anilbeesetti.nextplayer.feature.playlist.navigation.PLAYLIST_ID_ARG
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.PlaylistRoute
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.PlaylistDetailRoute
 
@@ -14,9 +13,11 @@ const val SELECTED_URIS_ARG = "selectedUris"
 const val PLAYLIST_ROUTE = "playlist?$SELECTED_URIS_ARG={$SELECTED_URIS_ARG}"
 const val PLAYLIST_DETAIL_ROUTE = "playlist/{${PLAYLIST_ID_ARG}}"
 
+private const val URI_SEPARATOR = "|||"
+
 fun NavController.navigateToPlaylist(selectedUris: List<String> = emptyList()) {
-    val encodedUris = Uri.encode(selectedUris.joinToString(","))
-    navigate("playlist?$SELECTED_URIS_ARG=$encodedUris")
+    val encodedUris = selectedUris.joinToString(URI_SEPARATOR) { Uri.encode(it) }
+    navigate("playlist?$SELECTED_URIS_ARG=${Uri.encode(encodedUris)}")
 }
 
 fun NavController.navigateToPlaylistDetail(playlistId: Long) {
@@ -38,8 +39,10 @@ fun NavGraphBuilder.playlistScreen(
     ) { backStackEntry ->
         val selectedUris = backStackEntry.arguments
             ?.getString(SELECTED_URIS_ARG)
-            ?.split(",")
+            ?.let { Uri.decode(it) }
+            ?.split(URI_SEPARATOR)
             ?.filter { it.isNotBlank() }
+            ?.map { Uri.decode(it) }
             ?: emptyList()
 
         PlaylistRoute(

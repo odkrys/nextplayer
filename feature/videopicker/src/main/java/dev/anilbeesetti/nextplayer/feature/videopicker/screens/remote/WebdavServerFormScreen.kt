@@ -80,6 +80,7 @@ fun WebdavServerFormScreen(
         else -> {
             WebdavServerFormContent(
                 initialServer = initialServer,
+                existingNames = servers.map { it.name },
                 uiState = uiState,
                 onNavigateUp = onNavigateUp,
                 onSave = { server -> viewModel.saveServer(server, onSuccess = onNavigateUp) },
@@ -139,6 +140,7 @@ private fun WebdavServerLoadingScreen(
 @Composable
 fun WebdavServerFormContent(
     initialServer: WebdavServer?,
+    existingNames: List<String> = emptyList(),
     uiState: RemoteUiState,
     onNavigateUp: () -> Unit,
     onSave: (WebdavServer) -> Unit,
@@ -162,12 +164,19 @@ fun WebdavServerFormContent(
     var hostError by remember { mutableStateOf<String?>(null) }
     var portError by remember { mutableStateOf<String?>(null) }
 
+    val isDuplicate = remember(name, existingNames, initialServer) {
+        existingNames
+            .filter { it != initialServer?.name }
+            .any { it.equals(name.trim(), ignoreCase = true) }
+    }
+
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
             snackbarHostState.showSnackbar(it)
             onClearMessages()
         }
     }
+
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -184,7 +193,13 @@ fun WebdavServerFormContent(
 
     fun validate(): Boolean {
         var valid = true
-        nameError = if (name.isBlank()) { valid = false; "Server name is required" } else null
+        nameError = when {
+            name.isBlank() -> { valid = false; "Server name is required" }
+            isDuplicate -> {
+                valid = false; "A server with this name already exists"
+            }
+            else -> null
+        }
         hostError = if (host.isBlank()) { valid = false; "Host is required" } else null
         val portInt = port.toIntOrNull()
         portError = when {
@@ -236,8 +251,14 @@ fun WebdavServerFormContent(
                 onValueChange = { name = it; nameError = null },
                 label = { Text("Server name") },
                 placeholder = { Text("e.g., My NAS") },
-                isError = nameError != null,
-                supportingText = nameError?.let { { Text(it) } },
+                isError = nameError != null || isDuplicate,
+                supportingText = {
+                    if (isDuplicate) {
+                        Text("A server with this name already exists")
+                    } else if (nameError != null) {
+                        Text(nameError!!)
+                    }
+                },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
@@ -405,7 +426,7 @@ fun WebdavServerFormContent(
 
             Button(
                 onClick = { if (validate()) onSave(buildServer()) },
-                enabled = !uiState.isLoading,
+                enabled = !uiState.isLoading && !isDuplicate && name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(if (isEditMode) "Save Changes" else "Add Server")

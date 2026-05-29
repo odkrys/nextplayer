@@ -40,6 +40,7 @@ media3DatasourceOkhttp = "1.10.0"
 foundation = "1.11.1"
 runtimeVersion = "1.11.1"
 material3 = "1.4.0"
+foundationVersion = "1.11.1"
 
 [libraries]
 aboutlibraries-core = { group = "com.mikepenz", name = "aboutlibraries-core", version.ref = "aboutlibraries" }
@@ -100,6 +101,7 @@ androidx-media3-datasource-okhttp = { group = "androidx.media3", name = "media3-
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 androidx-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtimeVersion" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 
 [plugins]
 aboutLibraries = { id = "com.mikepenz.aboutlibraries.plugin.android", version.ref = "aboutlibraries" }

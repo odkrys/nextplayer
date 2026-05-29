@@ -35,10 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
+import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.VideoItem
+import okhttp3.internal.concurrent.formatDuration
 
 @Composable
 fun PlaylistDetailRoute(
@@ -48,17 +50,29 @@ fun PlaylistDetailRoute(
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val remoteProgress by viewModel.remotePlaybackProgress.collectAsStateWithLifecycle()
+    val remoteDurationMap by viewModel.remoteDurationMap.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshRemoteProgress()
+    }
 
     PlaylistDetailScreen(
         uiState = uiState,
-        onPlayClick = { uris ->
+        remoteProgress = remoteProgress,
+        remoteDurationMap = remoteDurationMap,
+        onPlayClick = {
+            val fullUrls = uiState.sortedFullUrls
+            if (fullUrls.isEmpty()) return@PlaylistDetailScreen
             val startIndex = viewModel.getRecentVideoIndex()
-            viewModel.saveLastPlayed(uris[startIndex])
-            onPlayClick(uris, startIndex)
+            viewModel.saveLastPlayed(fullUrls[startIndex])
+            onPlayClick(fullUrls, startIndex)
         },
-        onVideoClick = { uris, index ->
-            viewModel.saveLastPlayed(uris[index])
-            onVideoClick(uris, index)
+        onVideoClick = { index ->
+            val fullUrls = uiState.sortedFullUrls
+            if (index >= fullUrls.size) return@PlaylistDetailScreen
+            viewModel.saveLastPlayed(fullUrls[index])
+            onVideoClick(fullUrls, index)
         },
         onBackClick = onBackClick,
         onEvent = viewModel::onEvent,
@@ -69,8 +83,10 @@ fun PlaylistDetailRoute(
 @Composable
 fun PlaylistDetailScreen(
     uiState: PlaylistDetailUiState,
-    onPlayClick: (List<String>) -> Unit,
-    onVideoClick: (List<String>, Int) -> Unit,
+    remoteProgress: Map<String, Float> = emptyMap(),
+    remoteDurationMap: Map<String, Long> = emptyMap(),
+    onPlayClick: () -> Unit,
+    onVideoClick: (index: Int) -> Unit,
     onBackClick: () -> Unit,
     onEvent: (PlaylistDetailUiEvent) -> Unit,
 ) {
@@ -105,7 +121,7 @@ fun PlaylistDetailScreen(
             TopAppBar(
                 title = {
                     if (isSelectionMode) {
-                        Text("${selectedUris.size} selected")
+                        Text("${selectedUris.size} / ${uiState.sortedVideos.size} selected")
                     } else {
                         Text(playlist?.name ?: "")
                     }
@@ -200,7 +216,7 @@ fun PlaylistDetailScreen(
         floatingActionButton = {
             if (!isSelectionMode && uiState.sortedVideos.isNotEmpty()) {
                 androidx.compose.material3.FloatingActionButton(
-                    onClick = { onPlayClick(uiState.sortedVideos.map { it.uriString }) },
+                    onClick = { onPlayClick() },
                     modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)
                 ) {
                     Icon(imageVector = NextIcons.Play, contentDescription = "Play playlist")
@@ -231,6 +247,8 @@ fun PlaylistDetailScreen(
                             videos = uiState.sortedVideos,
                             lastPlayedUri = playlistData.lastPlayedUri,
                             preferences = uiState.preferences,
+                            remoteProgress = remoteProgress,
+                            remoteDurationMap = remoteDurationMap,
                             isSelectionMode = isSelectionMode,
                             selectedUris = selectedUris,
                             listState = listState,
@@ -240,7 +258,7 @@ fun PlaylistDetailScreen(
                                     selectedUris = if (uri in selectedUris) selectedUris - uri else selectedUris + uri
                                     if (selectedUris.isEmpty()) exitSelectionMode()
                                 } else {
-                                    onVideoClick(uiState.sortedVideos.map { it.uriString }, index)
+                                    onVideoClick(index)
                                 }
                             },
                             onVideoLongClick = { index ->
@@ -314,6 +332,8 @@ private fun PlaylistDetailContent(
     videos: List<Video>,
     lastPlayedUri: String?,
     preferences: ApplicationPreferences,
+    remoteProgress: Map<String, Float> = emptyMap(),
+    remoteDurationMap: Map<String, Long> = emptyMap(),
     isSelectionMode: Boolean,
     selectedUris: Set<String>,
     onVideoClick: (index: Int) -> Unit,
@@ -328,9 +348,22 @@ private fun PlaylistDetailContent(
         itemsIndexed(items = videos, key = { _, v -> v.uriString }) { index, video ->
             val isSelected = video.uriString in selectedUris
             val isRecentlyPlayed = video.uriString == lastPlayedUri
+            val effectiveVideo = if (video.duration == 0L) {
+                val realDuration = remoteDurationMap[video.uriString] ?: 0L
+                val realPosition = if (realDuration > 0L) {
+                    ((remoteProgress[video.uriString] ?: 0f) * realDuration).toLong()
+                } else 0L
+                video.copy(
+                    duration = realDuration,
+                    playbackPosition = realPosition,
+                    formattedDuration = if (realDuration > 0L) formatVideoDuration(realDuration) else "00:00",
+                )
+            } else {
+                video
+            }
 
             VideoItem(
-                video = video,
+                video = effectiveVideo,
                 isRecentlyPlayedVideo = isRecentlyPlayed,
                 preferences = preferences,
                 modifier = Modifier
@@ -343,5 +376,17 @@ private fun PlaylistDetailContent(
                 onLongClick = { onVideoLongClick(index) },
             )
         }
+    }
+}
+
+private fun formatVideoDuration(durationMs: Long): String {
+    val totalSeconds = durationMs / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        "%02d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
     }
 }

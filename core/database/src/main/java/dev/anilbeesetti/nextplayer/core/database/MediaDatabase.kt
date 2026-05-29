@@ -20,7 +20,7 @@ import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
         PlaylistMediumCrossEntity::class,
     ],
     //version = 5,
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
@@ -255,6 +255,92 @@ abstract class MediaDatabase : RoomDatabase() {
             )
             """.trimIndent()
                 )
+
+                db.execSQL(
+                    """
+            CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_playlist_id`
+            ON `playlist_medium_cross_entity` (`playlist_id`)
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_medium_uri`
+            ON `playlist_medium_cross_entity` (`medium_uri`)
+            """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+            ALTER TABLE `playlists` ADD COLUMN `sort_option` TEXT NOT NULL DEFAULT 'ADDED_ASC'
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            ALTER TABLE `playlists` ADD COLUMN `position` INTEGER NOT NULL DEFAULT 0
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            ALTER TABLE `webdav_servers` ADD COLUMN `position` INTEGER NOT NULL DEFAULT 0
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS `playlist_medium_cross_entity_backup` (
+                `playlist_id` INTEGER NOT NULL,
+                `medium_uri` TEXT NOT NULL,
+                `position` INTEGER NOT NULL,
+                `added_at` INTEGER NOT NULL,
+                PRIMARY KEY(`playlist_id`, `medium_uri`),
+                FOREIGN KEY(`playlist_id`) REFERENCES `playlists`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            INSERT INTO `playlist_medium_cross_entity_backup`
+            SELECT `playlist_id`, `medium_uri`, `position`, `added_at`
+            FROM `playlist_medium_cross_entity`
+            """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `playlist_medium_cross_entity`")
+
+                db.execSQL(
+                    """
+            CREATE TABLE IF NOT EXISTS `playlist_medium_cross_entity` (
+                `playlist_id` INTEGER NOT NULL,
+                `medium_uri` TEXT NOT NULL,
+                `position` INTEGER NOT NULL,
+                `added_at` INTEGER NOT NULL,
+                `is_remote` INTEGER NOT NULL DEFAULT 0,
+                `display_name` TEXT NOT NULL DEFAULT '',
+                `full_url` TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY(`playlist_id`, `medium_uri`),
+                FOREIGN KEY(`playlist_id`) REFERENCES `playlists`(`id`) ON DELETE CASCADE
+            )
+            """.trimIndent()
+                )
+
+                db.execSQL(
+                    """
+            INSERT INTO `playlist_medium_cross_entity`
+            (`playlist_id`, `medium_uri`, `position`, `added_at`, `is_remote`, `display_name`, `full_url`)
+            SELECT `playlist_id`, `medium_uri`, `position`, `added_at`, 0, '', `medium_uri`
+            FROM `playlist_medium_cross_entity_backup`
+            """.trimIndent()
+                )
+
+                db.execSQL("DROP TABLE `playlist_medium_cross_entity_backup`")
 
                 db.execSQL(
                     """

@@ -26,5 +26,11 @@ data class PlaylistEntity(
     val updatedAt: Long = System.currentTimeMillis(),
 
     @ColumnInfo(name = "last_played_uri")
-    val lastPlayedUri: String? = null
+    val lastPlayedUri: String? = null,
+
+    @ColumnInfo(name = "sort_option")
+    val sortOption: String = "ADDED_ASC",
+
+    @ColumnInfo(name = "position")
+    val position: Int = 0,
 )

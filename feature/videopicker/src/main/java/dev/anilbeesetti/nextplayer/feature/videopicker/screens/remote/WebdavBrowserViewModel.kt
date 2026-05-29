@@ -389,4 +389,17 @@ class WebdavBrowserViewModel @Inject constructor(
             }
         }
     }
+
+    fun prepareMediaForPlaylist(
+        server: WebdavServer,
+        files: List<WebdavFile>,
+        onReady: (List<String>) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val fullUrls = files.map { file ->
+                buildFileUrl(server, file, uiState.value.files)
+            }
+            onReady(fullUrls)
+        }
+    }
 }

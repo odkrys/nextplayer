@@ -79,9 +79,9 @@ fun PlaylistRoute(
                 val playlistName = uiState.playlistName ?: "playlist"
 
                 val message = when {
-                    uiState.addedCount == 0 -> "All videos already in '$playlistName'"
-                    uiState.skippedCount == 0 -> "Added ${uiState.addedCount} videos to the '$playlistName'"
-                    else -> "Added ${uiState.addedCount} videos to '$playlistName' (${uiState.skippedCount} already existed)"
+                    uiState.addedCount == 0 -> "All videos already in playlist '$playlistName'"
+                    uiState.skippedCount == 0 -> "Added ${uiState.addedCount} videos to the playlist '$playlistName'"
+                    else -> "Added ${uiState.addedCount} videos to playlist '$playlistName' (${uiState.skippedCount} already existed)"
                 }
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }

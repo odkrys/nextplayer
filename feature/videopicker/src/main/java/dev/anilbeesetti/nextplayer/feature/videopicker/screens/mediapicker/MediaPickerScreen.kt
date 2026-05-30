@@ -655,7 +655,11 @@ internal fun MediaPickerScreen(
         }
     }
 */
-    LaunchedEffect(selectionManager.isInSelectionMode, isAtTop) {
+    LaunchedEffect(
+        selectionManager.isInSelectionMode,
+        selectionManager.isSingleVideoSelected,
+        isAtTop
+    ) {
         val isSelectionMode = selectionManager.isInSelectionMode
 
         if (!isSelectionMode) {

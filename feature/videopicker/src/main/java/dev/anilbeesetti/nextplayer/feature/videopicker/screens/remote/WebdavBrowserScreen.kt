@@ -182,6 +182,10 @@ private fun WebdavBrowserContent(
 
     val selectedFiles = uiState.files.filter { it.href in selectedHrefs }.toSet()
     val playableFilesCount = uiState.files.count { viewModel.isPlayable(it) }
+    val selectableFolderCount = uiState.files.count { it.isDirectory }
+    val totalSelectableCount = playableFilesCount + selectableFolderCount
+    val selectedFolders = selectedFiles.count { it.isDirectory }
+    val selectedPlayable = selectedFiles.count { !it.isDirectory }
     val isAllSelected = selectedHrefs.size == playableFilesCount && playableFilesCount > 0
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
 
@@ -232,7 +236,18 @@ private fun WebdavBrowserContent(
             Column {
                 if (isSelectionMode) {
                     TopAppBar(
-                        title = { Text("${selectedFiles.size} / $playableFilesCount selected") },
+                        title = {
+                            Column {
+                                Text("${selectedFiles.size} / $totalSelectableCount selected")
+                                if (selectedFolders > 0) {
+                                    Text(
+                                        text = "$selectedFolders folder${if (selectedFolders > 1) "s" else ""} · $selectedPlayable file${if (selectedPlayable > 1) "s" else ""}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
                         navigationIcon = {
                             IconButton(
                                 onClick = {
@@ -249,7 +264,7 @@ private fun WebdavBrowserContent(
                                     if (isAllSelected) {
                                         selectedHrefs = emptySet()
                                     } else {
-                                        selectedHrefs = uiState.files.filter { viewModel.isPlayable(it) }.map { it.href }.toSet()
+                                        selectedHrefs = uiState.files.filter { viewModel.isPlayable(it) || it.isDirectory }.map { it.href }.toSet()
                                     }
                                 }
                             ) {
@@ -267,9 +282,16 @@ private fun WebdavBrowserContent(
                                         selectedHrefs = emptySet()
                                     }
                                 },
-                                enabled = selectedFiles.isNotEmpty(),
+                                enabled = selectedFiles.isNotEmpty() && !uiState.isPreparingPlaylist,
                             ) {
-                                Icon(NextIcons.Bookmarks, contentDescription = "Add to Playlist")
+                                if (uiState.isPreparingPlaylist) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Icon(NextIcons.Bookmarks, contentDescription = "Add to Playlist")
+                                }
                             }
                         },
                         scrollBehavior = scrollBehavior,
@@ -476,7 +498,7 @@ private fun FileList(
                 playable = playable,
                 isSelected = isSelected,
                 isSelectionMode = isSelectionMode,
-                onToggleSelection = { if (playable) onToggleSelection(file) },
+                onToggleSelection = { if (playable || file.isDirectory) onToggleSelection(file) },
                 progress = progress,
                 markLastPlayedMedia = markLastPlayedMedia,
                 isLastPlayed = isLastPlayed,
@@ -517,12 +539,11 @@ private fun FileListItem(
             ),
             modifier = Modifier.combinedClickable(
                 onClick = {
-                    if (isSelectionMode && playable && !file.isDirectory) onToggleSelection()
+                    if (isSelectionMode && (playable || file.isDirectory)) onToggleSelection()
                     else onClick()
                 },
                 onLongClick = {
-                    if (playable && !file.isDirectory) onToggleSelection()
-                }
+                    if (playable || file.isDirectory) onToggleSelection()                }
             ),
             leadingContent = {
                 Icon(

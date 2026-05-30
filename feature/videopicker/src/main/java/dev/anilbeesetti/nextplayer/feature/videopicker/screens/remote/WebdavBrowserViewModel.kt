@@ -30,6 +30,12 @@ data class WebdavBrowserUiState(
     val lastPlayedUrl: String? = null,
     val hasPlaybackHistory: Boolean = false,
     val markLastPlayedMedia: Boolean = true,
+    val isPreparingPlaylist: Boolean = false,
+)
+
+data class CollectedFile(
+    val file: WebdavFile,
+    val siblingFiles: List<WebdavFile>,
 )
 
 @HiltViewModel
@@ -390,31 +396,66 @@ class WebdavBrowserViewModel @Inject constructor(
         }
     }
 
-    fun prepareMediaForPlaylist(
+    private suspend fun collectPlayableFiles(
         server: WebdavServer,
         files: List<WebdavFile>,
+        siblingFiles: List<WebdavFile> = files,
+    ): List<CollectedFile> {
+        val result = mutableListOf<CollectedFile>()
+        for (file in files) {
+            if (file.isDirectory) {
+                val children = listWebdavFilesUseCase(server, file.path)
+                    .getOrElse { emptyList() }
+                    .sortedWith(
+                        compareBy<WebdavFile> { !it.isDirectory }
+                            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+                    )
+                result += collectPlayableFiles(server, children, children)
+            } else if (isPlayable(file)) {
+                result += CollectedFile(file = file, siblingFiles = siblingFiles)
+            }
+        }
+        return result
+    }
+
+    fun prepareMediaForPlaylist(
+        server: WebdavServer,
+        selectedFiles: List<WebdavFile>,
         onReady: (List<String>) -> Unit,
     ) {
         viewModelScope.launch {
-            val fullUrls = files.map { file ->
-                buildFileUrl(server, file, uiState.value.files)
-            }
-
-            val dbUrls = fullUrls.map { url ->
-                Uri.parse(url).buildUpon().fragment(null).build().toString()
-            }
-
-            files.forEachIndexed { index, file ->
-                mediaRepository.upsertRemoteMedia(
-                    uriString = dbUrls[index],
-                    name = file.name,
-                    parentPath = server.name,
-                    size = file.size ?: 1024L,
-                    format = file.name.substringAfterLast('.', "").lowercase(),
+            _uiState.update { it.copy(isPreparingPlaylist = true) }
+            try {
+                val collected = collectPlayableFiles(
+                    server = server,
+                    files = selectedFiles,
+                    siblingFiles = uiState.value.files,
                 )
-            }
 
-            onReady(fullUrls)
+                val fullUrls = collected.map { (file, siblings) ->
+                    buildFileUrl(server, file, siblings)
+                }
+
+                val dbUrls = fullUrls.map { url ->
+                    Uri.parse(url).buildUpon().fragment(null).build().toString()
+                }
+
+                collected.forEachIndexed { index, (file, _) ->
+                    mediaRepository.upsertRemoteMedia(
+                        uriString = dbUrls[index],
+                        name = file.name,
+                        parentPath = server.name,
+                        size = file.size ?: 1024L,
+                        format = file.name.substringAfterLast('.', "").lowercase(),
+                    )
+                }
+
+                onReady(fullUrls)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = e.message ?: "Failed to prepare playlist") }
+            } finally {
+                _uiState.update { it.copy(isPreparingPlaylist = false) }
+            }
         }
     }
 }

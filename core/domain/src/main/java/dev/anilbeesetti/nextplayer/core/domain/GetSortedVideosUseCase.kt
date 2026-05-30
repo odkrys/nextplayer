@@ -30,13 +30,22 @@ class GetSortedVideosUseCase @Inject constructor(
             videosFlow,
             preferencesRepository.applicationPreferences,
         ) { videoItems, preferences ->
-
+/*
             val nonExcludedVideos = videoItems.filterNot {
                 it.parentPath in preferences.excludeFolders
             }
+*/
+            val filteredVideos = videoItems.filter { video ->
+                val isNotExcluded = video.parentPath !in preferences.excludeFolders
+
+                val isNotRemoteWhenGlobal = folderPath != null || !video.uriString.startsWith("http")
+
+                isNotExcluded && isNotRemoteWhenGlobal
+            }
 
             val sort = Sort(by = preferences.sortBy, order = preferences.sortOrder)
-            nonExcludedVideos.sortedWith(sort.videoComparator())
+            //nonExcludedVideos.sortedWith(sort.videoComparator())
+            filteredVideos.sortedWith(sort.videoComparator())
         }.flowOn(defaultDispatcher)
     }
 }

@@ -69,12 +69,12 @@ class PlaylistViewModel @Inject constructor(
 
     private fun addMediaToPlaylist(playlistId: Long, uris: List<String>) {
         viewModelScope.launch {
-            val currentUris = (uiState.value.dataState as? DataState.Success)
+            val targetPlaylist = (uiState.value.dataState as? DataState.Success)
                 ?.value
                 ?.find { it.id == playlistId }
-                ?.mediaUris
-                ?.toSet()
-                ?: emptySet()
+
+            val currentUris = targetPlaylist?.mediaUris?.toSet() ?: emptySet()
+            val targetPlaylistName = targetPlaylist?.name ?: "playlist"
 
             val newUris = uris.filter { uri ->
                 val cleanUri = Uri.parse(uri).buildUpon().fragment(null).build().toString()
@@ -82,11 +82,13 @@ class PlaylistViewModel @Inject constructor(
             }
 
             addMediumToPlaylistUseCase(playlistId, newUris)
+
             uiStateInternal.update {
                 it.copy(
                     isDone = true,
                     addedCount = newUris.size,
                     skippedCount = uris.size - newUris.size,
+                    playlistName = targetPlaylistName
                 )
             }
         }
@@ -120,6 +122,7 @@ data class PlaylistUiState(
     val isDone: Boolean = false,
     val addedCount: Int = 0,
     val skippedCount: Int = 0,
+    val playlistName: String = "",
 )
 
 sealed interface PlaylistUiEvent {

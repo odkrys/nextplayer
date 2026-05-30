@@ -16,7 +16,7 @@ interface PlaylistDao {
     @Upsert
     suspend fun upsert(playlist: PlaylistEntity): Long
 
-    @Query("SELECT * FROM playlists ORDER BY position ASC, created_at DESC")
+    @Query("SELECT * FROM playlists ORDER BY position ASC, created_at ASC")
     fun getAll(): Flow<List<PlaylistEntity>>
 
     @Query("SELECT * FROM playlists WHERE id = :id")
@@ -32,7 +32,7 @@ interface PlaylistDao {
     suspend fun rename(id: Long, name: String, updatedAt: Long = System.currentTimeMillis())
 
     @Transaction
-    @Query("SELECT * FROM playlists ORDER BY position ASC, created_at DESC")
+    @Query("SELECT * FROM playlists ORDER BY position ASC, created_at ASC")
     fun getAllWithMedia(): Flow<List<PlaylistWithMedia>>
 
     @Transaction

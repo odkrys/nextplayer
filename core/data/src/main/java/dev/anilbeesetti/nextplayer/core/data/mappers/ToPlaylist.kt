@@ -14,6 +14,7 @@ fun PlaylistEntity.toPlaylist() = Playlist(
     sortOption = runCatching {
         PlaylistSortOption.valueOf(sortOption)
     }.getOrDefault(PlaylistSortOption.ADDED_ASC),
+    position = position,
 )
 
 fun PlaylistWithMedia.toPlaylist() = Playlist(
@@ -23,4 +24,5 @@ fun PlaylistWithMedia.toPlaylist() = Playlist(
     updatedAt = playlist.updatedAt,
     lastPlayedUri = playlist.lastPlayedUri,
     mediaUris = crossRefs.sortedBy { it.position }.map { it.mediumUri },
+    position = playlist.position,
 )

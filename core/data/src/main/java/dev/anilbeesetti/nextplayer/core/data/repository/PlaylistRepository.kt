@@ -8,7 +8,7 @@ interface PlaylistRepository {
     fun getPlaylistsFlow(): Flow<List<Playlist>>
     fun getPlaylistWithMediaFlow(playlistId: Long): Flow<Playlist?>
     suspend fun getPlaylist(playlistId: Long): Playlist?
-    suspend fun createPlaylist(name: String): Long
+    suspend fun createPlaylist(name: String, position: Int): Long
     suspend fun renamePlaylist(playlistId: Long, name: String)
     suspend fun deletePlaylist(playlistId: Long)
     suspend fun addMediumToPlaylist(playlistId: Long, mediumUri: String, position: Int = 0)
@@ -19,6 +19,4 @@ interface PlaylistRepository {
     suspend fun updateLastPlayedUri(playlistId: Long, uri: String)
     suspend fun updateSortOption(playlistId: Long, sortOption: PlaylistSortOption)
     suspend fun reorderPlaylists(ids: List<Long>)
-
-
 }

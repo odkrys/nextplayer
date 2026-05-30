@@ -47,7 +47,8 @@ class WebdavServerRepository @Inject constructor(
         useSsl = useSsl,
         allowSelfSigned = allowSelfSigned,
         createdAt = createdAt,
-        updatedAt = updatedAt
+        updatedAt = updatedAt,
+        position = position
     )
 
     private fun WebdavServer.toEntity() = WebdavServerEntity(
@@ -61,6 +62,7 @@ class WebdavServerRepository @Inject constructor(
         useSsl = useSsl,
         allowSelfSigned = allowSelfSigned,
         createdAt = createdAt,
-        updatedAt = System.currentTimeMillis()
+        updatedAt = System.currentTimeMillis(),
+        position = position
     )
 }

@@ -3,7 +3,10 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +19,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +36,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,7 +46,6 @@ import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.VideoItem
-import okhttp3.internal.concurrent.formatDuration
 
 @Composable
 fun PlaylistDetailRoute(
@@ -96,6 +101,7 @@ fun PlaylistDetailScreen(
     var selectedUris by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
+    var isFabVisible by rememberSaveable { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val isAllSelected = uiState.sortedVideos.isNotEmpty() && selectedUris.size == uiState.sortedVideos.size
@@ -106,9 +112,14 @@ fun PlaylistDetailScreen(
         }
     }
 
-    BackHandler(enabled = isSelectionMode) {
-        isSelectionMode = false
-        selectedUris = emptySet()
+    BackHandler {
+        if (isSelectionMode) {
+            isSelectionMode = false
+            selectedUris = emptySet()
+        } else {
+            isFabVisible = false
+            onBackClick()
+        }
     }
 
     fun exitSelectionMode() {
@@ -118,116 +129,123 @@ fun PlaylistDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    if (isSelectionMode) {
-                        Text("${selectedUris.size} / ${uiState.sortedVideos.size} selected")
-                    } else {
-                        Text(playlist?.name ?: "")
-                    }
-                },
-                navigationIcon = {
-                    if (isSelectionMode) {
-                        IconButton(onClick = { exitSelectionMode() }) {
-                            Icon(NextIcons.Close, contentDescription = "Clear selection")
+            Column {
+                TopAppBar(
+                    title = {
+                        if (isSelectionMode) {
+                            Text("${selectedUris.size} / ${uiState.sortedVideos.size} selected")
+                        } else {
+                            Text(playlist?.name ?: "")
                         }
-                    } else {
-                        IconButton(onClick = onBackClick) {
-                            Icon(NextIcons.ArrowBack, contentDescription = "Back")
+                    },
+                    navigationIcon = {
+                        if (isSelectionMode) {
+                            IconButton(onClick = { exitSelectionMode() }) {
+                                Icon(NextIcons.Close, contentDescription = "Clear selection")
+                            }
+                        } else {
+                            IconButton(
+                                onClick = {
+                                    isFabVisible = false
+                                    onBackClick()
+                                },
+                            ) {
+                                Icon(NextIcons.ArrowBack, contentDescription = "Back")
+                            }
                         }
-                    }
-                },
-                actions = {
-                    if (isSelectionMode) {
-                        IconButton(
-                            onClick = {
-                                if (isAllSelected) {
-                                    selectedUris = emptySet()
-                                } else {
-                                    selectedUris = uiState.sortedVideos.map { it.uriString }.toSet()
+                    },
+                    actions = {
+                        if (isSelectionMode) {
+                            IconButton(
+                                onClick = {
+                                    if (isAllSelected) {
+                                        selectedUris = emptySet()
+                                    } else {
+                                        selectedUris = uiState.sortedVideos.map { it.uriString }.toSet()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (isAllSelected) NextIcons.DeselectAll else NextIcons.SelectAll,
+                                    contentDescription = if (isAllSelected) "Select all" else "Deselect all"
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { showDeleteDialog = true },
+                                enabled = selectedUris.isNotEmpty(),
+                            ) {
+                                Icon(
+                                    NextIcons.Delete,
+                                    contentDescription = "Remove selected items",
+                                    tint = if (selectedUris.isNotEmpty())
+                                        MaterialTheme.colorScheme.error
+                                    else
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                )
+                            }
+                        } else {
+                            Box {
+                                IconButton(onClick = { showSortMenu = true }) {
+                                    Icon(NextIcons.Sort, contentDescription = "Sort")
+                                }
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Date added (Oldest)") },
+                                        onClick = {
+                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.ADDED_ASC))
+                                            showSortMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Date added (Newest)") },
+                                        onClick = {
+                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.ADDED_DESC))
+                                            showSortMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Name (A-Z)") },
+                                        onClick = {
+                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.NAME_ASC))
+                                            showSortMenu = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Name (Z-A)") },
+                                        onClick = {
+                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.NAME_DESC))
+                                            showSortMenu = false
+                                        }
+                                    )
                                 }
                             }
-                        ) {
-                            Icon(
-                                imageVector = if (isAllSelected) NextIcons.DeselectAll else NextIcons.SelectAll,
-                                contentDescription = if (isAllSelected) "Select all" else "Deselect all"
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { showDeleteDialog = true },
-                            enabled = selectedUris.isNotEmpty(),
-                        ) {
-                            Icon(
-                                NextIcons.Delete,
-                                contentDescription = "Remove selected items",
-                                tint = if (selectedUris.isNotEmpty())
-                                    MaterialTheme.colorScheme.error
-                                else
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                            )
-                        }
-                    } else {
-                        Box {
-                            IconButton(onClick = { showSortMenu = true }) {
-                                Icon(NextIcons.Sort, contentDescription = "Sort")
-                            }
-                            DropdownMenu(
-                                expanded = showSortMenu,
-                                onDismissRequest = { showSortMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Date added (Oldest)") },
-                                    onClick = {
-                                        onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.ADDED_ASC))
-                                        showSortMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Date added (Newest)") },
-                                    onClick = {
-                                        onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.ADDED_DESC))
-                                        showSortMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Name (A-Z)") },
-                                    onClick = {
-                                        onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.NAME_ASC))
-                                        showSortMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Name (Z-A)") },
-                                    onClick = {
-                                        onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.NAME_DESC))
-                                        showSortMenu = false
-                                    }
-                                )
+                            IconButton(onClick = { showAddMediaSheet = true }) {
+                                Icon(NextIcons.Add, contentDescription = "Add media")
                             }
                         }
-                        IconButton(onClick = { showAddMediaSheet = true }) {
-                            Icon(NextIcons.Add, contentDescription = "Add media")
-                        }
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            if (!isSelectionMode && uiState.sortedVideos.isNotEmpty()) {
-                androidx.compose.material3.FloatingActionButton(
-                    onClick = { onPlayClick() },
-                    modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)
-                ) {
-                    Icon(imageVector = NextIcons.Play, contentDescription = "Play playlist")
-                }
+                    },
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                )
             }
-        }
+        },
     ) { paddingValues ->
+        val layoutDirection = LocalLayoutDirection.current
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(
+                    top = paddingValues.calculateTopPadding(),
+                    start = paddingValues.calculateStartPadding(layoutDirection),
+                    end = paddingValues.calculateEndPadding(layoutDirection),
+                    bottom = 0.dp
+                ),
         ) {
             when (val state = uiState.dataState) {
                 is DataState.Loading -> {
@@ -275,6 +293,20 @@ fun PlaylistDetailScreen(
                         text = "Failed to load playlist",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center),
+                    )
+                }
+            }
+
+            if (!isSelectionMode && uiState.sortedVideos.isNotEmpty() && isFabVisible) {
+                FloatingActionButton(
+                    onClick = { onPlayClick() },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 32.dp, bottom = 32.dp)
+                ) {
+                    Icon(
+                        imageVector = NextIcons.Play,
+                        contentDescription = "Play playlist",
                     )
                 }
             }
@@ -342,7 +374,7 @@ private fun PlaylistDetailContent(
 ) {
     LazyColumn(
         state = listState,
-        contentPadding = PaddingValues(vertical = 8.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp, start = 8.dp, end = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         itemsIndexed(items = videos, key = { _, v -> v.uriString }) { index, video ->

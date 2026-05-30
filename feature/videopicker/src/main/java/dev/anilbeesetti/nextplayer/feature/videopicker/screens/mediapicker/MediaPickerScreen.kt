@@ -5,17 +5,26 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.displayCutout
@@ -47,6 +56,7 @@ import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -57,7 +67,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +101,7 @@ import dev.anilbeesetti.nextplayer.core.model.MediaViewMode
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
+import dev.anilbeesetti.nextplayer.core.ui.base.LocalBottomBarVisibility
 import dev.anilbeesetti.nextplayer.core.ui.components.CancelButton
 import dev.anilbeesetti.nextplayer.core.ui.components.DoneButton
 import dev.anilbeesetti.nextplayer.core.ui.components.NextDialog
@@ -116,12 +131,10 @@ fun MediaPickerRoute(
     onPlayVideo: (uri: Uri) -> Unit,
     onPlayVideos: (uris: List<Uri>) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
-    onRemoteClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onSearchClick: () -> Unit,
     onNavigateUp: () -> Unit,
     onAddToPlaylistClick: (List<String>) -> Unit,
-    onPlaylistClick: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
 
@@ -136,12 +149,10 @@ fun MediaPickerRoute(
         onPlayVideo = onPlayVideo,
         onNavigateUp = onNavigateUp,
         onFolderClick = onFolderClick,
-        onRemoteClick = onRemoteClick,
         onSettingsClick = onSettingsClick,
         onSearchClick = onSearchClick,
         onAction = viewModel::onAction,
         onAddToPlaylistClick = onAddToPlaylistClick,
-        onPlaylistClick = onPlaylistClick,
     )
 }
 
@@ -152,12 +163,10 @@ internal fun MediaPickerScreen(
     onNavigateUp: () -> Unit = {},
     onPlayVideo: (Uri) -> Unit = {},
     onFolderClick: (String) -> Unit = {},
-    onRemoteClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onAction: (MediaPickerAction) -> Unit = {},
     onAddToPlaylistClick: (List<String>) -> Unit = {},
-    onPlaylistClick: () -> Unit = {},
 ) {
     val selectionManager = rememberSelectionManager()
     val permissionState = rememberPermissionState(
@@ -183,6 +192,35 @@ internal fun MediaPickerScreen(
 
     val selectedItemsSize = selectionManager.selectionItems.size
     val totalItemsSize = (uiState.mediaDataState as? DataState.Success)?.value?.run { folders.size + videos.size } ?: 0
+
+    var rememberedShowRename by remember { mutableStateOf(false) }
+    var rememberedShowInfo by remember { mutableStateOf(false) }
+
+    val isBottomBarVisible = LocalBottomBarVisibility.current
+    val isAtTop by remember {
+        derivedStateOf {
+            lazyGridState.firstVisibleItemIndex == 0 && lazyGridState.firstVisibleItemScrollOffset == 0
+        }
+    }
+
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (selectionManager.isInSelectionMode) return Offset.Zero
+                if (!permissionState.status.isGranted) return Offset.Zero
+
+                val canScrollDown = lazyGridState.canScrollForward
+
+                if (available.y < -5 && canScrollDown) {
+                    isBottomBarVisible.value = false
+                } else if (available.y > 5) {
+                    isBottomBarVisible.value = true
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -259,18 +297,6 @@ internal fun MediaPickerScreen(
                                 contentDescription = stringResource(id = R.string.menu),
                             )
                         }
-                        IconButton(onClick = onRemoteClick) {
-                            Icon(
-                                imageVector = NextIcons.Storage,
-                                contentDescription = "Remote Server",
-                            )
-                        }
-                        IconButton(onClick = onPlaylistClick) {
-                            Icon(
-                                imageVector = NextIcons.Bookmarks,
-                                contentDescription = "Playlist",
-                            )
-                        }
                         IconButton(onClick = onSettingsClick) {
                             Icon(
                                 imageVector = NextIcons.Settings,
@@ -281,6 +307,7 @@ internal fun MediaPickerScreen(
                 },
             )
         },
+/*
         bottomBar = {
             SelectionActionsSheet(
                 show = selectionManager.isInSelectionMode && selectionManager.selectionItems.isNotEmpty(),
@@ -313,11 +340,6 @@ internal fun MediaPickerScreen(
                     } else {
                         showDeleteVideosConfirmation = true
                     }
-                },
-                onAddToPlaylistAction = {
-                    val uris = selectionManager.allSelectedVideos.map { it.uriString }
-                    onAddToPlaylistClick(uris)
-                    selectionManager.exitSelectionMode()
                 },
             )
         },
@@ -442,6 +464,199 @@ internal fun MediaPickerScreen(
                 }
             }
         }
+*/*/
+        bottomBar = {
+            Column {
+                SelectionActionsSheet(
+                    show = selectionManager.isInSelectionMode && selectionManager.selectionItems.isNotEmpty(),
+                    showRenameAction = selectionManager.isSingleVideoSelected,
+                    showInfoAction = selectionManager.isSingleVideoSelected,
+                    onPlayAction = {
+                        onAction(MediaPickerAction.PlaySelectedItems(selectionManager.selectionItems))
+                        selectionManager.exitSelectionMode()
+                    },
+                    onRenameAction = {
+                        val selectedVideo = selectionManager.selectionItems.firstOrNull() ?: return@SelectionActionsSheet
+                        val video = (uiState.mediaDataState as? DataState.Success)?.value?.videos
+                            ?.find { it.uriString == selectedVideo.id } ?: return@SelectionActionsSheet
+                        showRenameActionFor = video
+                    },
+                    onInfoAction = {
+                        val selectedVideo = selectionManager.selectionItems.firstOrNull() ?: return@SelectionActionsSheet
+                        val video = (uiState.mediaDataState as? DataState.Success)?.value?.videos
+                            ?.find { it.uriString == selectedVideo.id } ?: return@SelectionActionsSheet
+                        onAction(MediaPickerAction.ShowMediaInfo(video))
+                        selectionManager.exitSelectionMode()
+                    },
+                    onShareAction = {
+                        onAction(MediaPickerAction.ShareSelectedItems(selectionManager.selectionItems))
+                    },
+                    onDeleteAction = {
+                        if (MediaOperationsService.willSystemAsksForDeleteConfirmation()) {
+                            onAction(MediaPickerAction.DeleteSelectedItems(selectionManager.selectionItems))
+                            selectionManager.exitSelectionMode()
+                        } else {
+                            showDeleteVideosConfirmation = true
+                        }
+                    },
+                    onAddToPlaylistAction = {
+                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                        onAddToPlaylistClick(uris)
+                        selectionManager.exitSelectionMode()
+                    },
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) { scaffoldPadding ->
+        val layoutDirection = LocalLayoutDirection.current
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = scaffoldPadding.calculateTopPadding(),
+                    start = scaffoldPadding.calculateStartPadding(layoutDirection),
+                    end = scaffoldPadding.calculateEndPadding(layoutDirection),
+                    bottom = 0.dp,
+                ),
+        ) {
+            when (uiState.mediaDataState) {
+                is DataState.Error -> {
+                }
+
+                is DataState.Loading -> {
+                    CenterCircularProgressBar(modifier = Modifier.padding(scaffoldPadding))
+                }
+
+                is DataState.Success -> {
+                    PullToRefreshBox(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            //.padding(top = scaffoldPadding.calculateTopPadding())
+                            //.padding(start = scaffoldPadding.calculateStartPadding(LocalLayoutDirection.current))
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                            .background(MaterialTheme.colorScheme.background),
+                        isRefreshing = uiState.refreshing,
+                        onRefresh = { onAction(MediaPickerAction.Refresh) },
+                    ) {
+                        val updatedScaffoldPadding = scaffoldPadding.copy(top = 0.dp, start = 0.dp)
+                        PermissionMissingView(
+                            isGranted = permissionState.status.isGranted,
+                            showRationale = permissionState.status.shouldShowRationale,
+                            permission = permissionState.permission,
+                            launchPermissionRequest = { permissionState.launchPermissionRequest() },
+                        ) {
+                            val mediaHolder = uiState.mediaDataState.value
+                            if (mediaHolder == null || mediaHolder.folders.isEmpty() && mediaHolder.videos.isEmpty()) {
+                                NoVideosFound(contentPadding = updatedScaffoldPadding)
+                                return@PermissionMissingView
+                            }
+
+                            MediaView(
+                                recentlyPlayedVideo = uiState.recentlyPlayedVideo,
+                                recentlyPlayedFolder = uiState.recentlyPlayedFolder,
+                                mediaHolder = mediaHolder,
+                                preferences = uiState.preferences,
+                                onFolderClick = onFolderClick,
+                                onVideoClick = { onPlayVideo(it) },
+                                selectionManager = selectionManager,
+                                lazyGridState = lazyGridState,
+                                contentPadding = updatedScaffoldPadding.copy(
+                                    bottom = updatedScaffoldPadding.calculateBottomPadding() + 32.dp
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = !selectionManager.isInSelectionMode,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 16.dp),
+                enter = scaleIn(
+                    animationSpec = tween(durationMillis = 80, delayMillis = 200),
+                ) + fadeIn(
+                    animationSpec = tween(durationMillis = 80, delayMillis = 200),
+                ),
+                exit = fadeOut(
+                    animationSpec = snap(),
+                ) + scaleOut(
+                    animationSpec = snap(),
+                ),
+            ) {
+                FloatingActionButtonMenu(
+                    expanded = isFabExpanded,
+                    button = {
+                        ToggleFloatingActionButton(
+                            checked = isFabExpanded,
+                            onCheckedChange = { isFabExpanded = !isFabExpanded },
+                        ) {
+                            val icon by remember {
+                                derivedStateOf {
+                                    if (checkedProgress > 0.5f) NextIcons.Close else NextIcons.Play
+                                }
+                            }
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.animateIcon(checkedProgress = { checkedProgress }),
+                            )
+                        }
+                    },
+                ) {
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            isFabExpanded = false
+                            showUrlDialog = true
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = NextIcons.Link,
+                                contentDescription = null,
+                            )
+                        },
+                        text = {
+                            Text(text = stringResource(id = R.string.open_network_stream))
+                        },
+                    )
+                    FloatingActionButtonMenuItem(
+                        onClick = {
+                            isFabExpanded = false
+                            selectVideoFileLauncher.launch("video/*")
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = NextIcons.FileOpen,
+                                contentDescription = null,
+                            )
+                        },
+                        text = {
+                            Text(text = stringResource(id = R.string.open_local_video))
+                        },
+                    )
+                    if (uiState.recentlyPlayedVideo != null) {
+                        FloatingActionButtonMenuItem(
+                            onClick = {
+                                isFabExpanded = false
+                                onPlayVideo(uiState.recentlyPlayedVideo.uriString.toUri())
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = NextIcons.History,
+                                    contentDescription = null,
+                                )
+                            },
+                            text = {
+                                Text(text = stringResource(id = R.string.recently_played))
+                            },
+                        )
+                    }
+                }
+            }
+        }
     }
 
     LaunchedEffect(lazyGridState.isScrollInProgress) {
@@ -449,10 +664,37 @@ internal fun MediaPickerScreen(
             isFabExpanded = false
         }
     }
-
+/*
     LaunchedEffect(selectionManager.isInSelectionMode) {
         if (selectionManager.isInSelectionMode) {
             isFabExpanded = false
+        }
+    }
+*/
+    LaunchedEffect(selectionManager.isInSelectionMode, isAtTop) {
+        val isSelectionMode = selectionManager.isInSelectionMode
+
+        if (!isSelectionMode) {
+            if (isAtTop) {
+                isBottomBarVisible.value = true
+            }
+        } else {
+            isBottomBarVisible.value = false
+            isFabExpanded = false
+            val isSingleSelected = selectionManager.isSingleVideoSelected
+            rememberedShowRename = isSingleSelected
+            rememberedShowInfo = isSingleSelected
+        }
+    }
+
+    LaunchedEffect(uiState.preferences.mediaViewMode, uiState.preferences.mediaLayoutMode) {
+        isBottomBarVisible.value = true
+        lazyGridState.scrollToItem(0)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            isBottomBarVisible.value = true
         }
     }
 
@@ -614,7 +856,14 @@ private fun SelectionActionsSheet(
         ),
         visible = show,
         enter = slideInVertically { it },
-        exit = slideOutVertically { it },
+        //exit = slideOutVertically { it },
+        exit = slideOutVertically(
+            animationSpec = tween(durationMillis = 250),
+            targetOffsetY = { it },
+        ) + shrinkVertically(
+            animationSpec = tween(durationMillis = 250),
+            shrinkTowards = Alignment.Top,
+        ),
     ) {
         val shape = MaterialTheme.shapes.largeIncreased.copy(
             bottomStart = ZeroCornerSize,
@@ -631,7 +880,7 @@ private fun SelectionActionsSheet(
                     )
                     .clip(shape)
                     .horizontalScroll(rememberScrollState())
-                    .navigationBarsPadding()
+                    //.navigationBarsPadding()
                     .padding(
                         horizontal = 8.dp,
                         vertical = 12.dp,

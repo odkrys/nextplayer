@@ -48,6 +48,7 @@ fun MediaView(
     mediaHolder: MediaHolder,
     recentlyPlayedVideo: Video?,
     recentlyPlayedFolder: Folder?,
+    modifier: Modifier = Modifier,
     preferences: ApplicationPreferences,
     showHeaders: Boolean = preferences.mediaViewMode == MediaViewMode.FOLDER_TREE,
     contentPadding: PaddingValues = PaddingValues(),
@@ -87,7 +88,8 @@ fun MediaView(
         }
 
         LazyVerticalGrid(
-            modifier = Modifier.fillMaxSize(),
+            //modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(modifier),
             state = lazyGridState,
             columns = GridCells.Fixed(spans),
             contentPadding = contentPadding + PaddingValues(horizontal = contentHorizontalPadding, vertical = 8.dp),

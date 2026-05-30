@@ -46,9 +46,12 @@ class LocalPlaylistRepository @Inject constructor(
         return playlistDao.get(playlistId)?.toPlaylist()
     }
 
-    override suspend fun createPlaylist(name: String): Long {
+    override suspend fun createPlaylist(name: String, position: Int): Long {
         return playlistDao.upsert(
-            PlaylistEntity(name = name),
+            PlaylistEntity(
+                name = name,
+                position = position
+            )
         )
     }
 

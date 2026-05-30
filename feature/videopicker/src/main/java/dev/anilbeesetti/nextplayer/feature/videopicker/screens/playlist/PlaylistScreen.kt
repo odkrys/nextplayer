@@ -1,6 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist
 
 import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +10,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,8 +34,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,13 +47,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.Playlist
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
+import dev.anilbeesetti.nextplayer.core.ui.base.LocalBottomBarVisibility
+import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import sh.calvin.reorderable.DragGestureDetector
 import sh.calvin.reorderable.ReorderableCollectionItemScope
@@ -105,24 +110,52 @@ fun PlaylistScreen(
     var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
     var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
 
+    val isBottomBarVisible = LocalBottomBarVisibility.current
+    val isAddingMode = selectedUris.isNotEmpty()
+
+    LaunchedEffect(isAddingMode, isBottomBarVisible.value) {
+        if (isAddingMode && isBottomBarVisible.value) {
+            isBottomBarVisible.value = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            isBottomBarVisible.value = true
+        }
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Playlist") },
+            NextTopAppBar(
+                title = if (isAddingMode) "Select a playlist" else "Playlist",
+                fontWeight = if (!isAddingMode) FontWeight.Bold else null,
+                navigationIcon = {
+                    if (isAddingMode) {
+                        IconButton(onClick = onBackClick) {
+                            Icon(NextIcons.Close, contentDescription = "Cancel")
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showCreateDialog = true }) {
+                        Icon(NextIcons.Add, contentDescription = "Create playlist")
+                    }
+                }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showCreateDialog = true },
-                modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)
-            ) {
-                Icon(imageVector = NextIcons.Add, contentDescription = "Create playlist")
-            }
-        },
     ) { paddingValues ->
+        val layoutDirection = LocalLayoutDirection.current
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(
+                    top = paddingValues.calculateTopPadding(),
+                    start = paddingValues.calculateStartPadding(layoutDirection),
+                    end = paddingValues.calculateEndPadding(layoutDirection),
+                    bottom = 0.dp
+                )
         ) {
             when (val state = uiState.dataState) {
                 is DataState.Loading -> {
@@ -241,12 +274,7 @@ private fun PlaylistContent(
     ) {
         LazyColumn(
             state = lazyListState,
-            contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding() + 16.dp,
-                bottom = paddingValues.calculateBottomPadding() + 88.dp,
-                start = 16.dp,
-                end = 16.dp
-            ),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 60.dp, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
             ) {
@@ -285,6 +313,15 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
 
     var showMenu by remember { mutableStateOf(false) }
 
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isDragging) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        label = "drag_color"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -301,6 +338,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
             )
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Row(
             modifier = Modifier

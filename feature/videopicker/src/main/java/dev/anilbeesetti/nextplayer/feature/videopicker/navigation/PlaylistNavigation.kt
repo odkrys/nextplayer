@@ -17,7 +17,7 @@ private const val URI_SEPARATOR = "|||"
 
 fun NavController.navigateToPlaylist(selectedUris: List<String> = emptyList()) {
     val encodedUris = selectedUris.joinToString(URI_SEPARATOR) { Uri.encode(it) }
-    navigate("playlist?$SELECTED_URIS_ARG=${Uri.encode(encodedUris)}")
+    navigate("playlist?$SELECTED_URIS_ARG=$encodedUris")
 }
 
 fun NavController.navigateToPlaylistDetail(playlistId: Long) {

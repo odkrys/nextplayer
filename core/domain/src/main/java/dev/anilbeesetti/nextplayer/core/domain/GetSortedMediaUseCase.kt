@@ -27,11 +27,6 @@ class GetSortedMediaUseCase @Inject constructor(
             getSortedFolderTreeUseCase(folderPath),
             preferencesRepository.applicationPreferences,
         ) { videos, folders, folderTree, preferences ->
-
-            val localVideos = videos.filter { video ->
-                !video.uriString.startsWith("http")
-            }
-
             when (preferences.mediaViewMode) {
                 MediaViewMode.FOLDER_TREE -> folderTree
                 MediaViewMode.FOLDERS -> if (folderPath == null) {
@@ -45,14 +40,12 @@ class GetSortedMediaUseCase @Inject constructor(
                         name = file.name,
                         path = file.path,
                         dateModified = file.lastModified(),
-                        //mediaList = videos,
-                        mediaList = localVideos,
+                        mediaList = videos,
                         folderList = emptyList(),
                     )
                 }
                 MediaViewMode.VIDEOS -> Folder.rootFolder.copy(
-                    //mediaList = videos,
-                    mediaList = localVideos,
+                    mediaList = videos,
                     folderList = emptyList(),
                 )
             }

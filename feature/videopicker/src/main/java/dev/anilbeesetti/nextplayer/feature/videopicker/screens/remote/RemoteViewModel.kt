@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
+import dev.anilbeesetti.nextplayer.core.data.repository.PlaylistRepository
 import dev.anilbeesetti.nextplayer.core.domain.webdav.DeleteWebdavServerUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServersUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.ReorderWebdavServersUseCase
@@ -34,6 +35,7 @@ class RemoteViewModel @Inject constructor(
     private val testWebdavConnectionUseCase: TestWebdavConnectionUseCase,
     private val reorderWebdavServersUseCase: ReorderWebdavServersUseCase,
     private val mediaRepository: MediaRepository,
+    private val playlistRepository: PlaylistRepository,
     ) : ViewModel() {
 
     val servers: StateFlow<List<WebdavServer>> = getWebdavServersUseCase()
@@ -86,8 +88,13 @@ class RemoteViewModel @Inject constructor(
             deleteWebdavServerUseCase(server.id)
                 .onSuccess {
                     val scheme = if (server.useSsl) "https" else "http"
-                    val urlPrefix = "$scheme://${server.host}:${server.port}"
+                    val portSuffix = if (server.port > 0) ":${server.port}" else ""
+                    val pathSuffix = if (server.path.isNotEmpty() && !server.path.startsWith("/")) "/${server.path}" else server.path
+                    val urlPrefix = "$scheme://${server.host}$portSuffix$pathSuffix"
+
                     mediaRepository.deleteByPrefix(urlPrefix)
+
+                    playlistRepository.removeMediaByPrefix(urlPrefix)
 
                     _uiState.update {
                         it.copy(isLoading = false)

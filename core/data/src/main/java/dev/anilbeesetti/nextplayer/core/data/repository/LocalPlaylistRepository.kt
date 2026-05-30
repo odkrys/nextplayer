@@ -123,4 +123,8 @@ class LocalPlaylistRepository @Inject constructor(
             playlistDao.updatePosition(id, index)
         }
     }
+
+    override suspend fun removeMediaByPrefix(prefix: String) {
+        playlistDao.removeMediaByPrefix(prefix)
+    }
 }

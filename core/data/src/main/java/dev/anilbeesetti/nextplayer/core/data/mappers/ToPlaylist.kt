@@ -14,6 +14,7 @@ fun PlaylistEntity.toPlaylist() = Playlist(
     sortOption = runCatching {
         PlaylistSortOption.valueOf(sortOption)
     }.getOrDefault(PlaylistSortOption.ADDED_ASC),
+    position = position,
 )
 
 fun PlaylistWithMedia.toPlaylist() = Playlist(
@@ -24,4 +25,5 @@ fun PlaylistWithMedia.toPlaylist() = Playlist(
     lastPlayedUri = playlist.lastPlayedUri,
     mediaUris = media.map { it.uriString },
     mediaFullUrls = media.map { it.uriString },
+    position = playlist.position,
 )

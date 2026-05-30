@@ -41,6 +41,7 @@ import kotlin.math.abs
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalPermissionsApi::class)
 @Composable
 fun MediaView(
+    modifier: Modifier = Modifier,
     rootFolder: Folder,
     preferences: ApplicationPreferences,
     showHeaders: Boolean = preferences.mediaViewMode == MediaViewMode.FOLDER_TREE,
@@ -82,7 +83,8 @@ fun MediaView(
         }
 
         LazyVerticalGrid(
-            modifier = Modifier.fillMaxSize(),
+            //modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(modifier),
             state = lazyGridState,
             columns = GridCells.Fixed(spans),
             contentPadding = contentPadding + PaddingValues(horizontal = contentHorizontalPadding, vertical = 8.dp),

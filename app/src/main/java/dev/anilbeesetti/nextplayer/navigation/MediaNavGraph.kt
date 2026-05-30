@@ -51,9 +51,7 @@ fun NavGraphBuilder.mediaNavGraph(
             onFolderClick = navController::navigateToMediaPickerScreen,
             onSettingsClick = navController::navigateToSettings,
             onSearchClick = navController::navigateToSearch,
-            onRemoteClick = navController::navigateToRemoteHome,
             onAddToPlaylistClick = navController::navigateToPlaylist,
-            onPlaylistClick = { navController.navigateToPlaylist(emptyList()) },
         )
 
         searchScreen(
@@ -79,24 +77,6 @@ fun NavGraphBuilder.mediaNavGraph(
             onFolderClick = navController::navigateToMediaPickerScreen,
         )
 
-        webdavNavGraph(
-            navController = navController,
-            onPlayFile = { urls, index, server ->
-                val basicAuth = Credentials.basic(server.username, server.password)
-                PlayerService.setWebdavCredentials(
-                    host = server.host,
-                    auth = basicAuth,
-                )
-
-                val uris = ArrayList(urls.map { android.net.Uri.parse(it) })
-                val intent = Intent(context, PlayerActivity::class.java).apply {
-                    action = Intent.ACTION_VIEW
-                    data = uris[index]
-                    putParcelableArrayListExtra(PlayerApi.API_PLAYLIST, uris)
-                }
-                context.startActivity(intent)
-            }
-        )
 
         playlistScreen(
             onPlaylistClick = { playlistId, _ ->
@@ -127,6 +107,25 @@ fun NavGraphBuilder.mediaNavGraph(
                 context.startActivity(intent)
             },
             onBackClick = navController::popBackStack,
+        )
+
+        webdavNavGraph(
+            navController = navController,
+            onPlayFile = { urls, index, server ->
+                val basicAuth = Credentials.basic(server.username, server.password)
+                PlayerService.setWebdavCredentials(
+                    host = server.host,
+                    auth = basicAuth,
+                )
+
+                val uris = ArrayList(urls.map { android.net.Uri.parse(it) })
+                val intent = Intent(context, PlayerActivity::class.java).apply {
+                    action = Intent.ACTION_VIEW
+                    data = uris[index]
+                    putParcelableArrayListExtra(PlayerApi.API_PLAYLIST, uris)
+                }
+                context.startActivity(intent)
+            },
         )
     }
 }

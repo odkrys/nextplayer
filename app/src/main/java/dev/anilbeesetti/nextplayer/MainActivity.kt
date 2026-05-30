@@ -8,24 +8,39 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -35,7 +50,11 @@ import dev.anilbeesetti.nextplayer.core.common.storagePermission
 import dev.anilbeesetti.nextplayer.core.media.services.MediaService
 import dev.anilbeesetti.nextplayer.core.media.sync.MediaSynchronizer
 import dev.anilbeesetti.nextplayer.core.model.ThemeConfig
+import dev.anilbeesetti.nextplayer.core.ui.base.LocalBottomBarVisibility
+import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.PLAYLIST_ROUTE
+import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.REMOTE_HOME_ROUTE
 import dev.anilbeesetti.nextplayer.navigation.MediaRootRoute
 import dev.anilbeesetti.nextplayer.navigation.mediaNavGraph
 import dev.anilbeesetti.nextplayer.navigation.settingsNavGraph
@@ -115,7 +134,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     val mainNavController = rememberNavController()
-
+/*
                     NavHost(
                         navController = mainNavController,
                         startDestination = MediaRootRoute,
@@ -163,6 +182,186 @@ class MainActivity : ComponentActivity() {
                             navController = mainNavController,
                         )
                         settingsNavGraph(navController = mainNavController)
+                    }
+*/
+                    val isBottomBarVisible = remember { mutableStateOf(true) }
+                    val navBackStackEntry by mainNavController.currentBackStackEntryAsState()
+                    val currentRoute = navBackStackEntry?.destination?.route
+
+                    fun isTopLevelRoute(route: String?): Boolean {
+                        if (route == null) return false
+                        return route.contains("MediaRootRoute") ||
+                                route.contains("MediaPickerRoute") ||
+                                route == PLAYLIST_ROUTE ||
+                                route == REMOTE_HOME_ROUTE
+                    }
+
+                    val isTopLevel = isTopLevelRoute(currentRoute)
+
+                    CompositionLocalProvider( LocalBottomBarVisibility provides isBottomBarVisible) {
+                        Scaffold(
+                            bottomBar = {
+                                AnimatedVisibility(
+                                    visible = isTopLevel && isBottomBarVisible.value,
+                                    enter = androidx.compose.animation.slideInVertically(
+                                        animationSpec = tween(durationMillis = 300),
+                                        initialOffsetY = { it }
+                                    ) + androidx.compose.animation.expandVertically(
+                                        animationSpec = tween(durationMillis = 300),
+                                        expandFrom = Alignment.Top
+                                    ),
+                                    exit = androidx.compose.animation.fadeOut(
+                                        animationSpec = tween(0)
+                                    )
+                                ) {
+                                    val isMediaSelected = currentRoute?.contains("MediaRootRoute") == true || currentRoute?.contains("MediaPickerRoute") == true
+                                    val isPlaylistSelected = currentRoute?.startsWith("playlist") == true
+                                    val isWebDavSelected = currentRoute?.contains("remote_home") == true || currentRoute?.contains("webdav_") == true
+
+                                    NavigationBar {
+                                        NavigationBarItem(
+                                            selected = currentRoute?.contains("MediaRootRoute") == true ||
+                                                    currentRoute?.contains("MediaPickerRoute") == true,
+                                            onClick = {
+                                                if (isMediaSelected) {
+                                                    mainNavController.navigate(MediaRootRoute) {
+                                                        popUpTo(mainNavController.graph.findStartDestination().id) { inclusive = false }
+                                                        launchSingleTop = true
+                                                    }
+                                                } else {
+                                                    mainNavController.navigate(MediaRootRoute) {
+                                                        popUpTo(mainNavController.graph.findStartDestination().id) { saveState = true }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            },
+                                            icon = { Icon(NextIcons.Movie, contentDescription = "Media") },
+                                            label = { Text("Media") }
+                                        )
+                                        VerticalDivider(
+                                            modifier = Modifier
+                                                .height(48.dp)
+                                                .align(Alignment.CenterVertically),
+                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                            thickness = 1.dp,
+                                        )
+                                        NavigationBarItem(
+                                            selected = isPlaylistSelected,
+                                            onClick = {
+                                                if (isPlaylistSelected) {
+                                                    mainNavController.navigate("playlist?selectedUris=") {
+                                                        popUpTo(PLAYLIST_ROUTE) { inclusive = false }
+                                                        launchSingleTop = true
+                                                    }
+                                                } else {
+                                                    mainNavController.navigate("playlist?selectedUris=") {
+                                                        popUpTo(mainNavController.graph.findStartDestination().id) { saveState = true }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            },
+                                            icon = { Icon(NextIcons.Bookmarks, contentDescription = "Playlist") },
+                                            label = { Text("Playlist") }
+                                        )
+                                        VerticalDivider(
+                                            modifier = Modifier
+                                                .height(48.dp)
+                                                .align(Alignment.CenterVertically),
+                                            color = MaterialTheme.colorScheme.outlineVariant,
+                                            thickness = 1.dp,
+                                        )
+                                        NavigationBarItem(
+                                            selected = isWebDavSelected,
+                                            onClick = {
+                                                if (isWebDavSelected) {
+                                                    mainNavController.navigate(REMOTE_HOME_ROUTE) {
+                                                        popUpTo(REMOTE_HOME_ROUTE) { inclusive = false }
+                                                        launchSingleTop = true
+                                                    }
+                                                } else {
+                                                    mainNavController.navigate(REMOTE_HOME_ROUTE) {
+                                                        popUpTo(mainNavController.graph.findStartDestination().id) { saveState = true }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            },
+                                            icon = { Icon(NextIcons.Storage, contentDescription = "WebDAV") },
+                                            label = { Text("WebDAV") }
+                                        )
+                                    }
+                                }
+                            },
+                        ) { paddingValues ->
+
+                            NavHost(
+                                navController = mainNavController,
+                                startDestination = MediaRootRoute,
+                                modifier = Modifier.padding(bottom = paddingValues.calculateBottomPadding()),
+                                enterTransition = {
+                                    if (isTopLevelRoute(initialState.destination.route) && isTopLevelRoute(targetState.destination.route)) {
+                                        androidx.compose.animation.EnterTransition.None
+                                    } else {
+                                        slideIntoContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                                            animationSpec = tween(
+                                                durationMillis = 200,
+                                                easing = LinearEasing,
+                                            ),
+                                        )
+                                    }
+                                },
+                                exitTransition = {
+                                    if (isTopLevelRoute(initialState.destination.route) && isTopLevelRoute(targetState.destination.route)) {
+                                        androidx.compose.animation.ExitTransition.None
+                                    } else {
+                                        slideOutOfContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                                            animationSpec = tween(
+                                                durationMillis = 200,
+                                                easing = LinearEasing,
+                                            ),
+                                            targetOffset = { fullOffset -> (fullOffset * 0.3f).toInt() },
+                                        )
+                                    }
+                                },
+                                popEnterTransition = {
+                                    if (isTopLevelRoute(initialState.destination.route) && isTopLevelRoute(targetState.destination.route)) {
+                                        androidx.compose.animation.EnterTransition.None
+                                    } else {
+                                        slideIntoContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.End,
+                                            animationSpec = tween(
+                                                durationMillis = 200,
+                                                easing = LinearEasing,
+                                            ),
+                                            initialOffset = { fullOffset -> (fullOffset * 0.3f).toInt() },
+                                        )
+                                    }
+                                },
+                                popExitTransition = {
+                                    if (isTopLevelRoute(initialState.destination.route) && isTopLevelRoute(targetState.destination.route)) {
+                                        androidx.compose.animation.ExitTransition.None
+                                    } else {
+                                        slideOutOfContainer(
+                                            towards = AnimatedContentTransitionScope.SlideDirection.End,
+                                            animationSpec = tween(
+                                                durationMillis = 200,
+                                                easing = LinearEasing,
+                                            ),
+                                        )
+                                    }
+                                },
+                            ) {
+                                mediaNavGraph(
+                                    context = this@MainActivity,
+                                    navController = mainNavController,
+                                )
+                                settingsNavGraph(navController = mainNavController)
+                            }
+                        }
                     }
                 }
             }

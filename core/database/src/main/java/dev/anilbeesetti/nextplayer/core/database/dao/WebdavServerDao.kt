@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WebdavServerDao {
 
-    @Query("SELECT * FROM webdav_servers ORDER BY position ASC, createdAt DESC")
+    @Query("SELECT * FROM webdav_servers ORDER BY position ASC, createdAt ASC")
     fun getAllServers(): Flow<List<WebdavServerEntity>>
 
     @Query("SELECT * FROM webdav_servers WHERE id = :id")

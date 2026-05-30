@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -8,12 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,7 +26,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,7 +34,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,12 +45,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
+import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import sh.calvin.reorderable.DragGestureDetector
 import sh.calvin.reorderable.ReorderableCollectionItemScope
@@ -85,21 +87,29 @@ fun RemoteHomeScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("WebDAV Server") })
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddServer,
-                modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)
-            ) {
-                Icon(NextIcons.Add, contentDescription = "Add server")
-            }
+            NextTopAppBar(
+                title = "WebDAV",
+                fontWeight = FontWeight.Bold,
+                actions = {
+                    IconButton(onClick = onAddServer) {
+                        Icon(NextIcons.Add, contentDescription = "Add server")
+                    }
+                }
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
+        val layoutDirection = LocalLayoutDirection.current
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(
+                    top = innerPadding.calculateTopPadding(),
+                    start = innerPadding.calculateStartPadding(layoutDirection),
+                    end = innerPadding.calculateEndPadding(layoutDirection),
+                    bottom = 0.dp
+                )
         ) {
             when {
                 uiState.isLoading -> {
@@ -114,7 +124,7 @@ fun RemoteHomeScreen(
                     ServerList(
                         servers = servers,
                         paddingValues = innerPadding,
-                        onBrowse = onBrowseServer,
+                        onBrowse = { server -> onBrowseServer(server) },
                         onEdit = onEditServer,
                         onDelete = { viewModel.requestDelete(it) },
                         onReorder = { ids -> viewModel.reorderServers(ids) },
@@ -166,12 +176,7 @@ private fun ServerList(
     ) {
         LazyColumn(
             state = lazyListState,
-            contentPadding = PaddingValues(
-                top = paddingValues.calculateTopPadding() + 16.dp,
-                bottom = paddingValues.calculateBottomPadding() + 88.dp,
-                start = 16.dp,
-                end = 16.dp,
-            ),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 60.dp, start = 16.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -208,6 +213,15 @@ private fun ReorderableCollectionItemScope.ServerCard(
     val hapticFeedback = LocalHapticFeedback.current
     var showMenu by remember { mutableStateOf(false) }
 
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isDragging) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        label = "drag_color"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -224,20 +238,21 @@ private fun ReorderableCollectionItemScope.ServerCard(
             )
             .clickable(onClick = onBrowse),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = NextIcons.Storage,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.padding(end = 24.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = server.name,
@@ -246,7 +261,6 @@ private fun ReorderableCollectionItemScope.ServerCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = server.baseUrl,
                     style = MaterialTheme.typography.bodySmall,
@@ -255,6 +269,7 @@ private fun ReorderableCollectionItemScope.ServerCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+
             Box {
                 IconButton(onClick = { showMenu = true }) {
                     Icon(NextIcons.MoreVert, contentDescription = "More options")

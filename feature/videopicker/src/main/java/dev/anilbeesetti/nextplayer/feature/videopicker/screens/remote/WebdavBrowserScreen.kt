@@ -2,22 +2,22 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
- import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,10 +80,6 @@ fun WebdavBrowserScreen(
     LifecycleResumeEffect(Unit) {
         viewModel.refreshProgress()
         onPauseOrDispose {}
-    }
-
-    BackHandler {
-        if (!viewModel.navigateUp()) onNavigateUp()
     }
 
     val server = uiState.server
@@ -186,6 +183,7 @@ private fun WebdavBrowserContent(
     val selectedFiles = uiState.files.filter { it.href in selectedHrefs }.toSet()
     val playableFilesCount = uiState.files.count { viewModel.isPlayable(it) }
     val isAllSelected = selectedHrefs.size == playableFilesCount && playableFilesCount > 0
+    var isFabVisible by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -194,9 +192,17 @@ private fun WebdavBrowserContent(
         }
     }
 
-    BackHandler(enabled = isSelectionMode) {
-        isSelectionMode = false
-        selectedHrefs = emptySet()
+    BackHandler {
+        if (isSelectionMode) {
+            isSelectionMode = false
+            selectedHrefs = emptySet()
+        } else {
+            val navigatedUp = viewModel.navigateUp()
+            if (!navigatedUp) {
+                isFabVisible = false
+                onNavigateUp()
+            }
+        }
     }
 
     val folderCount = uiState.files.count { it.isDirectory }
@@ -223,94 +229,203 @@ private fun WebdavBrowserContent(
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            if (isSelectionMode) {
-                TopAppBar(
-                    title = { Text("${selectedFiles.size} / $playableFilesCount selected") },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            isSelectionMode = false
-                            selectedHrefs = emptySet()
-                        }) {
-                            Icon(NextIcons.Close, contentDescription = "Clear selection")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            if (isAllSelected) {
-                                selectedHrefs = emptySet()
-                            } else {
-                                selectedHrefs = uiState.files.filter { viewModel.isPlayable(it) }.map { it.href }.toSet()
-                            }
-                        }) {
-                            Icon(
-                                imageVector = if (isAllSelected) NextIcons.DeselectAll else NextIcons.SelectAll,
-                                contentDescription = if (isAllSelected) "Deselect All" else "Select All"
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                viewModel.prepareMediaForPlaylist(server, selectedFiles.toList()) { authUrls ->
-                                    onAddToPlaylistClick(authUrls)
+            Column {
+                if (isSelectionMode) {
+                    TopAppBar(
+                        title = { Text("${selectedFiles.size} / $playableFilesCount selected") },
+                        navigationIcon = {
+                            IconButton(
+                                onClick = {
                                     isSelectionMode = false
                                     selectedHrefs = emptySet()
                                 }
-                            },
-                            enabled = selectedFiles.isNotEmpty(),
-                        ) {
-                            Icon(NextIcons.Bookmarks, contentDescription = "Add to Playlist")
-                        }
-                    },
-                    scrollBehavior = scrollBehavior,
-                )
-            } else {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(
-                                text = "${server.name}  ($countText)",
-                                style = MaterialTheme.typography.titleSmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = viewModel.breadcrumb(),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                if (!viewModel.navigateUp()) onNavigateUp()
+                            ) {
+                                Icon(NextIcons.Close, contentDescription = "Clear selection")
                             }
-                        ) {
-                            Icon(NextIcons.ArrowBack, contentDescription = "Back")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { showClearDialog = true }) {
-                            Icon(NextIcons.History, contentDescription = "Clear Playback History")
-                        }
-                    },
-                    scrollBehavior = scrollBehavior,
+                        },
+                        actions = {
+                            IconButton(
+                                onClick = {
+                                    if (isAllSelected) {
+                                        selectedHrefs = emptySet()
+                                    } else {
+                                        selectedHrefs = uiState.files.filter { viewModel.isPlayable(it) }.map { it.href }.toSet()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (isAllSelected) NextIcons.DeselectAll else NextIcons.SelectAll,
+                                    contentDescription = if (isAllSelected) "Deselect All" else "Select All"
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    viewModel.prepareMediaForPlaylist(server, selectedFiles.toList()) { authUrls ->
+                                        onAddToPlaylistClick(authUrls)
+                                        isSelectionMode = false
+                                        selectedHrefs = emptySet()
+                                    }
+                                },
+                                enabled = selectedFiles.isNotEmpty(),
+                            ) {
+                                Icon(NextIcons.Bookmarks, contentDescription = "Add to Playlist")
+                            }
+                        },
+                        scrollBehavior = scrollBehavior,
+                    )
+                } else {
+                    TopAppBar(
+                        title = {
+                            Column {
+                                Text(
+                                    text = "${server.name}  ($countText)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = viewModel.breadcrumb(),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        },
+                        navigationIcon = {
+                            IconButton(
+                                onClick = {
+                                    val navigatedUp = viewModel.navigateUp()
+                                    if (!navigatedUp) {
+                                        isFabVisible = false
+                                        onNavigateUp()
+                                    }
+                                },
+                            ) {
+                                Icon(NextIcons.ArrowBack, contentDescription = "Back")
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { showClearDialog = true }) {
+                                Icon(NextIcons.History, contentDescription = "Clear Playback History")
+                            }
+                        },
+                        scrollBehavior = scrollBehavior,
+                    )
+                }
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { innerPadding ->
+        val layoutDirection = LocalLayoutDirection.current
 
-        floatingActionButton = {
-            if (uiState.lastPlayedUrl != null && !isSelectionMode) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = innerPadding.calculateTopPadding(),
+                    start = innerPadding.calculateStartPadding(layoutDirection),
+                    end = innerPadding.calculateEndPadding(layoutDirection),
+                    bottom = 0.dp
+                ),
+        ) {
+            PullToRefreshBox(
+                isRefreshing = uiState.isLoading && uiState.files.isNotEmpty(),
+                onRefresh = viewModel::refresh,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                when {
+                    uiState.isLoading && uiState.files.isEmpty() -> {
+                        Box(Modifier.fillMaxSize()) {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+                    }
+
+                    uiState.files.isEmpty() && !uiState.isLoading -> {
+                        EmptyDirectory(modifier = Modifier.fillMaxSize())
+                    }
+
+                    else -> {
+                        FileList(
+                            files = uiState.files,
+                            selectedFiles = selectedFiles,
+                            isSelectionMode = isSelectionMode,
+                            onToggleSelection = { file ->
+                                if (!isSelectionMode) isSelectionMode = true
+                                selectedHrefs = if (file.href in selectedHrefs) {
+                                    selectedHrefs - file.href
+                                } else {
+                                    selectedHrefs + file.href
+                                }
+                                if (selectedHrefs.isEmpty()) isSelectionMode = false
+                            },
+                            playbackProgress = uiState.playbackProgress,
+                            markLastPlayedMedia = uiState.markLastPlayedMedia,
+                            serverBaseUrl = server.baseUrl,
+                            lastPlayedUrl = uiState.lastPlayedUrl,
+                            hasPlaybackHistory = uiState.hasPlaybackHistory,
+                            onDirectoryClick = viewModel::navigateTo,
+                            onFileClick = { file ->
+                                if (isSelectionMode) {
+                                    if (!viewModel.isPlayable(file) || file.isDirectory) return@FileList
+                                    selectedHrefs = if (file.href in selectedHrefs) {
+                                        selectedHrefs - file.href
+                                    } else {
+                                        selectedHrefs + file.href
+                                    }
+                                    if (selectedHrefs.isEmpty()) {
+                                        isSelectionMode = false
+                                    }
+                                } else {
+                                    val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
+                                    val urls = playableFiles.map { viewModel.buildFileUrl(server, it, uiState.files) }
+                                    val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
+                                    onPlayFile(urls, selectedIndex, server)
+                                }
+                            },
+                            isPlayable = viewModel::isPlayable,
+                        )
+                    }
+                }
+            }
+
+            if (showClearDialog) {
+                AlertDialog(
+                    onDismissRequest = { showClearDialog = false },
+                    title = { Text("Clear Playback History") },
+                    text = { Text("Are you sure you want to clear the playback history for all videos in this folder?") },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.clearPlaybackHistory()
+                                showClearDialog = false
+                            }
+                        ) {
+                            Text("Clear", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            if (uiState.lastPlayedUrl != null && !isSelectionMode && isFabVisible) {
                 FloatingActionButton(
                     onClick = {
                         viewModel.playLastPlayed { urls, index ->
                             onPlayFile(urls, index, server)
                         }
                     },
-                    modifier = Modifier.padding(end = 16.dp, bottom = 16.dp)
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 32.dp, bottom = 32.dp)
                 ) {
                     Icon(
                         imageVector = NextIcons.Play,
@@ -318,79 +433,6 @@ private fun WebdavBrowserContent(
                     )
                 }
             }
-        },
-    ) { innerPadding ->
-
-        PullToRefreshBox(
-            isRefreshing = uiState.isLoading && uiState.files.isNotEmpty(),
-            onRefresh = viewModel::refresh,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            when {
-                uiState.isLoading && uiState.files.isEmpty() -> {
-                    Box(Modifier.fillMaxSize()) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    }
-                }
-
-                uiState.files.isEmpty() && !uiState.isLoading -> {
-                    EmptyDirectory(modifier = Modifier.fillMaxSize())
-                }
-
-                else -> {
-                    FileList(
-                        files = uiState.files,
-                        selectedFiles = selectedFiles,
-                        isSelectionMode = isSelectionMode,
-                        onToggleSelection = { file ->
-                            if (!isSelectionMode) isSelectionMode = true
-                            selectedHrefs = if (file.href in selectedHrefs) selectedHrefs - file.href else selectedHrefs + file.href
-                        },
-                        playbackProgress = uiState.playbackProgress,
-                        markLastPlayedMedia = uiState.markLastPlayedMedia,
-                        serverBaseUrl = server.baseUrl,
-                        lastPlayedUrl = uiState.lastPlayedUrl,
-                        hasPlaybackHistory = uiState.hasPlaybackHistory,
-                        onDirectoryClick = viewModel::navigateTo,
-                        onFileClick = { file ->
-                            if (isSelectionMode) {
-                                selectedHrefs = if (file.href in selectedHrefs) selectedHrefs - file.href else selectedHrefs + file.href
-                            } else {
-                                val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
-                                val urls = playableFiles.map { viewModel.buildFileUrl(server, it, uiState.files) }
-                                val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
-                                onPlayFile(urls, selectedIndex, server)
-                            }
-                        },
-                        isPlayable = viewModel::isPlayable,
-                    )
-                }
-            }
-        }
-
-        if (showClearDialog) {
-            AlertDialog(
-                onDismissRequest = { showClearDialog = false },
-                title = { Text("Clear Playback History") },
-                text = { Text("Are you sure you want to clear the playback history for all videos in this folder?") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.clearPlaybackHistory()
-                            showClearDialog = false
-                        }
-                    ) {
-                        Text("Clear", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showClearDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
         }
     }
 }
@@ -414,7 +456,8 @@ private fun FileList(
 ) {
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(vertical = 4.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
         val base = serverBaseUrl.trimEnd('/')
 

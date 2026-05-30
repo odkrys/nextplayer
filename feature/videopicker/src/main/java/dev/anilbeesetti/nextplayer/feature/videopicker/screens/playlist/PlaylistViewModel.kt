@@ -56,7 +56,12 @@ class PlaylistViewModel @Inject constructor(
 
     private fun createPlaylist(name: String) {
         viewModelScope.launch {
-            createPlaylistUseCase(name).onFailure { throwable ->
+            val currentPlaylists = (uiStateInternal.value.dataState as? DataState.Success)?.value ?: emptyList()
+
+            val maxPosition = currentPlaylists.maxOfOrNull { it.position } ?: -1
+            val newPosition = maxPosition + 1
+
+            createPlaylistUseCase(name, newPosition).onFailure { throwable ->
                 uiStateInternal.update { it.copy(errorMessage = throwable.message) }
             }
         }

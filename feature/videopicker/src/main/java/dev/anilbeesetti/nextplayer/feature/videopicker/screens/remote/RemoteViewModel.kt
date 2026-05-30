@@ -49,7 +49,15 @@ class RemoteViewModel @Inject constructor(
     fun saveServer(server: WebdavServer, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            saveWebdavServerUseCase(server)
+
+            val serverToSave = if (server.id == 0L) {
+                val maxPosition = servers.value.maxOfOrNull { it.position } ?: -1
+                server.copy(position = maxPosition + 1)
+            } else {
+                server
+            }
+
+            saveWebdavServerUseCase(serverToSave)
                 .onSuccess {
                     _uiState.update { it.copy(isLoading = false) }
                     onSuccess()
@@ -82,7 +90,7 @@ class RemoteViewModel @Inject constructor(
                     mediaRepository.deleteByPrefix(urlPrefix)
 
                     _uiState.update {
-                        it.copy(isLoading = false, successMessage = "${server.name} Deleted")
+                        it.copy(isLoading = false)
                     }
                 }
                 .onFailure { e ->

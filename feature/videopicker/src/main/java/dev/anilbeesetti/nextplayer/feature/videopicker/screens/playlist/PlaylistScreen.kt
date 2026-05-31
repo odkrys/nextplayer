@@ -51,7 +51,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.Playlist
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
@@ -66,9 +67,9 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 fun PlaylistRoute(
     selectedUris: List<String> = emptyList(),
+    viewModel: PlaylistViewModel,
     onPlaylistClick: (Long, List<String>) -> Unit,
     onBackClick: () -> Unit,
-    viewModel: PlaylistViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -107,6 +108,7 @@ fun PlaylistScreen(
     onBackClick: () -> Unit,
     onEvent: (PlaylistUiEvent) -> Unit,
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
 
     var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
@@ -134,7 +136,11 @@ fun PlaylistScreen(
                 fontWeight = if (!isAddingMode) FontWeight.Bold else null,
                 navigationIcon = {
                     if (isAddingMode) {
-                        IconButton(onClick = onBackClick) {
+                        IconButton(onClick = {
+                            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                onBackClick()
+                            }
+                        }) {
                             Icon(NextIcons.Close, contentDescription = "Cancel")
                         }
                     }

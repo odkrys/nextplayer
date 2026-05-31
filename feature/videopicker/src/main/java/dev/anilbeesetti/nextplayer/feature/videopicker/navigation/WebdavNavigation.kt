@@ -1,5 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.navigation
 
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -7,7 +9,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote.RemoteHomeScreen
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote.RemoteViewModel
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote.WebdavBrowserScreen
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote.WebdavBrowserViewModel
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote.WebdavServerFormScreen
 
 const val REMOTE_HOME_ROUTE = "remote_home"
@@ -34,11 +38,20 @@ fun NavGraphBuilder.webdavNavGraph(
     navController: NavController,
     onPlayFile: (urls: List<String>, index: Int, server: WebdavServer) -> Unit,
 ) {
-    composable(route = REMOTE_HOME_ROUTE) {
+    composable(
+        route = REMOTE_HOME_ROUTE
+    ) { backStackEntry ->
+        val viewModel: RemoteViewModel = hiltViewModel()
+
         RemoteHomeScreen(
+            viewModel = viewModel,
             onAddServer = { navController.navigateToWebdavForm() },
             onEditServer = { server -> navController.navigateToWebdavForm(server.id) },
-            onBrowseServer = { server -> navController.navigateToWebdavBrowser(server.id) },
+            onBrowseServer = { server ->
+                if (backStackEntry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                    navController.navigateToWebdavBrowser(server.id)
+                }
+            },
         )
     }
 
@@ -52,6 +65,7 @@ fun NavGraphBuilder.webdavNavGraph(
         ),
     ) { backStackEntry ->
         val serverId = backStackEntry.arguments?.getLong("serverId") ?: 0L
+
         WebdavServerFormScreen(
             serverId = serverId,
             onNavigateUp = { navController.navigateUp() },
@@ -65,8 +79,11 @@ fun NavGraphBuilder.webdavNavGraph(
         ),
     ) { backStackEntry ->
         val serverId = backStackEntry.arguments?.getLong("serverId") ?: 0L
+        val viewModel: WebdavBrowserViewModel = hiltViewModel()
+
         WebdavBrowserScreen(
             serverId = serverId,
+            viewModel = viewModel,
             onNavigateUp = { navController.navigateUp() },
             onPlayFile = onPlayFile,
             onAddToPlaylistClick = { uris -> navController.navigateToPlaylist(uris) },

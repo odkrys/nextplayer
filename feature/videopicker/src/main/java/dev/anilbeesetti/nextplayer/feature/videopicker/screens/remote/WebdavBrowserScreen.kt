@@ -54,8 +54,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
@@ -65,10 +66,10 @@ import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 @Composable
 fun WebdavBrowserScreen(
     serverId: Long,
+    viewModel: WebdavBrowserViewModel,
     onNavigateUp: () -> Unit,
     onPlayFile: (urls: List<String>, index: Int, server: WebdavServer) -> Unit,
     onAddToPlaylistClick: (List<String>) -> Unit,
-    viewModel: WebdavBrowserViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -174,6 +175,7 @@ private fun WebdavBrowserContent(
     onAddToPlaylistClick: (List<String>) -> Unit,
     viewModel: WebdavBrowserViewModel,
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     var showClearDialog by rememberSaveable { mutableStateOf(false) }
@@ -201,10 +203,12 @@ private fun WebdavBrowserContent(
             isSelectionMode = false
             selectedHrefs = emptySet()
         } else {
-            val navigatedUp = viewModel.navigateUp()
-            if (!navigatedUp) {
-                isFabVisible = false
-                onNavigateUp()
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                val navigatedUp = viewModel.navigateUp()
+                if (!navigatedUp) {
+                    isFabVisible = false
+                    onNavigateUp()
+                }
             }
         }
     }
@@ -318,10 +322,12 @@ private fun WebdavBrowserContent(
                         navigationIcon = {
                             IconButton(
                                 onClick = {
-                                    val navigatedUp = viewModel.navigateUp()
-                                    if (!navigatedUp) {
-                                        isFabVisible = false
-                                        onNavigateUp()
+                                    if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                        val navigatedUp = viewModel.navigateUp()
+                                        if (!navigatedUp) {
+                                            isFabVisible = false
+                                            onNavigateUp()
+                                        }
                                     }
                                 },
                             ) {

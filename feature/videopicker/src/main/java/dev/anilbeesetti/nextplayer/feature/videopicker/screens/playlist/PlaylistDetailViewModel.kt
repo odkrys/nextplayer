@@ -201,6 +201,27 @@ class PlaylistDetailViewModel @Inject constructor(
         }
     }
 
+    fun clearPlaybackHistory() {
+        val urisToDelete = uiStateInternal.value.videos.map { it.uriString }
+        if (urisToDelete.isEmpty()) return
+
+        val playlistId = (uiStateInternal.value.dataState as? DataState.Success)?.value?.id
+
+        viewModelScope.launch {
+            try {
+                mediaRepository.delete(urisToDelete)
+
+                if (playlistId != null) {
+                    playlistRepository.updateLastPlayedUri(playlistId, "")
+                }
+
+                refreshRemoteProgress()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun verifyWebdavLinks() {
         if (_isVerifyingLinks.value) return
 

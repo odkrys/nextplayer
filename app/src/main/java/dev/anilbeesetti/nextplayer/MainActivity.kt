@@ -205,9 +205,11 @@ class MainActivity : ComponentActivity() {
 
                                     NavigationBar {
                                         NavigationBarItem(
-                                            selected = currentRoute?.contains("MediaRootRoute") == true ||
-                                                    currentRoute?.contains("MediaPickerRoute") == true,
+                                            selected = isMediaSelected,
                                             onClick = {
+                                                val currentEntry = mainNavController.currentBackStackEntry
+                                                if (currentEntry?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != true) return@NavigationBarItem
+
                                                 if (isMediaSelected) {
                                                     mainNavController.navigate(MediaRootRoute) {
                                                         popUpTo(mainNavController.graph.findStartDestination().id) { inclusive = false }
@@ -234,6 +236,9 @@ class MainActivity : ComponentActivity() {
                                         NavigationBarItem(
                                             selected = isPlaylistSelected,
                                             onClick = {
+                                                val currentEntry = mainNavController.currentBackStackEntry
+                                                if (currentEntry?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != true) return@NavigationBarItem
+
                                                 if (isPlaylistSelected) {
                                                     mainNavController.navigate("playlist?selectedUris=") {
                                                         popUpTo(PLAYLIST_ROUTE) { inclusive = false }
@@ -260,6 +265,9 @@ class MainActivity : ComponentActivity() {
                                         NavigationBarItem(
                                             selected = isWebDavSelected,
                                             onClick = {
+                                                val currentEntry = mainNavController.currentBackStackEntry
+                                                if (currentEntry?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != true) return@NavigationBarItem
+
                                                 if (isWebDavSelected) {
                                                     mainNavController.navigate(REMOTE_HOME_ROUTE) {
                                                         popUpTo(REMOTE_HOME_ROUTE) { inclusive = false }

@@ -38,7 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
@@ -49,10 +50,10 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.composables.VideoItem
 
 @Composable
 fun PlaylistDetailRoute(
+    viewModel: PlaylistDetailViewModel,
     onPlayClick: (uris: List<String>, startIndex: Int) -> Unit,
     onVideoClick: (uris: List<String>, index: Int) -> Unit,
     onBackClick: () -> Unit,
-    viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val remoteProgress by viewModel.remotePlaybackProgress.collectAsStateWithLifecycle()
@@ -95,6 +96,7 @@ fun PlaylistDetailScreen(
     onBackClick: () -> Unit,
     onEvent: (PlaylistDetailUiEvent) -> Unit,
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
     val playlist = (uiState.dataState as? DataState.Success)?.value
     var showAddMediaSheet by rememberSaveable { mutableStateOf(false) }
     var isSelectionMode by rememberSaveable { mutableStateOf(false) }
@@ -117,8 +119,10 @@ fun PlaylistDetailScreen(
             isSelectionMode = false
             selectedUris = emptySet()
         } else {
-            isFabVisible = false
-            onBackClick()
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                isFabVisible = false
+                onBackClick()
+            }
         }
     }
 
@@ -146,8 +150,10 @@ fun PlaylistDetailScreen(
                         } else {
                             IconButton(
                                 onClick = {
-                                    isFabVisible = false
-                                    onBackClick()
+                                    if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                        isFabVisible = false
+                                        onBackClick()
+                                    }
                                 },
                             ) {
                                 Icon(NextIcons.ArrowBack, contentDescription = "Back")

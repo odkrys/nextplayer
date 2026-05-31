@@ -49,7 +49,6 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
@@ -62,10 +61,10 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RemoteHomeScreen(
+    viewModel: RemoteViewModel,
     onAddServer: () -> Unit,
     onEditServer: (WebdavServer) -> Unit,
     onBrowseServer: (WebdavServer) -> Unit,
-    viewModel: RemoteViewModel = hiltViewModel(),
 ) {
     val servers by viewModel.servers.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

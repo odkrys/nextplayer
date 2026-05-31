@@ -1,6 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.navigation
 
 import android.net.Uri
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -8,6 +9,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.PlaylistRoute
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.PlaylistDetailRoute
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.PlaylistDetailViewModel
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.PlaylistViewModel
 
 const val SELECTED_URIS_ARG = "selectedUris"
 const val PLAYLIST_ROUTE = "playlist?$SELECTED_URIS_ARG={$SELECTED_URIS_ARG}"
@@ -45,8 +48,11 @@ fun NavGraphBuilder.playlistScreen(
             ?.map { Uri.decode(it) }
             ?: emptyList()
 
+        val viewModel: PlaylistViewModel = hiltViewModel()
+
         PlaylistRoute(
             selectedUris = selectedUris,
+            viewModel = viewModel,
             onPlaylistClick = onPlaylistClick,
             onBackClick = onBackClick,
         )
@@ -66,7 +72,10 @@ fun NavGraphBuilder.playlistDetailScreen(
     ) { backStackEntry ->
         val playlistId = backStackEntry.arguments?.getLong(PLAYLIST_ID_ARG) ?: -1L
 
+        val viewModel: PlaylistDetailViewModel = hiltViewModel()
+
         PlaylistDetailRoute(
+            viewModel = viewModel,
             onPlayClick = { uris, startIndex -> onPlayClick(playlistId, uris, startIndex) },
             onVideoClick = { uris, index -> onVideoClick(playlistId, uris, index) },
             onBackClick = onBackClick,

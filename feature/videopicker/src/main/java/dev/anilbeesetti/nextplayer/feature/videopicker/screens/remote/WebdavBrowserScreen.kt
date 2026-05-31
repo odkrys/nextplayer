@@ -212,7 +212,7 @@ private fun WebdavBrowserContent(
     val folderCount = uiState.files.count { it.isDirectory }
     val fileCount = uiState.files.count { !it.isDirectory }
 
-    val countText = remember(folderCount, fileCount, uiState.isLoading) {
+    val countText = remember(folderCount, fileCount, uiState.isLoading, uiState.isFetching) {
         buildString {
             if (folderCount > 0) {
                 append("$folderCount folder")
@@ -224,7 +224,7 @@ private fun WebdavBrowserContent(
                 append("$fileCount file")
                 if (fileCount > 1) append("s")
             }
-            if (folderCount == 0 && fileCount == 0 && !uiState.isLoading) {
+            if (folderCount == 0 && fileCount == 0 && !uiState.isLoading && !uiState.isFetching) {
                 append("Empty")
             }
         }
@@ -367,7 +367,7 @@ private fun WebdavBrowserContent(
                         }
                     }
 
-                    uiState.files.isEmpty() && !uiState.isLoading -> {
+                    uiState.files.isEmpty() && !uiState.isFetching -> {
                         EmptyDirectory(modifier = Modifier.fillMaxSize())
                     }
 

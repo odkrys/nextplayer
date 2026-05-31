@@ -25,6 +25,7 @@ data class WebdavBrowserUiState(
     val pathStack: List<String> = listOf("/"),
     val files: List<WebdavFile> = emptyList(),
     val isLoading: Boolean = false,
+    val isFetching: Boolean = false,
     val errorMessage: String? = null,
     val playbackProgress: Map<String, Float> = emptyMap(),
     val lastPlayedUrl: String? = null,
@@ -96,7 +97,7 @@ class WebdavBrowserViewModel @Inject constructor(
         fileLoadingJob?.cancel()
 
         fileLoadingJob = viewModelScope.launch {
-            _uiState.update { it.copy(errorMessage = null) }
+            _uiState.update { it.copy(errorMessage = null, isFetching = true) }
 
             val spinnerJob = launch {
                 delay(250)
@@ -123,13 +124,18 @@ class WebdavBrowserViewModel @Inject constructor(
                             lastPlayedUrl = lastPlayed,
                             hasPlaybackHistory = hasHistory,
                             isLoading = false,
+                            isFetching = false,
                         )
                     }
                 }
                 .onFailure { e ->
                     spinnerJob.cancel()
                     _uiState.update {
-                        it.copy(isLoading = false, errorMessage = e.message ?: e.toString())
+                        it.copy(
+                            isLoading = false,
+                            isFetching = false,
+                            errorMessage = e.message ?: e.toString()
+                        )
                     }
                 }
         }

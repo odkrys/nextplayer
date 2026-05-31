@@ -85,11 +85,16 @@ class PlaylistDetailViewModel @Inject constructor(
                 preferencesRepository.applicationPreferences
             ) { playlist, allVideos, prefs ->
                 val videoMap = allVideos.associateBy { it.uriString }
-                val orderedVideos = playlist?.mediaUris?.mapNotNull { videoMap[it] } ?: emptyList()
-                val orderedFullUrls = playlist?.mediaUris?.map { uri ->
-                    val fullUrlIndex = playlist.mediaUris.indexOf(uri)
-                    playlist.mediaFullUrls.getOrElse(fullUrlIndex) { uri }
+
+                val orderedPairs = playlist?.mediaUris?.mapIndexedNotNull { index, uri ->
+                    val video = videoMap[uri] ?: return@mapIndexedNotNull null
+                    val fullUrl = playlist.mediaFullUrls.getOrElse(index) { uri }
+                    video to fullUrl
                 } ?: emptyList()
+
+                val orderedVideos = orderedPairs.map { it.first }
+                val orderedFullUrls = orderedPairs.map { it.second }
+
                 Triple(playlist, orderedVideos to orderedFullUrls, prefs)
             }.collect { (playlist, videosAndUrls, prefs) ->
                 val (videos, fullUrls) = videosAndUrls

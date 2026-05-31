@@ -42,10 +42,8 @@ fun NavGraphBuilder.playlistScreen(
     ) { backStackEntry ->
         val selectedUris = backStackEntry.arguments
             ?.getString(SELECTED_URIS_ARG)
-            ?.let { Uri.decode(it) }
             ?.split(URI_SEPARATOR)
             ?.filter { it.isNotBlank() }
-            ?.map { Uri.decode(it) }
             ?: emptyList()
 
         val viewModel: PlaylistViewModel = hiltViewModel()

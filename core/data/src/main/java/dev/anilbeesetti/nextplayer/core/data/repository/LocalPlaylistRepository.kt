@@ -79,7 +79,8 @@ class LocalPlaylistRepository @Inject constructor(
         val currentMaxPosition = playlistDao.getMaxPosition(playlistId) ?: -1
 
         val crossRefs = mediumUris.mapIndexed { index, uri ->
-            val cleanUri = Uri.parse(uri).buildUpon().fragment(null).build().toString()
+            val cleanUri = uri.replace("#", "%23")
+                .let { Uri.parse(it).buildUpon().fragment(null).build().toString() }
             PlaylistMediumCrossEntity(
                 playlistId = playlistId,
                 mediumUri = cleanUri,

@@ -187,7 +187,8 @@ class WebdavBrowserViewModel @Inject constructor(
     ): Pair<String?, Boolean> {
         val base = server.baseUrl.trimEnd('/')
         val normalizedPath = if (currentPath == "/") "" else currentPath.trimEnd('/')
-        val urlPrefix = "$base$normalizedPath"
+        val encodedPath = Uri.encode(normalizedPath, "/")
+        val urlPrefix = "$base$encodedPath"
         val state = mediaRepository.getRecentUrlPrefix(urlPrefix)
 
         val hasHistory = state != null && state.lastPlayedTime != null
@@ -260,20 +261,20 @@ class WebdavBrowserViewModel @Inject constructor(
     }
 
     fun buildFileUrl(server: WebdavServer, file: WebdavFile): String {
-        val base = server.baseUrl.trimEnd('/')
-        val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
-            file.href
-        } else {
-            "$base/${file.path.trimStart('/')}"
-        }
+        val baseUri = Uri.parse(server.baseUrl)
+        val scheme = baseUri.scheme ?: if (server.useSsl) "https" else "http"
+        val authority = baseUri.authority ?: "${server.host}:${server.port}"
 
-        val uri = Uri.parse(rawUrl)
-        val scheme = uri.scheme ?: (if (server.useSsl) "https" else "http")
-        val hostAndPort = uri.authority ?: "${server.host}:${server.port}"
+        val basePath = baseUri.path?.trimEnd('/') ?: ""
 
-        return uri.buildUpon()
+        val fullPath = "$basePath/${file.path.trimStart('/')}"
+
+        val encodedPath = Uri.encode(fullPath, "/")
+
+        return Uri.Builder()
             .scheme(scheme)
-            .encodedAuthority(hostAndPort)
+            .encodedAuthority(authority)
+            .encodedPath(encodedPath)
             .build()
             .toString()
     }

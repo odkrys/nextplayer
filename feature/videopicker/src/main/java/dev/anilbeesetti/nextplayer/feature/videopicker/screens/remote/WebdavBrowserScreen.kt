@@ -188,7 +188,7 @@ private fun WebdavBrowserContent(
     val totalSelectableCount = playableFilesCount + selectableFolderCount
     val selectedFolders = selectedFiles.count { it.isDirectory }
     val selectedPlayable = selectedFiles.count { !it.isDirectory }
-    val isAllSelected = selectedHrefs.size == playableFilesCount && playableFilesCount > 0
+    val isAllSelected = selectedHrefs.size == totalSelectableCount && totalSelectableCount > 0
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(uiState.errorMessage) {
@@ -416,6 +416,7 @@ private fun WebdavBrowserContent(
                                 }
                             },
                             isPlayable = viewModel::isPlayable,
+                            buildFileUrl = { viewModel.buildFileUrl(server, it) },
                         )
                     }
                 }
@@ -480,6 +481,7 @@ private fun FileList(
     onDirectoryClick: (WebdavFile) -> Unit,
     onFileClick: (WebdavFile) -> Unit,
     isPlayable: (WebdavFile) -> Boolean,
+    buildFileUrl: (WebdavFile) -> String,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -487,13 +489,11 @@ private fun FileList(
         contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
-        val base = serverBaseUrl.trimEnd('/')
-
         items(files, key = { it.href }) { file ->
             val playable = isPlayable(file)
             val isSelected = file in selectedFiles
             val progress = playbackProgress[file.href]
-            val fileUrl = "$base/${file.path.trimStart('/')}"
+            val fileUrl = buildFileUrl(file)
             val isLastPlayed = hasPlaybackHistory &&
                     lastPlayedUrl != null &&
                     (lastPlayedUrl == fileUrl ||

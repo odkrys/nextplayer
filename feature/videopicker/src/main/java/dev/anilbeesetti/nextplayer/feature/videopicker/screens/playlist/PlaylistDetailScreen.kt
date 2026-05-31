@@ -84,6 +84,7 @@ fun PlaylistDetailRoute(
         onVerifyLinks = viewModel::verifyWebdavLinks,
         onRemoveDeadLinks = viewModel::removeDeadLinks,
         onClearDeadLinks = viewModel::clearDeadLinksResult,
+        onClearHistory = viewModel::clearPlaybackHistory,
         onPlayClick = {
             val uris = uiState.sortedVideos.map { it.uriString }
             if (uris.isEmpty()) return@PlaylistDetailScreen
@@ -113,6 +114,7 @@ fun PlaylistDetailScreen(
     onVerifyLinks: () -> Unit,
     onRemoveDeadLinks: () -> Unit,
     onClearDeadLinks: () -> Unit,
+    onClearHistory: () -> Unit,
     onPlayClick: () -> Unit,
     onVideoClick: (index: Int) -> Unit,
     onBackClick: () -> Unit,
@@ -120,9 +122,9 @@ fun PlaylistDetailScreen(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val playlist = (uiState.dataState as? DataState.Success)?.value
-    var showAddMediaSheet by rememberSaveable { mutableStateOf(false) }
     var isSelectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedUris by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var showClearHistoryDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
@@ -258,8 +260,8 @@ fun PlaylistDetailScreen(
                                     )
                                 }
                             }
-                            IconButton(onClick = { showAddMediaSheet = true }) {
-                                Icon(NextIcons.Add, contentDescription = "Add media")
+                            IconButton(onClick = { showClearHistoryDialog = true }) {
+                                Icon(NextIcons.History, contentDescription = "Clear Playback History")
                             }
                         }
                     },
@@ -358,15 +360,27 @@ fun PlaylistDetailScreen(
             }
         }
 
-        if (showAddMediaSheet) {
-            val playlistData = (uiState.dataState as? DataState.Success)?.value
-
-            playlistData?.id?.let { currentId ->
-                AddMediaToPlaylistBottomSheet(
-                    playlistId = currentId,
-                    onDismiss = { showAddMediaSheet = false },
-                )
-            }
+        if (showClearHistoryDialog) {
+            AlertDialog(
+                onDismissRequest = { showClearHistoryDialog = false },
+                title = { Text("Clear Playback History") },
+                text = { Text("Are you sure you want to clear the playback history for all videos in this playlist?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            onClearHistory()
+                            showClearHistoryDialog = false
+                        }
+                    ) {
+                        Text("Clear", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearHistoryDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         if (showDeleteDialog) {

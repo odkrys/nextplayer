@@ -141,4 +141,8 @@ class LocalPlaylistRepository @Inject constructor(
     override suspend fun removeMediaByPrefix(prefix: String) {
         playlistDao.removeMediaByPrefix(prefix)
     }
+
+    override suspend fun removeDeletedMediaFromAllPlaylists(mediumUris: List<String>) {
+        playlistDao.removeDeletedMediaFromAllPlaylists(mediumUris)
+    }
 }

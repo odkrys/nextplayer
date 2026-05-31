@@ -12,6 +12,7 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.scanPaths
 import dev.anilbeesetti.nextplayer.core.common.extensions.scanStorage
 import dev.anilbeesetti.nextplayer.core.database.converter.UriListConverter
 import dev.anilbeesetti.nextplayer.core.database.dao.MediumStateDao
+import dev.anilbeesetti.nextplayer.core.database.dao.PlaylistDao
 import dev.anilbeesetti.nextplayer.core.media.services.MediaService
 import dev.anilbeesetti.nextplayer.core.media.services.MediaVideo
 import javax.inject.Inject
@@ -28,6 +29,7 @@ class LocalMediaSynchronizer @Inject constructor(
     private val mediumStateDao: MediumStateDao,
     private val imageLoader: ImageLoader,
     private val mediaService: MediaService,
+    private val playlistDao: PlaylistDao,
     @ApplicationScope private val applicationScope: CoroutineScope,
     @ApplicationContext private val context: Context,
 ) : MediaSynchronizer {
@@ -57,7 +59,14 @@ class LocalMediaSynchronizer @Inject constructor(
             it.uriString in currentMediaUris || !ContentResolver.SCHEME_CONTENT.equals(it.uriString.toUri().scheme, ignoreCase = true)
         }
 
-        mediumStateDao.delete(unwantedMediaStates.map { it.uriString })
+        //mediumStateDao.delete(unwantedMediaStates.map { it.uriString })
+
+        val unwantedUris = unwantedMediaStates.map { it.uriString }
+
+        if (unwantedUris.isNotEmpty()) {
+            mediumStateDao.delete(unwantedUris)
+            playlistDao.removeDeletedMediaFromAllPlaylists(unwantedUris)
+        }
 
         // Delete unwanted thumbnails
         unwantedMediaStates.forEach { mediaState ->

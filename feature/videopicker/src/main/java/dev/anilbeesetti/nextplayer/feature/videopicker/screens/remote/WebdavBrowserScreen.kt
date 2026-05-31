@@ -410,7 +410,7 @@ private fun WebdavBrowserContent(
                                     }
                                 } else {
                                     val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
-                                    val urls = playableFiles.map { viewModel.buildFileUrl(server, it, uiState.files) }
+                                    val urls = playableFiles.map { viewModel.buildFileUrl(server, it) }
                                     val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
                                     onPlayFile(urls, selectedIndex, server)
                                 }

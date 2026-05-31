@@ -7,7 +7,6 @@ data class Playlist(
     val updatedAt: Long,
     val lastPlayedUri: String? = null,
     val mediaUris: List<String> = emptyList(),
-    val mediaFullUrls: List<String> = emptyList(),
     val sortOption: PlaylistSortOption = PlaylistSortOption.ADDED_ASC,
     val position: Int = 0
 )

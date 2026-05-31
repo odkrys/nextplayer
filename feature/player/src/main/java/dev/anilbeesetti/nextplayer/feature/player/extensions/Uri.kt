@@ -51,7 +51,12 @@ suspend fun Context.uriToSubtitleConfiguration(
     //val label = getFilenameFromUri(uri)
     val label = URLDecoder.decode(getFilenameFromUri(uri), "UTF-8")
     val mimeType = uri.getSubtitleMime()
-    val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
+    //val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
+    val utf8ConvertedUri = if (uri.scheme == "http" || uri.scheme == "https") {
+        uri
+    } else {
+        convertToUTF8(uri = uri, charset = charset)
+    }
     return MediaItem.SubtitleConfiguration.Builder(utf8ConvertedUri).apply {
         setId(uri.toString())
         setMimeType(mimeType)

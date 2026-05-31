@@ -85,24 +85,15 @@ class PlaylistDetailViewModel @Inject constructor(
                 preferencesRepository.applicationPreferences
             ) { playlist, allVideos, prefs ->
                 val videoMap = allVideos.associateBy { it.uriString }
-
-                val orderedPairs = playlist?.mediaUris?.mapIndexedNotNull { index, uri ->
-                    val video = videoMap[uri] ?: return@mapIndexedNotNull null
-                    val fullUrl = playlist.mediaFullUrls.getOrElse(index) { uri }
-                    video to fullUrl
+                val orderedVideos = playlist?.mediaUris?.mapNotNull { uri ->
+                    videoMap[uri]
                 } ?: emptyList()
-
-                val orderedVideos = orderedPairs.map { it.first }
-                val orderedFullUrls = orderedPairs.map { it.second }
-
-                Triple(playlist, orderedVideos to orderedFullUrls, prefs)
-            }.collect { (playlist, videosAndUrls, prefs) ->
-                val (videos, fullUrls) = videosAndUrls
+                Triple(playlist, orderedVideos, prefs)
+            }.collect { (playlist, videos, prefs) ->
                 uiStateInternal.update {
                     it.copy(
                         dataState = DataState.Success(playlist),
                         videos = videos,
-                        fullUrls = fullUrls,
                         preferences = prefs,
                         sortOption = playlist?.sortOption ?: PlaylistSortOption.ADDED_ASC,
                     )
@@ -195,7 +186,9 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _isVerifyingLinks.value = true
 
-            val webdavUrls = uiStateInternal.value.fullUrls.filter { it.startsWith("http") }
+            val webdavUrls = uiStateInternal.value.videos
+                .map { it.uriString }
+                .filter { it.startsWith("http") }
             val servers = webdavServerRepository.getAllServers().first()
 
             val serverHostMap = servers.associateBy {
@@ -264,7 +257,6 @@ class PlaylistDetailViewModel @Inject constructor(
 data class PlaylistDetailUiState(
     val dataState: DataState<Playlist?> = DataState.Loading,
     val videos: List<Video> = emptyList(),
-    val fullUrls: List<String> = emptyList(),
     val sortOption: PlaylistSortOption = PlaylistSortOption.ADDED_ASC,
     val preferences: ApplicationPreferences = ApplicationPreferences()
 ) {
@@ -274,16 +266,6 @@ data class PlaylistDetailUiState(
             PlaylistSortOption.ADDED_DESC -> videos.reversed()
             PlaylistSortOption.NAME_ASC -> videos.sortedBy { it.displayName.lowercase() }
             PlaylistSortOption.NAME_DESC -> videos.sortedByDescending { it.displayName.lowercase() }
-        }
-
-    val sortedFullUrls: List<String>
-        get() = when (sortOption) {
-            PlaylistSortOption.ADDED_ASC -> fullUrls
-            PlaylistSortOption.ADDED_DESC -> fullUrls.reversed()
-            PlaylistSortOption.NAME_ASC -> videos.zip(fullUrls)
-                .sortedBy { it.first.displayName.lowercase() }.map { it.second }
-            PlaylistSortOption.NAME_DESC -> videos.zip(fullUrls)
-                .sortedByDescending { it.first.displayName.lowercase() }.map { it.second }
         }
 }
 

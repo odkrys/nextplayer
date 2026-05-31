@@ -49,7 +49,6 @@ class GetPlaylistWithMediaUseCase @Inject constructor(
             if (indicesToKeep.size != playlist.mediaUris.size) {
                 playlist.copy(
                     mediaUris = indicesToKeep.map { playlist.mediaUris[it] },
-                    mediaFullUrls = indicesToKeep.map { playlist.mediaFullUrls[it] }
                 )
             } else {
                 playlist

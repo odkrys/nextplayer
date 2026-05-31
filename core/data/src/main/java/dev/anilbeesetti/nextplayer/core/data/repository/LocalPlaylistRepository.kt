@@ -33,7 +33,6 @@ class LocalPlaylistRepository @Inject constructor(
                 updatedAt = playlistEntity.updatedAt,
                 lastPlayedUri = playlistEntity.lastPlayedUri,
                 mediaUris = entries.map { it.mediumUri },
-                mediaFullUrls = entries.map { it.fullUrl },
                 sortOption = runCatching {
                     PlaylistSortOption.valueOf(playlistEntity.sortOption)
                 }.getOrDefault(PlaylistSortOption.ADDED_ASC),
@@ -84,7 +83,6 @@ class LocalPlaylistRepository @Inject constructor(
             PlaylistMediumCrossEntity(
                 playlistId = playlistId,
                 mediumUri = cleanUri,
-                fullUrl = uri,
                 position = currentMaxPosition + 1 + index,
             )
         }

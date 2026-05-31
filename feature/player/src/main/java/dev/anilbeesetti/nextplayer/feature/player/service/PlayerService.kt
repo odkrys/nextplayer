@@ -43,6 +43,8 @@ import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
 import dev.anilbeesetti.nextplayer.core.common.extensions.getLocalSubtitles
 import dev.anilbeesetti.nextplayer.core.common.extensions.getPath
 import dev.anilbeesetti.nextplayer.core.common.extensions.subtitleCacheDir
+import dev.anilbeesetti.nextplayer.core.data.remote.WebdavClient
+import dev.anilbeesetti.nextplayer.core.data.remote.WebdavResult
 import dev.anilbeesetti.nextplayer.core.data.remote.setupUnsafeSsl
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
@@ -53,6 +55,7 @@ import dev.anilbeesetti.nextplayer.core.model.DrcPreset
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Resume
+import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
@@ -75,8 +78,11 @@ import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+import kotlin.collections.emptyList
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -85,6 +91,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -113,6 +120,9 @@ class PlayerService : MediaSessionService() {
 
     @Inject
     lateinit var webdavServerRepository: WebdavServerRepository
+
+    @Inject
+    lateinit var webdavClient: WebdavClient
 
     internal lateinit var okHttpClient: OkHttpClient
 
@@ -147,6 +157,8 @@ class PlayerService : MediaSessionService() {
                 }
 
                 //metadata.positionMs?.takeIf { playerPreferences.resume == Resume.YES }?.let {
+                //    mediaSession?.player?.seekTo(it)
+                //}
                 val resumePosition = metadata.positionMs?.takeIf { shouldResume(mediaItem?.mediaId) }
                 if (resumePosition != null && resumePosition > 0L) {
                     mediaSession?.player?.seekTo(resumePosition)
@@ -923,6 +935,10 @@ class PlayerService : MediaSessionService() {
     private suspend fun updatedMediaItemsWithMetadata(
         mediaItems: List<MediaItem>,
     ): List<MediaItem> = supervisorScope {
+
+        val servers = webdavServerRepository.getAllServers().first()
+        val directoryCache = ConcurrentHashMap<String, Deferred<List<WebdavFile>>>()
+
         mediaItems.map { mediaItem ->
             async {
                 val uri = mediaItem.mediaId.toUri()
@@ -955,31 +971,53 @@ class PlayerService : MediaSessionService() {
                 val sourceUri = mediaItem.localConfiguration?.uri ?: uri
 
                 val remoteSubConfigurations = if (filePath == null && (uri.scheme == "http" || uri.scheme == "https")) {
-                    val fragment = sourceUri.fragment
-                    if (!fragment.isNullOrBlank()) {
-                        fragment.split("&").mapNotNull { pairs ->
-                            val kv = pairs.split("=", limit = 2)
-                            if (kv.size == 2) {
-                                val ext = kv[0].lowercase()
-                                val subUrl = Uri.decode(kv[1])
+                    val host = uri.host ?: ""
+                    val port = if (uri.port != -1) uri.port else if (uri.scheme == "https") 443 else 80
 
-                                val mimeType = when (ext) {
-                                    "srt" -> androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
-                                    "vtt" -> androidx.media3.common.MimeTypes.TEXT_VTT
-                                    "ass", "ssa" -> androidx.media3.common.MimeTypes.TEXT_SSA
-                                    "ttml", "xml", "dfxp" -> androidx.media3.common.MimeTypes.APPLICATION_TTML
-                                    else -> androidx.media3.common.MimeTypes.APPLICATION_SUBRIP
-                                }
+                    val server = servers.firstOrNull { it.host == host && it.port == port }
 
-                                val fileName = subUrl.substringAfterLast('/').substringBeforeLast(".")
-                                val trackLabel = "$fileName.$ext"
+                    if (server != null) {
+                        val serverBasePath = Uri.parse(server.baseUrl).path?.trimEnd('/') ?: ""
+                        val uriPath = uri.path ?: ""
 
-                                MediaItem.SubtitleConfiguration.Builder(Uri.parse(subUrl))
-                                    .setMimeType(mimeType)
-                                    .setLabel(trackLabel)
-                                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-                                    .build()
-                            } else null
+                        val relativePath = if (serverBasePath.isNotEmpty() && uriPath.startsWith(serverBasePath)) {
+                            uriPath.substring(serverBasePath.length)
+                        } else {
+                            uriPath
+                        }
+
+                        val parentPath = relativePath.substringBeforeLast("/").ifEmpty { "/" }
+
+                        val deferred = directoryCache.computeIfAbsent(parentPath) {
+                            async {
+                                webdavClient.listFiles(server, parentPath)
+                                    .let { (it as? WebdavResult.Success)?.data } ?: emptyList()
+                            }
+                        }
+
+                        val files = deferred.await()
+
+                        val videoBaseName = Uri.decode(uri.lastPathSegment ?: "")
+                            .substringBeforeLast(".")
+
+                        val subExtensions = listOf("srt", "ssa", "ass", "vtt", "ttml", "xml", "dfxp")
+
+                        files.filter { file ->
+                            !file.isDirectory &&
+                                    file.name.substringBeforeLast(".") == videoBaseName &&
+                                    file.name.substringAfterLast(".").lowercase() in subExtensions
+                        }
+                        .sortedBy { file ->
+                            subExtensions.indexOf(file.name.substringAfterLast(".").lowercase())
+                        }
+                        .map { subFile ->
+                            val encodedPath = Uri.encode(subFile.path.trimStart('/'), "/")
+                            val subUrl = "${server.baseUrl.trimEnd('/')}/$encodedPath"
+
+                            uriToSubtitleConfiguration(
+                                uri = Uri.parse(subUrl),
+                                subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                            )
                         }
                     } else {
                         emptyList()

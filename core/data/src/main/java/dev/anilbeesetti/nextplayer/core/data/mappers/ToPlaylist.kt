@@ -24,6 +24,5 @@ fun PlaylistWithMedia.toPlaylist() = Playlist(
     updatedAt = playlist.updatedAt,
     lastPlayedUri = playlist.lastPlayedUri,
     mediaUris = media.map { it.uriString },
-    mediaFullUrls = media.map { it.uriString },
     position = playlist.position,
 )

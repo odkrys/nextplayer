@@ -34,10 +34,10 @@ class LocalPlaylistRepository @Inject constructor(
                 createdAt = playlistEntity.createdAt,
                 updatedAt = playlistEntity.updatedAt,
                 lastPlayedUri = playlistEntity.lastPlayedUri,
+                mediaUris = entries.map { it.mediumUri },
                 sortOption = runCatching {
                     PlaylistSortOption.valueOf(playlistEntity.sortOption)
                 }.getOrDefault(PlaylistSortOption.ADDED_ASC),
-                mediaUris = entries.map { if (it.isRemote) it.fullUrl else it.mediumUri }
             )
         }
     }
@@ -76,7 +76,6 @@ class LocalPlaylistRepository @Inject constructor(
                 addedAt = System.currentTimeMillis(),
                 isRemote = mediumUri.startsWith("http"),
                 displayName = if (mediumUri.startsWith("http")) Uri.parse(mediumUri).lastPathSegment ?: "" else "",
-                fullUrl = if (mediumUri.startsWith("http")) mediumUri else ""
             ),
         )
     }
@@ -99,7 +98,6 @@ class LocalPlaylistRepository @Inject constructor(
                 addedAt = System.currentTimeMillis(),
                 isRemote = isRemote,
                 displayName = displayName,
-                fullUrl = if (isRemote) uri else ""
             )
         }
         playlistDao.addMedia(crossRefs)

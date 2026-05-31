@@ -109,7 +109,6 @@ class PlaylistDetailViewModel @Inject constructor(
                         null
                     }
                 }
-
                 Triple(playlist, orderedVideos, prefs)
             }.collect { (playlist, videos, prefs) ->
                 uiStateInternal.update {
@@ -208,7 +207,9 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _isVerifyingLinks.value = true
 
-            val webdavUrls = uiStateInternal.value.sortedFullUrls.filter { it.startsWith("http") }
+            val webdavUrls = uiStateInternal.value.videos
+                .map { it.uriString }
+                .filter { it.startsWith("http") }
             val servers = webdavServerRepository.getAllServers().first()
 
             val serverHostMap = servers.associateBy {
@@ -287,9 +288,6 @@ data class PlaylistDetailUiState(
             PlaylistSortOption.NAME_ASC -> videos.sortedBy { it.displayName.lowercase() }
             PlaylistSortOption.NAME_DESC -> videos.sortedByDescending { it.displayName.lowercase() }
         }
-
-    val sortedFullUrls: List<String>
-        get() = sortedVideos.map { it.uriString }
 }
 
 data class DeadLink(

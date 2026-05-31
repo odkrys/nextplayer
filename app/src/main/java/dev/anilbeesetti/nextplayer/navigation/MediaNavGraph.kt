@@ -15,7 +15,6 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.MediaPickerRou
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.mediaPickerScreen
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToMediaPickerScreen
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToPlaylist
-import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToRemoteHome
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.navigateToSearch
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.searchScreen
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.webdavNavGraph

@@ -85,17 +85,17 @@ fun PlaylistDetailRoute(
         onRemoveDeadLinks = viewModel::removeDeadLinks,
         onClearDeadLinks = viewModel::clearDeadLinksResult,
         onPlayClick = {
-            val fullUrls = uiState.sortedFullUrls
-            if (fullUrls.isEmpty()) return@PlaylistDetailScreen
+            val uris = uiState.sortedVideos.map { it.uriString }
+            if (uris.isEmpty()) return@PlaylistDetailScreen
             val startIndex = viewModel.getRecentVideoIndex()
-            viewModel.saveLastPlayed(fullUrls[startIndex])
-            onPlayClick(fullUrls, startIndex)
+            viewModel.saveLastPlayed(uris[startIndex])
+            onPlayClick(uris, startIndex)
         },
         onVideoClick = { index ->
-            val fullUrls = uiState.sortedFullUrls
-            if (index >= fullUrls.size) return@PlaylistDetailScreen
-            viewModel.saveLastPlayed(fullUrls[index])
-            onVideoClick(fullUrls, index)
+            val uris = uiState.sortedVideos.map { it.uriString }
+            if (index >= uris.size) return@PlaylistDetailScreen
+            viewModel.saveLastPlayed(uris[index])
+            onVideoClick(uris, index)
         },
         onBackClick = onBackClick,
         onEvent = viewModel::onEvent,

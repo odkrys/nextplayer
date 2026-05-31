@@ -30,7 +30,4 @@ data class PlaylistMediumCrossEntity(
 
     @ColumnInfo(name = "display_name")
     val displayName: String = "",
-
-    @ColumnInfo(name = "full_url")
-    val fullUrl: String = mediumUri,
 )

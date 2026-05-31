@@ -34,11 +34,6 @@ data class WebdavBrowserUiState(
     val isPreparingPlaylist: Boolean = false,
 )
 
-data class CollectedFile(
-    val file: WebdavFile,
-    val siblingFiles: List<WebdavFile>,
-)
-
 @HiltViewModel
 class WebdavBrowserViewModel @Inject constructor(
     private val getWebdavServerByIdUseCase: GetWebdavServerByIdUseCase,
@@ -148,7 +143,7 @@ class WebdavBrowserViewModel @Inject constructor(
         val progressMap = mutableMapOf<String, Float>()
         playableFiles.forEach { file ->
             try {
-                val url = buildMediaId(server, file)
+                val url = buildFileUrl(server, file)
                 val state = mediaRepository.getVideoState(url) ?: return@forEach
 
                 val position = state.position ?: return@forEach
@@ -163,26 +158,6 @@ class WebdavBrowserViewModel @Inject constructor(
             }
         }
         return progressMap
-    }
-
-    private fun buildMediaId(server: WebdavServer, file: WebdavFile): String {
-        val base = server.baseUrl.trimEnd('/')
-        val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
-            file.href
-        } else {
-            "$base/${file.path.trimStart('/')}"
-        }
-
-        val uri = Uri.parse(rawUrl)
-        val scheme = uri.scheme ?: (if (server.useSsl) "https" else "http")
-        val hostAndPort = uri.authority ?: "${server.host}:${server.port}"
-
-        return uri.buildUpon()
-            .scheme(scheme)
-            .encodedAuthority(hostAndPort)
-            .build()
-            .toString()
-            .substringBefore("#")
     }
 
     fun refreshProgress() {
@@ -222,10 +197,10 @@ class WebdavBrowserViewModel @Inject constructor(
             val stateUrl = state!!.path
             val existsInFiles = files.any { file ->
                 if (file.isDirectory) {
-                    val folderMediaId = buildMediaId(server, file)
+                    val folderMediaId = buildFileUrl(server, file)
                     stateUrl.startsWith(folderMediaId)
                 } else {
-                    buildMediaId(server, file) == stateUrl
+                    buildFileUrl(server, file) == stateUrl
                 }
             }
             if (existsInFiles) {
@@ -233,11 +208,11 @@ class WebdavBrowserViewModel @Inject constructor(
             } else {
                 mediaRepository.delete(listOf(stateUrl))
                 val firstPlayable = files.firstOrNull { isPlayable(it) }
-                url = firstPlayable?.let { buildMediaId(server, it) }
+                url = firstPlayable?.let { buildFileUrl(server, it) }
             }
         } else {
             val firstPlayable = files.firstOrNull { isPlayable(it) }
-            url = firstPlayable?.let { buildMediaId(server, it) }
+            url = firstPlayable?.let { buildFileUrl(server, it) }
         }
 
         return Pair(url, hasHistory && url == state?.path)
@@ -259,35 +234,32 @@ class WebdavBrowserViewModel @Inject constructor(
             } else {
                 fullPath
             }
-            val folderPath = relativePath.substringBeforeLast("/")
 
-            val files = listWebdavFilesUseCase(server, folderPath)
-                .getOrNull() ?: run {
+            val folderPath = relativePath.substringBeforeLast("/").ifEmpty { "/" }
+
+            val files = listWebdavFilesUseCase(server, folderPath).getOrNull() ?: run {
                 onPlay(listOf(lastUrl), 0)
                 return@launch
             }
 
-            val sortedFiles = files.sortedWith(
-                compareBy<WebdavFile> { !it.isDirectory }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
-            )
+            val playableFiles = files
+                .filter { isPlayable(it) }
+                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 
-            val playableFiles = sortedFiles.filter { isPlayable(it) }
             if (playableFiles.isEmpty()) {
                 onPlay(listOf(lastUrl), 0)
                 return@launch
             }
 
-            val urls = playableFiles.map { buildFileUrl(server,it, sortedFiles) }
-            val index = urls.indexOfFirst {
-                it.substringBefore("#") == lastUrl.substringBefore("#")
-            }.coerceAtLeast(0)
+            val urls = playableFiles.map { buildFileUrl(server, it) }
+
+            val index = urls.indexOfFirst { it == lastUrl }.coerceAtLeast(0)
 
             onPlay(urls, index)
         }
     }
 
-    fun buildFileUrl(server: WebdavServer, file: WebdavFile, allFiles: List<WebdavFile>): String {
+    fun buildFileUrl(server: WebdavServer, file: WebdavFile): String {
         val base = server.baseUrl.trimEnd('/')
         val rawUrl = if (file.href.startsWith("http://") || file.href.startsWith("https://")) {
             file.href
@@ -299,40 +271,9 @@ class WebdavBrowserViewModel @Inject constructor(
         val scheme = uri.scheme ?: (if (server.useSsl) "https" else "http")
         val hostAndPort = uri.authority ?: "${server.host}:${server.port}"
 
-        val videoBaseName = file.name.substringBeforeLast(".")
-        val subExtensions = listOf("srt", "ssa", "ass", "vtt", "ttml", "xml", "dfxp")
-        val existingSubs = allFiles
-            .filter { f ->
-                !f.isDirectory &&
-                        f.name.substringBeforeLast(".") == videoBaseName &&
-                        f.name.substringAfterLast(".").lowercase() in subExtensions
-            }
-            .sortedBy { f ->
-                subExtensions.indexOf(f.name.substringAfterLast(".").lowercase())
-            }
-
-        val fragmentBuilder = StringBuilder()
-        existingSubs.forEach { subFile ->
-            val subRawUrl = if (subFile.href.startsWith("http://") || subFile.href.startsWith("https://")) {
-                subFile.href
-            } else {
-                "$base/${subFile.path.trimStart('/')}"
-            }
-            val subFullUrl = Uri.parse(subRawUrl)
-                .buildUpon()
-                .scheme(scheme)
-                .encodedAuthority(hostAndPort)
-                .build()
-                .toString()
-
-            if (fragmentBuilder.isNotEmpty()) fragmentBuilder.append("&")
-            fragmentBuilder.append("${subFile.name.substringAfterLast(".")}=${Uri.encode(subFullUrl)}")
-        }
-
         return uri.buildUpon()
             .scheme(scheme)
             .encodedAuthority(hostAndPort)
-            .apply { if (fragmentBuilder.isNotEmpty()) fragment(fragmentBuilder.toString()) }
             .build()
             .toString()
     }
@@ -391,7 +332,7 @@ class WebdavBrowserViewModel @Inject constructor(
         if (playableFiles.isEmpty()) return
 
         viewModelScope.launch {
-            val urisToDelete = playableFiles.map { buildMediaId(server, it) }
+            val urisToDelete = playableFiles.map { buildFileUrl(server, it) }
 
             try {
                 mediaRepository.delete(urisToDelete)
@@ -405,20 +346,17 @@ class WebdavBrowserViewModel @Inject constructor(
     private suspend fun collectPlayableFiles(
         server: WebdavServer,
         files: List<WebdavFile>,
-        siblingFiles: List<WebdavFile> = files,
-    ): List<CollectedFile> {
-        val result = mutableListOf<CollectedFile>()
+    ): List<WebdavFile> {
+        val result = mutableListOf<WebdavFile>()
         for (file in files) {
             if (file.isDirectory) {
                 val children = listWebdavFilesUseCase(server, file.path)
                     .getOrElse { emptyList() }
-                    .sortedWith(
-                        compareBy<WebdavFile> { !it.isDirectory }
-                            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
-                    )
-                result += collectPlayableFiles(server, children, children)
+                    .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+
+                result += collectPlayableFiles(server, children)
             } else if (isPlayable(file)) {
-                result += CollectedFile(file = file, siblingFiles = siblingFiles)
+                result += file
             }
         }
         return result
@@ -432,17 +370,16 @@ class WebdavBrowserViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isPreparingPlaylist = true) }
             try {
-                val collected = collectPlayableFiles(
+                val collectedFiles = collectPlayableFiles(
                     server = server,
                     files = selectedFiles,
-                    siblingFiles = uiState.value.files,
                 )
 
-                val fullUrls = collected.map { (file, siblings) ->
-                    buildFileUrl(server, file, siblings)
+                val urls = collectedFiles.map { file ->
+                    buildFileUrl(server, file)
                 }
 
-                onReady(fullUrls)
+                onReady(urls)
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = e.message ?: "Failed to prepare playlist") }
             } finally {

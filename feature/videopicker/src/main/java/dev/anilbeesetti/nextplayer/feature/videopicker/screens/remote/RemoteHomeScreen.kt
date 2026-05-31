@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -29,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -221,7 +221,7 @@ private fun ReorderableCollectionItemScope.ServerCard(
         label = "drag_color"
     )
 
-    Card(
+    OutlinedCard(
         modifier = modifier
             .fillMaxWidth()
             .draggableHandle(
@@ -236,8 +236,8 @@ private fun ReorderableCollectionItemScope.ServerCard(
                 dragGestureDetector = DragGestureDetector.LongPress,
             )
             .clickable(onClick = onBrowse),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+        elevation = CardDefaults.outlinedCardElevation(defaultElevation = if (isDragging) 8.dp else 0.dp),
+        colors = CardDefaults.outlinedCardColors(containerColor = backgroundColor)
     ) {
         Row(
             modifier = Modifier

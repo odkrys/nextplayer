@@ -2,6 +2,7 @@ package dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist
 
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -17,11 +18,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -30,6 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -50,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -330,7 +334,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
         label = "drag_color"
     )
 
-    Card(
+    OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .draggableHandle(
@@ -345,8 +349,8 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                 dragGestureDetector = DragGestureDetector.LongPress,
             )
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+        elevation = CardDefaults.outlinedCardElevation(defaultElevation = if (isDragging) 8.dp else 0.dp),
+        colors = CardDefaults.outlinedCardColors(containerColor = backgroundColor)
     ) {
         Row(
             modifier = Modifier
@@ -361,15 +365,31 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                 modifier = Modifier.padding(end = 24.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Column(modifier = Modifier.weight(1f)) {
+
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .padding(horizontal = 8.dp)
+                    .height(28.dp)
+                    .widthIn(min = 28.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                    .padding(horizontal = 6.dp)
+            ) {
                 Text(
-                    text = playlist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = "${playlist.mediaUris.size} items",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = playlist.mediaUris.size.toString(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
 

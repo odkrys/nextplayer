@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.core.data.remote
 
+import dev.anilbeesetti.nextplayer.core.model.LinkErrorType
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
 import kotlinx.coroutines.Dispatchers
@@ -210,6 +211,28 @@ class WebdavClient @Inject constructor() {
         } catch (e: Exception) {
             rawDate
         }
+    }
+
+    suspend fun checkFile(server: WebdavServer, url: String): LinkErrorType? = withContext(Dispatchers.IO) {
+        runCatching {
+            val callClient = if (server.allowSelfSigned) unsafeClient else defaultClient
+            val request = Request.Builder()
+                .url(url)
+                .head()
+                .header("Authorization", Credentials.basic(server.username, server.password))
+                .build()
+
+            val response = callClient.newCall(request).execute()
+            val code = response.code
+            response.close()
+
+            when (code) {
+                in 200..399 -> null
+                401, 403 -> LinkErrorType.UNAUTHORIZED
+                404 -> LinkErrorType.NOT_FOUND
+                else -> LinkErrorType.NETWORK_ERROR
+            }
+        }.getOrElse { LinkErrorType.NETWORK_ERROR }
     }
 
     companion object {

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ClosedCaption
+import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.DarkMode
@@ -187,4 +188,5 @@ object NextIcons {
     val Bookmark = Icons.Rounded.Bookmark
     val Bookmarks = Icons.Rounded.Bookmarks
     val Sort = Icons.AutoMirrored.Rounded.Sort
+    val CloudSync = Icons.Rounded.CloudSync
 }

@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,12 +37,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
+import dev.anilbeesetti.nextplayer.core.model.LinkErrorType
 import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
@@ -58,15 +61,29 @@ fun PlaylistDetailRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val remoteProgress by viewModel.remotePlaybackProgress.collectAsStateWithLifecycle()
     val remoteDurationMap by viewModel.remoteDurationMap.collectAsStateWithLifecycle()
+    val isVerifying by viewModel.isVerifyingLinks.collectAsStateWithLifecycle()
+    val deadLinks by viewModel.deadLinksFound.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.refreshRemoteProgress()
+    }
+
+    LaunchedEffect(viewModel.uiMessage) {
+        viewModel.uiMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     PlaylistDetailScreen(
         uiState = uiState,
         remoteProgress = remoteProgress,
         remoteDurationMap = remoteDurationMap,
+        isVerifying = isVerifying,
+        deadLinks = deadLinks,
+        onVerifyLinks = viewModel::verifyWebdavLinks,
+        onRemoveDeadLinks = viewModel::removeDeadLinks,
+        onClearDeadLinks = viewModel::clearDeadLinksResult,
         onPlayClick = {
             val fullUrls = uiState.sortedFullUrls
             if (fullUrls.isEmpty()) return@PlaylistDetailScreen
@@ -91,6 +108,11 @@ fun PlaylistDetailScreen(
     uiState: PlaylistDetailUiState,
     remoteProgress: Map<String, Float> = emptyMap(),
     remoteDurationMap: Map<String, Long> = emptyMap(),
+    isVerifying: Boolean,
+    deadLinks: List<DeadLink>,
+    onVerifyLinks: () -> Unit,
+    onRemoveDeadLinks: () -> Unit,
+    onClearDeadLinks: () -> Unit,
     onPlayClick: () -> Unit,
     onVideoClick: (index: Int) -> Unit,
     onBackClick: () -> Unit,
@@ -191,6 +213,13 @@ fun PlaylistDetailScreen(
                                 )
                             }
                         } else {
+                            IconButton(
+                                onClick = onVerifyLinks,
+                                enabled = !isVerifying
+                            ) {
+                                Icon(NextIcons.CloudSync, contentDescription = "Verify Links")
+                            }
+
                             Box {
                                 IconButton(onClick = { showSortMenu = true }) {
                                     Icon(NextIcons.Sort, contentDescription = "Sort")
@@ -253,10 +282,20 @@ fun PlaylistDetailScreen(
                     bottom = 0.dp
                 ),
         ) {
+            if (isVerifying) {
+                androidx.compose.material3.LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+
             when (val state = uiState.dataState) {
                 is DataState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
+
                 is DataState.Success -> {
                     val playlistData = state.value
                     if (playlistData == null || playlistData.mediaUris.isEmpty()) {
@@ -294,6 +333,7 @@ fun PlaylistDetailScreen(
                         )
                     }
                 }
+
                 is DataState.Error -> {
                     Text(
                         text = "Failed to load playlist",
@@ -308,7 +348,7 @@ fun PlaylistDetailScreen(
                     onClick = { onPlayClick() },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 32.dp, bottom = 32.dp)
+                        .padding(end = 32.dp, bottom = 32.dp),
                 ) {
                     Icon(
                         imageVector = NextIcons.Play,
@@ -360,6 +400,36 @@ fun PlaylistDetailScreen(
                         Text("Cancel")
                     }
                 },
+            )
+        }
+
+        if (deadLinks.isNotEmpty()) {
+            val notFoundCount = deadLinks.count { it.errorType == LinkErrorType.NOT_FOUND }
+            val unauthCount = deadLinks.count { it.errorType == LinkErrorType.UNAUTHORIZED }
+            val networkCount = deadLinks.count { it.errorType == LinkErrorType.NETWORK_ERROR }
+
+            val messageBuilder = buildString {
+                append("Found ${deadLinks.size} unplayable file(s)\n\n")
+                if (notFoundCount > 0) append("• Deleted from server: ${notFoundCount}\n")
+                if (unauthCount > 0) append("• Unauthorized (password, etc.): ${unauthCount}\n")
+                if (networkCount > 0) append("• Server unresponsive: ${networkCount}\n")
+                append("\nWould you like to remove them from the playlist?")
+            }
+
+            AlertDialog(
+                onDismissRequest = onClearDeadLinks,
+                title = { Text("Link Verification Results") },
+                text = { Text(messageBuilder) },
+                confirmButton = {
+                    TextButton(onClick = onRemoveDeadLinks) {
+                        Text("Remove", color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onClearDeadLinks) {
+                        Text("Cancel")
+                    }
+                }
             )
         }
     }

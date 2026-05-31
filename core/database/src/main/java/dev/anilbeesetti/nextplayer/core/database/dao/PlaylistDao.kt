@@ -78,6 +78,9 @@ interface PlaylistDao {
     @Query("DELETE FROM playlist_medium_cross_entity WHERE medium_uri LIKE :prefix || '%' OR full_url LIKE :prefix || '%'")
     suspend fun removeMediaByPrefix(prefix: String)
 
+    @Query("DELETE FROM playlist_medium_cross_entity WHERE playlist_id = :playlistId AND medium_uri IN (:mediumUris)")
+    suspend fun removeDeletedMediaFromPlaylist(playlistId: Long, mediumUris: List<String>)
+
     @Query("DELETE FROM playlist_medium_cross_entity WHERE medium_uri IN (:mediumUris)")
     suspend fun removeDeletedMediaFromAllPlaylists(mediumUris: List<String>)
 }

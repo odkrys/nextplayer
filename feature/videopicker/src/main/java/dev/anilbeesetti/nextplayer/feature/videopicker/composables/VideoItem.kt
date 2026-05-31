@@ -1,5 +1,6 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.composables
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -145,7 +146,8 @@ private fun VideoListItem(
             ) {
                 if (preferences.showPathField) {
                     Text(
-                        text = video.path.substringBeforeLast("/"),
+                        //text = video.path.substringBeforeLast("/"),
+                        text = Uri.decode(video.path).substringBeforeLast("/"),
                         maxLines = 2,
                         style = MaterialTheme.typography.bodySmall,
                         overflow = TextOverflow.Ellipsis,

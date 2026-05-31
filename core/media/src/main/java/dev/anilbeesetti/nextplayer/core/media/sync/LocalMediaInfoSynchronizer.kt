@@ -66,6 +66,8 @@ class LocalMediaInfoSynchronizer @Inject constructor(
     }
 
     private suspend fun performSync(uri: Uri) {
+        if (uri.scheme == "http" || uri.scheme == "https") return
+
         val medium = mediumDao.getWithInfo(uri.toString()) ?: return
         if (medium.videoStreamInfo != null) return
 

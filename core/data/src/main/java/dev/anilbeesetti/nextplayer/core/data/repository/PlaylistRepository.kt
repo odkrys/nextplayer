@@ -20,4 +20,5 @@ interface PlaylistRepository {
     suspend fun updateSortOption(playlistId: Long, sortOption: PlaylistSortOption)
     suspend fun reorderPlaylists(ids: List<Long>)
     suspend fun removeMediaByPrefix(prefix: String)
+    suspend fun removeDeletedMediaFromAllPlaylists(mediumUris: List<String>)
 }

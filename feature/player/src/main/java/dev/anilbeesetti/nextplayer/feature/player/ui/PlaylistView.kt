@@ -53,6 +53,7 @@ import dev.anilbeesetti.nextplayer.core.common.Utils
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSegmentedListItem
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
+import dev.anilbeesetti.nextplayer.feature.player.extensions.getPlaybackOrderIndices
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberPlaylistState
 import sh.calvin.reorderable.DragGestureDetector
 import sh.calvin.reorderable.ReorderableCollectionItemScope
@@ -74,12 +75,38 @@ fun BoxScope.PlaylistView(
         hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
     }
 
+    val displayPlaylist = remember(playlistState.playlist, player.shuffleModeEnabled) {
+        player.getPlaybackOrderIndices().mapNotNull { realIndex ->
+            val mediaItem = playlistState.playlist.getOrNull(realIndex)
+
+            if (mediaItem != null) {
+                Pair(realIndex, mediaItem)
+            } else {
+                null
+            }
+        }
+    }
+/*
     // Auto-scroll to current item when playlist opens
     LaunchedEffect(show) {
         if (show && playlistState.playlist.isNotEmpty()) {
             val currentIndex = playlistState.currentMediaItemIndex
             if (currentIndex in playlistState.playlist.indices) {
                 lazyListState.scrollToItem(currentIndex)
+            }
+        }
+    }
+*/
+    LaunchedEffect(show, player.shuffleModeEnabled) {
+        if (show && displayPlaylist.isNotEmpty()) {
+            val currentRealIndex = playlistState.currentMediaItemIndex
+
+            val targetUiIndex = displayPlaylist.indexOfFirst { (realIndex, _) ->
+                realIndex == currentRealIndex
+            }
+
+            if (targetUiIndex != -1) {
+                lazyListState.scrollToItem(targetUiIndex)
             }
         }
     }
@@ -100,23 +127,39 @@ fun BoxScope.PlaylistView(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 itemsIndexed(
+/*
                     items = playlistState.playlist,
                     key = { _, item -> item.mediaId },
                 ) { index, mediaItem ->
+*/
+                    items = displayPlaylist,
+                    key = { _, (_, item) -> item.mediaId },
+                    ) { uiIndex, (realIndex, mediaItem) ->
                     ReorderableItem(
                         state = reorderableLazyListState,
                         key = mediaItem.mediaId,
                     ) {
-                        val isCurrentItem = index == playlistState.currentMediaItemIndex
+                        //val isCurrentItem = index == playlistState.currentMediaItemIndex
+                        val isCurrentItem = realIndex == playlistState.currentMediaItemIndex
                         PlaylistItemView(
                             mediaItem = mediaItem,
+/*
                             index = index,
                             isFirstItem = index == 0,
                             isLastItem = index == playlistState.playlist.lastIndex,
+*/
+                            index = uiIndex,
+                            isFirstItem = uiIndex == 0,
+                            isLastItem = uiIndex == displayPlaylist.lastIndex,
                             isCurrentItem = isCurrentItem,
                             canDelete = playlistState.playlist.size > 1,
+/*
                             onClick = { playlistState.seekToItem(index) },
                             onDelete = { playlistState.removeItem(index) },
+*/
+                            onClick = { playlistState.seekToItem(realIndex) },
+                            onDelete = { playlistState.removeItem(realIndex) },
+                            isShuffleEnabled = player.shuffleModeEnabled,
                         )
                     }
                 }
@@ -134,15 +177,19 @@ private fun ReorderableCollectionItemScope.PlaylistItemView(
     isLastItem: Boolean = false,
     isCurrentItem: Boolean,
     canDelete: Boolean,
+    isShuffleEnabled: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val hapticFeedback = LocalHapticFeedback.current
+    val context = LocalContext.current
+
     NextSegmentedListItem(
         modifier = Modifier
             .fillMaxWidth()
             .draggableHandle(
+                enabled = !isShuffleEnabled,
                 onDragStarted = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                 },
@@ -166,6 +213,15 @@ private fun ReorderableCollectionItemScope.PlaylistItemView(
         isFirstItem = isFirstItem,
         isLastItem = isLastItem,
         onClick = onClick,
+        onLongClick = if (isShuffleEnabled) {
+            {
+                android.widget.Toast.makeText(
+                    context,
+                    "Cannot reorder while shuffle is enabled",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            }
+        } else null,
         leadingContent = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

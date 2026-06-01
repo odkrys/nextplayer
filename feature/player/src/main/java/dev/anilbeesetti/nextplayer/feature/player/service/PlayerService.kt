@@ -140,7 +140,29 @@ class PlayerService : MediaSessionService() {
 
     private var pendingSkipIntroMs: Long = 0L
 
+    @Volatile
+    private var pendingShuffleStartIndex: Int = C.INDEX_UNSET
+
     private val playbackStateListener = object : Player.Listener {
+        override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+            super.onTimelineChanged(timeline, reason)
+
+            if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED && pendingShuffleStartIndex != C.INDEX_UNSET) {
+                (mediaSession?.player as? ExoPlayer)?.let { exoPlayer ->
+                    val length = timeline.windowCount
+                    if (exoPlayer.shuffleModeEnabled && pendingShuffleStartIndex < length) {
+                        val shuffledIndices = (listOf(pendingShuffleStartIndex) + (0 until length).filter { it != pendingShuffleStartIndex }.shuffled()).toIntArray()
+                        exoPlayer.setShuffleOrder(
+                            androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder(
+                                shuffledIndices, System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+                pendingShuffleStartIndex = C.INDEX_UNSET
+            }
+        }
+
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
 
@@ -467,6 +489,28 @@ class PlayerService : MediaSessionService() {
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
             super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+
+            if (shuffleModeEnabled) {
+                (mediaSession?.player as? ExoPlayer)?.let { exoPlayer ->
+                    val currentIndex = exoPlayer.currentMediaItemIndex
+                    val length = exoPlayer.mediaItemCount
+
+                    if (length > 0 && currentIndex != C.INDEX_UNSET) {
+                        val shuffledIndices = IntArray(length)
+                        shuffledIndices[0] = currentIndex
+                        val otherIndices = (0 until length).filter { it != currentIndex }.shuffled()
+                        for (i in otherIndices.indices) {
+                            shuffledIndices[i + 1] = otherIndices[i]
+                        }
+                        exoPlayer.setShuffleOrder(
+                            androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder(
+                                shuffledIndices, System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+            }
+
             serviceScope.launch {
                 preferencesRepository.updatePlayerPreferences {
                     it.copy(shuffleMode = shuffleModeEnabled)
@@ -556,6 +600,9 @@ class PlayerService : MediaSessionService() {
             startIndex: Int,
             startPositionMs: Long,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = serviceScope.future(Dispatchers.Default) {
+
+            pendingShuffleStartIndex = startIndex
+
             val updatedMediaItems = updatedMediaItemsWithMetadata(mediaItems)
             return@future MediaSession.MediaItemsWithStartPosition(updatedMediaItems, startIndex, startPositionMs)
         }

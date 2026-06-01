@@ -25,8 +25,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +79,26 @@ fun BoxScope.PlaylistView(
         hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
     }
 
-    val displayPlaylist = remember(playlistState.playlist, player.shuffleModeEnabled) {
+    var shuffleTrigger by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                shuffleTrigger++
+            }
+            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
+                    shuffleTrigger++
+                }
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+        }
+    }
+
+    val displayPlaylist = remember(playlistState.playlist, player.shuffleModeEnabled, shuffleTrigger) {
         player.getPlaybackOrderIndices().mapNotNull { realIndex ->
             val mediaItem = playlistState.playlist.getOrNull(realIndex)
 
@@ -97,7 +120,7 @@ fun BoxScope.PlaylistView(
         }
     }
 */
-    LaunchedEffect(show, player.shuffleModeEnabled) {
+    LaunchedEffect(show, shuffleTrigger) {
         if (show && displayPlaylist.isNotEmpty()) {
             val currentRealIndex = playlistState.currentMediaItemIndex
 
@@ -106,7 +129,7 @@ fun BoxScope.PlaylistView(
             }
 
             if (targetUiIndex != -1) {
-                lazyListState.scrollToItem(targetUiIndex)
+                lazyListState.animateScrollToItem(targetUiIndex)
             }
         }
     }
@@ -158,7 +181,7 @@ fun BoxScope.PlaylistView(
                             onDelete = { playlistState.removeItem(index) },
 */
                             onClick = { playlistState.seekToItem(realIndex) },
-                            onDelete = { playlistState.removeItem(realIndex) },
+                            onDelete = { playlistState.removeItem(mediaItem) },
                             isShuffleEnabled = player.shuffleModeEnabled,
                         )
                     }
@@ -262,6 +285,11 @@ private fun ReorderableCollectionItemScope.PlaylistItemView(
                 text = mediaItem.mediaMetadata.title?.toString() ?: stringResource(R.string.unknown),
                 maxLines = 2,
                 style = MaterialTheme.typography.titleSmall,
+                color = if (isCurrentItem) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 overflow = TextOverflow.Ellipsis,
             )
         },

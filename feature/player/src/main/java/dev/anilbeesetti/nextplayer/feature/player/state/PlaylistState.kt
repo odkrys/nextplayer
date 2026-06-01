@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.listen
@@ -50,12 +51,32 @@ class PlaylistState(
         updatePlaylist()
         updateCurrentIndex()
     }
-
+/*
     fun removeItem(index: Int) {
         if (index !in playlist.indices) return
         if (playlist.size <= 1) return // Don't remove the last item
 
         player.removeMediaItem(index)
+        updatePlaylist()
+        updateCurrentIndex()
+    }
+*/
+    fun removeItem(itemToRemove: MediaItem) {
+        val freshIndex = playlist.indexOfFirst { it.mediaId == itemToRemove.mediaId }
+        if (freshIndex == -1) return
+        if (playlist.size <= 1) return
+
+        val isCurrentItem = player.currentMediaItemIndex == freshIndex
+
+        if (isCurrentItem) {
+            if (player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+            } else if (player.hasPreviousMediaItem()) {
+                player.seekToPreviousMediaItem()
+            }
+        }
+
+        player.removeMediaItem(freshIndex)
         updatePlaylist()
         updateCurrentIndex()
     }

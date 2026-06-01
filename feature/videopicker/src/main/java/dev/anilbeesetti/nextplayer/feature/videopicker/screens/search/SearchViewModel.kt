@@ -121,6 +121,7 @@ class SearchViewModel @Inject constructor(
             is SearchUiEvent.ShareSelectedItems -> shareSelectedItems(event.selectionItems)
             is SearchUiEvent.ShowMediaInfo -> showMediaInfo(event.video)
             is SearchUiEvent.RenameVideo -> renameVideo(event.uri, event.to)
+            is SearchUiEvent.ClearPlaybackHistory -> clearPlaybackHistory(event.selectionItems)
             SearchUiEvent.DismissMediaInfo -> uiStateInternal.update { it.copy(mediaInfo = null) }
         }
     }
@@ -203,6 +204,17 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    private fun clearPlaybackHistory(selectionItems: Set<SelectionItem>) {
+        viewModelScope.launch {
+            try {
+                val uris = selectionItems.toVideoUris().map { it.toString() }
+                mediaRepository.delete(uris)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     companion object {
         private const val SEARCH_DEBOUNCE_MS = 300L
     }
@@ -229,5 +241,6 @@ sealed interface SearchUiEvent {
     data class DeleteSelectedItems(val selectionItems: Set<SelectionItem>) : SearchUiEvent
     data class RenameVideo(val uri: Uri, val to: String) : SearchUiEvent
     data class ShowMediaInfo(val video: Video): SearchUiEvent
+    data class ClearPlaybackHistory(val selectionItems: Set<SelectionItem>) : SearchUiEvent
     data object DismissMediaInfo : SearchUiEvent
 }

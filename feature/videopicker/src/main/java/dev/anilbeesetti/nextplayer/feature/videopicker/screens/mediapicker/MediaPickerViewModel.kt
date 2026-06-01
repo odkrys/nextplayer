@@ -79,6 +79,7 @@ class MediaPickerViewModel @Inject constructor(
             is MediaPickerAction.DeleteSelectedItems -> deleteSelectedItems(action.selectionItems)
             is MediaPickerAction.ShareSelectedItems -> shareSelectedItems(action.selectionItems)
             is MediaPickerAction.ShowMediaInfo -> showMediaInfo(action.video)
+            is MediaPickerAction.ClearPlaybackHistory -> clearPlaybackHistory(action.selectionItems)
             MediaPickerAction.DismissMediaInfo -> uiStateInternal.update { it.copy(mediaInfo = null) }
         }
     }
@@ -184,6 +185,17 @@ class MediaPickerViewModel @Inject constructor(
             }
         }
     }
+
+    private fun clearPlaybackHistory(selectionItems: Set<SelectionItem>) {
+        viewModelScope.launch {
+            try {
+                val uris = selectionItems.toVideoUris().map { it.toString() }
+                mediaRepository.delete(uris)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 }
 
 @Stable
@@ -206,6 +218,7 @@ sealed interface MediaPickerAction {
     data class DeleteSelectedItems(val selectionItems: Set<SelectionItem>) : MediaPickerAction
     data class ShareSelectedItems(val selectionItems: Set<SelectionItem>) : MediaPickerAction
     data class ShowMediaInfo(val video: Video): MediaPickerAction
+    data class ClearPlaybackHistory(val selectionItems: Set<SelectionItem>) : MediaPickerAction
     data object DismissMediaInfo : MediaPickerAction
 }
 

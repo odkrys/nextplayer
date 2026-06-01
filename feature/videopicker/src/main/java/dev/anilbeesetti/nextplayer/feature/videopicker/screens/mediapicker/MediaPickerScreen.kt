@@ -189,6 +189,7 @@ internal fun MediaPickerScreen(
 
     var showRenameActionFor: Video? by rememberSaveable { mutableStateOf(null) }
     var showDeleteVideosConfirmation by rememberSaveable { mutableStateOf(false) }
+    var showClearHistoryConfirmation by rememberSaveable { mutableStateOf(false) }
 
     val selectedItemsSize = selectionManager.selectionItems.size
     val totalItemsSize = (uiState.mediaDataState as? DataState.Success)?.value?.run { folders.size + videos.size } ?: 0
@@ -491,6 +492,14 @@ internal fun MediaPickerScreen(
                     onShareAction = {
                         onAction(MediaPickerAction.ShareSelectedItems(selectionManager.selectionItems))
                     },
+                    onAddToPlaylistAction = {
+                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                        onAddToPlaylistClick(uris)
+                        selectionManager.exitSelectionMode()
+                    },
+                    onClearHistoryAction = {
+                        showClearHistoryConfirmation = true
+                    },
                     onDeleteAction = {
                         if (MediaOperationsService.willSystemAsksForDeleteConfirmation()) {
                             onAction(MediaPickerAction.DeleteSelectedItems(selectionManager.selectionItems))
@@ -498,11 +507,6 @@ internal fun MediaPickerScreen(
                         } else {
                             showDeleteVideosConfirmation = true
                         }
-                    },
-                    onAddToPlaylistAction = {
-                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
-                        onAddToPlaylistClick(uris)
-                        selectionManager.exitSelectionMode()
                     },
                 )
             }
@@ -744,6 +748,33 @@ internal fun MediaPickerScreen(
         )
     }
 
+    if (showClearHistoryConfirmation) {
+        NextDialog(
+            onDismissRequest = { showClearHistoryConfirmation = false },
+            title = { Text("Clear Playback History") },
+            content = {
+                Text(
+                    text = "Are you sure you want to clear the playback history for the selected items?",
+                    style = MaterialTheme.typography.titleSmall
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onAction(MediaPickerAction.ClearPlaybackHistory(selectionManager.selectionItems))
+                        selectionManager.exitSelectionMode()
+                        showClearHistoryConfirmation = false
+                    }
+                ) {
+                    Text("Clear", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                CancelButton(onClick = { showClearHistoryConfirmation = false })
+            }
+        )
+    }
+
     if (showDeleteVideosConfirmation) {
         DeleteConfirmationDialog(
             selectionItems = selectionManager.selectionItems,
@@ -852,8 +883,9 @@ fun SelectionActionsSheet(
     onRenameAction: () -> Unit,
     onShareAction: () -> Unit,
     onInfoAction: () -> Unit,
-    onDeleteAction: () -> Unit,
     onAddToPlaylistAction: () -> Unit,
+    onClearHistoryAction: () -> Unit,
+    onDeleteAction: () -> Unit,
 ) {
     AnimatedVisibility(
         modifier = modifier.padding(
@@ -922,6 +954,11 @@ fun SelectionActionsSheet(
                     imageVector = NextIcons.Add,
                     title = "Playlist",
                     onClick = onAddToPlaylistAction,
+                )
+                SelectionAction(
+                    imageVector = NextIcons.History,
+                    title = "Clear\nHistory",
+                    onClick = onClearHistoryAction,
                 )
                 SelectionAction(
                     imageVector = NextIcons.Delete,

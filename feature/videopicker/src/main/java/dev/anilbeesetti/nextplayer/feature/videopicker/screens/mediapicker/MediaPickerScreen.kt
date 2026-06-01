@@ -758,7 +758,8 @@ internal fun MediaPickerScreen(
 }
 
 @Composable
-private fun DeleteConfirmationDialog(
+//private fun DeleteConfirmationDialog(
+fun DeleteConfirmationDialog(
     modifier: Modifier = Modifier,
     selectionItems: Set<SelectionItem>,
     onConfirm: () -> Unit,
@@ -841,7 +842,8 @@ private fun NetworkUrlDialog(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionActionsSheet(
+//private fun SelectionActionsSheet(
+fun SelectionActionsSheet(
     modifier: Modifier = Modifier,
     show: Boolean,
     showRenameAction: Boolean,

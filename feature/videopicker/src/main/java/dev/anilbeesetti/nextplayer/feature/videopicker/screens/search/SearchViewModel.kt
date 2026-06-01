@@ -1,31 +1,45 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.search
 
+import android.net.Uri
 import androidx.compose.runtime.Stable
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.SearchHistoryRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetPopularFoldersUseCase
+import dev.anilbeesetti.nextplayer.core.domain.GetSortedVideosUseCase
 import dev.anilbeesetti.nextplayer.core.domain.SearchMediaUseCase
 import dev.anilbeesetti.nextplayer.core.domain.SearchResults
+import dev.anilbeesetti.nextplayer.core.media.services.MediaOperationsService
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.Folder
+import dev.anilbeesetti.nextplayer.core.model.MediaViewMode
 import dev.anilbeesetti.nextplayer.core.model.Sort
+import dev.anilbeesetti.nextplayer.core.model.Video
+import dev.anilbeesetti.nextplayer.feature.videopicker.state.SelectionItem
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val searchMediaUseCase: SearchMediaUseCase,
     private val getPopularFoldersUseCase: GetPopularFoldersUseCase,
+    private val getSortedVideosUseCase: GetSortedVideosUseCase,
+    private val mediaOperationsService: MediaOperationsService,
+    private val mediaRepository: MediaRepository,
+    private val searchMediaUseCase: SearchMediaUseCase,
     private val searchHistoryRepository: SearchHistoryRepository,
     private val preferencesRepository: PreferencesRepository,
 ) : ViewModel() {
@@ -103,6 +117,11 @@ class SearchViewModel @Inject constructor(
             is SearchUiEvent.OnHistoryItemClick -> onHistoryItemClick(event.query)
             is SearchUiEvent.OnRemoveHistoryItem -> removeHistoryItem(event.query)
             is SearchUiEvent.OnClearHistory -> clearHistory()
+            is SearchUiEvent.DeleteSelectedItems -> deleteSelectedItems(event.selectionItems)
+            is SearchUiEvent.ShareSelectedItems -> shareSelectedItems(event.selectionItems)
+            is SearchUiEvent.ShowMediaInfo -> showMediaInfo(event.video)
+            is SearchUiEvent.RenameVideo -> renameVideo(event.uri, event.to)
+            SearchUiEvent.DismissMediaInfo -> uiStateInternal.update { it.copy(mediaInfo = null) }
         }
     }
 
@@ -136,6 +155,54 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    private fun deleteSelectedItems(selectedItems: Set<SelectionItem>) {
+        viewModelScope.launch {
+            val videoUris = selectedItems.toVideoUris()
+            mediaOperationsService.deleteMedia(videoUris)
+        }
+    }
+
+    private fun shareSelectedItems(selectedItems: Set<SelectionItem>) {
+        viewModelScope.launch {
+            val videoUris = selectedItems.toVideoUris()
+            mediaOperationsService.shareMedia(videoUris)
+        }
+    }
+
+    private fun showMediaInfo(video: Video) {
+        viewModelScope.launch {
+            val mediaInfo = mediaRepository.getMediaInfo(video.uriString)
+            if (mediaInfo != null) {
+                uiStateInternal.update { it.copy(mediaInfo = mediaInfo) }
+            }
+        }
+    }
+
+    private fun renameVideo(uri: Uri, to: String) {
+        viewModelScope.launch {
+            mediaOperationsService.renameMedia(uri, to)
+        }
+    }
+
+    private suspend fun Set<SelectionItem>.toVideoUris(): List<Uri> {
+        val preferences = uiStateInternal.value.preferences
+        return flatMap { selectionItem ->
+            when (selectionItem) {
+                is SelectionItem.Video -> listOf(selectionItem.uriString.toUri())
+                is SelectionItem.Folder -> {
+                    val videos = getSortedVideosUseCase(selectionItem.path).first()
+                    // In FOLDERS mode, only include direct children
+                    val filteredVideos = if (preferences.mediaViewMode == MediaViewMode.FOLDERS) {
+                        videos.filter { it.parentPath == selectionItem.path }
+                    } else {
+                        videos
+                    }
+                    filteredVideos.map { it.uriString.toUri() }
+                }
+            }
+        }
+    }
+
     companion object {
         private const val SEARCH_DEBOUNCE_MS = 300L
     }
@@ -149,7 +216,8 @@ data class SearchUiState(
     val searchResults: SearchResults = SearchResults(),
     val isSearching: Boolean = false,
     val preferences: ApplicationPreferences = ApplicationPreferences(),
-)
+    val mediaInfo: dev.anilbeesetti.nextplayer.core.model.MediaInfo? = null,
+    )
 
 sealed interface SearchUiEvent {
     data class OnQueryChange(val query: String) : SearchUiEvent
@@ -157,4 +225,9 @@ sealed interface SearchUiEvent {
     data class OnHistoryItemClick(val query: String) : SearchUiEvent
     data class OnRemoveHistoryItem(val query: String) : SearchUiEvent
     data object OnClearHistory : SearchUiEvent
+    data class ShareSelectedItems(val selectionItems: Set<SelectionItem>)  : SearchUiEvent
+    data class DeleteSelectedItems(val selectionItems: Set<SelectionItem>) : SearchUiEvent
+    data class RenameVideo(val uri: Uri, val to: String) : SearchUiEvent
+    data class ShowMediaInfo(val video: Video): SearchUiEvent
+    data object DismissMediaInfo : SearchUiEvent
 }

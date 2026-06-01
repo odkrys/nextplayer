@@ -1,10 +1,12 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.search
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +39,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,11 +57,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.domain.MediaHolder
 import dev.anilbeesetti.nextplayer.core.domain.SearchResults
+import dev.anilbeesetti.nextplayer.core.media.services.MediaOperationsService
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.Folder
 import dev.anilbeesetti.nextplayer.core.model.MediaLayoutMode
@@ -65,20 +72,28 @@ import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSegmentedListItem
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
+import dev.anilbeesetti.nextplayer.core.ui.composables.MediaInfoDialog
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
 import dev.anilbeesetti.nextplayer.core.ui.extensions.plus
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.FolderItem
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.MediaView
+import dev.anilbeesetti.nextplayer.feature.videopicker.composables.RenameDialog
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.DeleteConfirmationDialog
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.SelectionActionsSheet
+import dev.anilbeesetti.nextplayer.feature.videopicker.state.SelectionManager
+import dev.anilbeesetti.nextplayer.feature.videopicker.state.rememberSelectionManager
 
 @Composable
 fun SearchRoute(
     viewModel: SearchViewModel = hiltViewModel(),
     //onPlayVideo: (uri: Uri) -> Unit,
     onPlayVideo: (videos: List<Video>, index: Int) -> Unit,
+    onPlayVideos: (uris: List<Uri>) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
     onNavigateUp: () -> Unit,
+    onAddToPlaylistClick: (List<String>) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
 
@@ -88,6 +103,8 @@ fun SearchRoute(
         onFolderClick = onFolderClick,
         //onVideoClick = onPlayVideo,
         onVideoClick = { index -> onPlayVideo(uiState.searchResults.videos, index) },
+        onPlayVideos = onPlayVideos,
+        onAddToPlaylistClick = onAddToPlaylistClick,
         onEvent = viewModel::onEvent,
     )
 }
@@ -100,19 +117,33 @@ internal fun SearchScreen(
     onFolderClick: (String) -> Unit = {},
     //onVideoClick: (Uri) -> Unit = {},
     onVideoClick: (Int) -> Unit = {},
+    onPlayVideos: (List<Uri>) -> Unit = {},
+    onAddToPlaylistClick: (List<String>) -> Unit = {},
     onEvent: (SearchUiEvent) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    val selectionManager = rememberSelectionManager()
+    var showRenameActionFor: Video? by rememberSaveable { mutableStateOf(null) }
+    var showDeleteVideosConfirmation by rememberSaveable { mutableStateOf(false) }
+
+    val selectedItemsSize = selectionManager.selectedFolders.size + selectionManager.selectedVideos.size
+    val totalItemsSize = uiState.searchResults.folders.size + uiState.searchResults.videos.size
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+
+    BackHandler(enabled = selectionManager.isInSelectionMode) {
+        selectionManager.exitSelectionMode()
     }
 
     Scaffold(
         topBar = {
             NextTopAppBar(
                 title = {
+/*
                     OutlinedTextField(
                         value = uiState.query,
                         onValueChange = { onEvent(SearchUiEvent.OnQueryChange(it)) },
@@ -171,6 +202,149 @@ internal fun SearchScreen(
                 },
             )
         },
+*/
+                    if (!selectionManager.isInSelectionMode) {
+                        OutlinedTextField(
+                            value = uiState.query,
+                            onValueChange = { onEvent(SearchUiEvent.OnQueryChange(it)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
+                            placeholder = {
+                                Text(
+                                    text = stringResource(R.string.search_videos_and_folders),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                )
+                            },
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            trailingIcon = {
+                                if (uiState.query.isNotEmpty()) {
+                                    IconButton(onClick = { onEvent(SearchUiEvent.OnQueryChange("")) }) {
+                                        Icon(
+                                            imageVector = NextIcons.Close,
+                                            contentDescription = stringResource(R.string.clear_history),
+                                        )
+                                    }
+                                } else if (uiState.isSearching) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                }
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    onEvent(SearchUiEvent.OnSearch(uiState.query))
+                                    keyboardController?.hide()
+                                },
+                            ),
+                            shape = CircleShape,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = Color.Transparent,
+                                errorBorderColor = Color.Transparent,
+                                disabledBorderColor = Color.Transparent,
+                            ),
+                        )
+                    }
+                },
+                navigationIcon = {
+                    if (selectionManager.isInSelectionMode) {
+                        Row(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer)
+                                .clickable { selectionManager.exitSelectionMode() }
+                                .padding(8.dp)
+                                .padding(end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Icon(
+                                imageVector = NextIcons.Close,
+                                contentDescription = stringResource(id = R.string.navigate_up),
+                            )
+                            Text(
+                                text = stringResource(R.string.m_n_selected, selectedItemsSize, totalItemsSize),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                        }
+                    } else {
+                        FilledTonalIconButton(onClick = onNavigateUp) {
+                            Icon(
+                                imageVector = NextIcons.ArrowBack,
+                                contentDescription = stringResource(id = R.string.navigate_up),
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (selectionManager.isInSelectionMode) {
+                        FilledTonalIconButton(
+                            onClick = {
+                                if (selectedItemsSize != totalItemsSize) {
+                                    uiState.searchResults.folders.forEach { selectionManager.selectFolder(it) }
+                                    uiState.searchResults.videos.forEach { selectionManager.selectVideo(it) }
+                                } else {
+                                    selectionManager.clearSelection()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (selectedItemsSize != totalItemsSize) NextIcons.SelectAll else NextIcons.DeselectAll,
+                                contentDescription = if (selectedItemsSize != totalItemsSize) stringResource(R.string.select_all) else stringResource(R.string.deselect_all),
+                            )
+                        }
+                    }
+                },
+            )
+        },
+        bottomBar = {
+            Column {
+                SelectionActionsSheet(
+                    show = selectionManager.isInSelectionMode && selectionManager.selectionItems.isNotEmpty(),
+                    showRenameAction = selectionManager.isSingleVideoSelected,
+                    showInfoAction = selectionManager.isSingleVideoSelected,
+                    onPlayAction = {
+                        val videoUris = selectionManager.allSelectedVideos.map { Uri.parse(it.uriString) }
+                        onPlayVideos(videoUris)
+                        selectionManager.exitSelectionMode()
+                    },
+                    onRenameAction = {
+                        val selectedVideo = selectionManager.selectedVideos.firstOrNull() ?: return@SelectionActionsSheet
+                        val video = uiState.searchResults.videos.find { it.uriString == selectedVideo.uriString } ?: return@SelectionActionsSheet
+                        showRenameActionFor = video
+                    },
+                    onInfoAction = {
+                        val selectedVideo = selectionManager.selectedVideos.firstOrNull() ?: return@SelectionActionsSheet
+                        val video = uiState.searchResults.videos.find { it.uriString == selectedVideo.uriString } ?: return@SelectionActionsSheet
+                        onEvent(SearchUiEvent.ShowMediaInfo(video))
+                        selectionManager.exitSelectionMode()
+                    },
+                    onShareAction = {
+                        onEvent(SearchUiEvent.ShareSelectedItems(selectionManager.selectionItems))
+                    },
+                    onDeleteAction = {
+                        if (MediaOperationsService.willSystemAsksForDeleteConfirmation()) {
+                            onEvent(SearchUiEvent.DeleteSelectedItems(selectionManager.selectionItems))
+                            selectionManager.exitSelectionMode()
+                        } else {
+                            showDeleteVideosConfirmation = true
+                        }
+                    },
+                    onAddToPlaylistAction = {
+                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                        onAddToPlaylistClick(uris)
+                        selectionManager.exitSelectionMode()
+                    },
+                )
+            }
+        },
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) { scaffoldPadding ->
         Column(
@@ -202,6 +376,7 @@ internal fun SearchScreen(
                         searchResults = uiState.searchResults,
                         preferences = uiState.preferences,
                         isSearching = uiState.isSearching,
+                        selectionManager = selectionManager,
                         contentPadding = updatedScaffoldPadding,
                         onFolderClick = onFolderClick,
                         onVideoClick = onVideoClick,
@@ -209,6 +384,37 @@ internal fun SearchScreen(
                 }
             }
         }
+    }
+
+    showRenameActionFor?.let { video ->
+        RenameDialog(
+            name = video.displayName,
+            onDismiss = { showRenameActionFor = null },
+            onDone = {
+                onEvent(SearchUiEvent.RenameVideo(video.uriString.toUri(), it))
+                selectionManager.exitSelectionMode()
+                showRenameActionFor = null
+            },
+        )
+    }
+
+    uiState.mediaInfo?.let { mediaInfo ->
+        MediaInfoDialog(
+            mediaInfo = mediaInfo,
+            onDismiss = { onEvent(SearchUiEvent.DismissMediaInfo) },
+        )
+    }
+
+    if (showDeleteVideosConfirmation) {
+        DeleteConfirmationDialog(
+            selectionItems = selectionManager.selectionItems,
+            onConfirm = {
+                onEvent(SearchUiEvent.DeleteSelectedItems(selectionManager.selectionItems))
+                selectionManager.exitSelectionMode()
+                showDeleteVideosConfirmation = false
+            },
+            onCancel = { showDeleteVideosConfirmation = false },
+        )
     }
 }
 
@@ -364,6 +570,7 @@ private fun SearchResultsContent(
     searchResults: SearchResults,
     preferences: ApplicationPreferences,
     isSearching: Boolean,
+    selectionManager: SelectionManager,
     contentPadding: PaddingValues = PaddingValues(),
     onFolderClick: (String) -> Unit,
     //onVideoClick: (Uri) -> Unit,
@@ -418,6 +625,7 @@ private fun SearchResultsContent(
                     folders = searchResults.folders,
                 ),
                 preferences = preferences,
+                selectionManager = selectionManager,
                 onFolderClick = onFolderClick,
                 onVideoClick = { videoUri ->
                     val index = searchResults.videos.indexOfFirst { Uri.parse(it.uriString) == videoUri }

@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,6 +51,7 @@ import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.VideoItem
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlaylistDetailRoute(
@@ -131,6 +133,7 @@ fun PlaylistDetailScreen(
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val isAllSelected = uiState.sortedVideos.isNotEmpty() && selectedUris.size == uiState.sortedVideos.size
 
     LaunchedEffect(uiState.sortOption) {
@@ -160,6 +163,17 @@ fun PlaylistDetailScreen(
     fun exitSelectionMode() {
         isSelectionMode = false
         selectedUris = emptySet()
+    }
+
+    fun applySort(newOption: PlaylistSortOption) {
+        showSortMenu = false
+
+        if (newOption == uiState.sortOption) return
+
+        scope.launch {
+            listState.scrollToItem(0)
+            onEvent(PlaylistDetailUiEvent.UpdateSortOption(newOption))
+        }
     }
 
     Scaffold(
@@ -239,31 +253,19 @@ fun PlaylistDetailScreen(
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text("Date added (Oldest)") },
-                                        onClick = {
-                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.ADDED_ASC))
-                                            showSortMenu = false
-                                        }
+                                        onClick = { applySort(PlaylistSortOption.ADDED_ASC) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Date added (Newest)") },
-                                        onClick = {
-                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.ADDED_DESC))
-                                            showSortMenu = false
-                                        }
+                                        onClick = { applySort(PlaylistSortOption.ADDED_DESC) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Name (A-Z)") },
-                                        onClick = {
-                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.NAME_ASC))
-                                            showSortMenu = false
-                                        }
+                                        onClick = { applySort(PlaylistSortOption.NAME_ASC) }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Name (Z-A)") },
-                                        onClick = {
-                                            onEvent(PlaylistDetailUiEvent.UpdateSortOption(PlaylistSortOption.NAME_DESC))
-                                            showSortMenu = false
-                                        }
+                                        onClick = { applySort(PlaylistSortOption.NAME_DESC) }
                                     )
                                 }
                             }

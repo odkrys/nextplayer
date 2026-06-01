@@ -110,6 +110,7 @@ fun BoxScope.PlaylistView(
                         val isCurrentItem = index == playlistState.currentMediaItemIndex
                         PlaylistItemView(
                             mediaItem = mediaItem,
+                            index = index,
                             isFirstItem = index == 0,
                             isLastItem = index == playlistState.playlist.lastIndex,
                             isCurrentItem = isCurrentItem,
@@ -128,6 +129,7 @@ fun BoxScope.PlaylistView(
 @Composable
 private fun ReorderableCollectionItemScope.PlaylistItemView(
     mediaItem: MediaItem,
+    index: Int,
     isFirstItem: Boolean = false,
     isLastItem: Boolean = false,
     isCurrentItem: Boolean,
@@ -169,6 +171,7 @@ private fun ReorderableCollectionItemScope.PlaylistItemView(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+/*
                 Icon(
                     painter = painterResource(R.drawable.ic_drag_handle),
                     contentDescription = stringResource(R.string.reorder),
@@ -177,6 +180,18 @@ private fun ReorderableCollectionItemScope.PlaylistItemView(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
+                )
+*/
+                Text(
+                    text = (index + 1).toString(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (isCurrentItem) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(28.dp)
                 )
 
                 ThumbnailView(

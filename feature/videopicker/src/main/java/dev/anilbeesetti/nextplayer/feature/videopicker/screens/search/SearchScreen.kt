@@ -67,7 +67,9 @@ import dev.anilbeesetti.nextplayer.core.model.Folder
 import dev.anilbeesetti.nextplayer.core.model.MediaLayoutMode
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.R
+import dev.anilbeesetti.nextplayer.core.ui.components.CancelButton
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
+import dev.anilbeesetti.nextplayer.core.ui.components.NextDialog
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSegmentedListItem
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
@@ -79,6 +81,7 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.composables.MediaView
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.RenameDialog
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.VideoInfoDialog
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.DeleteConfirmationDialog
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.MediaPickerUiEvent
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.SelectionActionsSheet
 import dev.anilbeesetti.nextplayer.feature.videopicker.state.SelectionManager
 import dev.anilbeesetti.nextplayer.feature.videopicker.state.rememberSelectionManager
@@ -126,6 +129,7 @@ internal fun SearchScreen(
     var showRenameActionFor: Video? by rememberSaveable { mutableStateOf(null) }
     var showInfoActionFor: Video? by rememberSaveable { mutableStateOf(null) }
     var showDeleteVideosConfirmation by rememberSaveable { mutableStateOf(false) }
+    var showClearHistoryConfirmation by rememberSaveable { mutableStateOf(false) }
 
     val selectedItemsSize = selectionManager.selectedFolders.size + selectionManager.selectedVideos.size
     val totalItemsSize = uiState.searchResults.folders.size + uiState.searchResults.videos.size
@@ -319,14 +323,22 @@ internal fun SearchScreen(
                         val video = uiState.searchResults.videos.find { it.uriString == selectedVideo.uriString } ?: return@SelectionActionsSheet
                         showRenameActionFor = video
                     },
+                    onShareAction = {
+                        onEvent(SearchUiEvent.ShareVideos(selectionManager.allSelectedVideos.map { it.uriString }))
+                    },
                     onInfoAction = {
                         val selectedVideo = selectionManager.selectedVideos.firstOrNull() ?: return@SelectionActionsSheet
                         val video = uiState.searchResults.videos.find { it.uriString == selectedVideo.uriString } ?: return@SelectionActionsSheet
                         showInfoActionFor = video
                         selectionManager.clearSelection()
                     },
-                    onShareAction = {
-                        onEvent(SearchUiEvent.ShareVideos(selectionManager.allSelectedVideos.map { it.uriString }))
+                    onAddToPlaylistAction = {
+                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                        onAddToPlaylistClick(uris)
+                        selectionManager.exitSelectionMode()
+                    },
+                    onClearHistoryAction = {
+                        showClearHistoryConfirmation = true
                     },
                     onDeleteAction = {
                         if (MediaService.willSystemAsksForDeleteConfirmation()) {
@@ -335,11 +347,6 @@ internal fun SearchScreen(
                         } else {
                             showDeleteVideosConfirmation = true
                         }
-                    },
-                    onAddToPlaylistAction = {
-                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
-                        onAddToPlaylistClick(uris)
-                        selectionManager.exitSelectionMode()
                     },
                 )
             }
@@ -402,6 +409,34 @@ internal fun SearchScreen(
         VideoInfoDialog(
             video = video,
             onDismiss = { showInfoActionFor = null },
+        )
+    }
+
+    if (showClearHistoryConfirmation) {
+        NextDialog(
+            onDismissRequest = { showClearHistoryConfirmation = false },
+            title = { Text("Clear Playback History") },
+            content = {
+                Text(
+                    text = "Are you sure you want to clear the playback history for the selected items?",
+                    style = MaterialTheme.typography.titleSmall
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                        onEvent(SearchUiEvent.ClearPlaybackHistory(uris))
+                        selectionManager.exitSelectionMode()
+                        showClearHistoryConfirmation = false
+                    }
+                ) {
+                    Text("Clear", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                CancelButton(onClick = { showClearHistoryConfirmation = false })
+            }
         )
     }
 

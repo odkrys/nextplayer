@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.common.extensions.prettyName
+import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedMediaUseCase
 import dev.anilbeesetti.nextplayer.core.media.services.MediaService
@@ -29,6 +30,7 @@ class MediaPickerViewModel @Inject constructor(
     getSortedMediaUseCase: GetSortedMediaUseCase,
     savedStateHandle: SavedStateHandle,
     private val mediaService: MediaService,
+    private val mediaRepository: MediaRepository,
     private val preferencesRepository: PreferencesRepository,
     private val mediaInfoSynchronizer: MediaInfoSynchronizer,
     private val mediaSynchronizer: MediaSynchronizer,
@@ -77,6 +79,7 @@ class MediaPickerViewModel @Inject constructor(
             is MediaPickerUiEvent.RenameVideo -> renameVideo(event.uri, event.to)
             is MediaPickerUiEvent.AddToSync -> addToMediaInfoSynchronizer(event.uri)
             is MediaPickerUiEvent.UpdateMenu -> updateMenu(event.preferences)
+            is MediaPickerUiEvent.ClearPlaybackHistory -> clearPlaybackHistory(event.uris)
         }
     }
 
@@ -128,6 +131,16 @@ class MediaPickerViewModel @Inject constructor(
             preferencesRepository.updateApplicationPreferences { preferences }
         }
     }
+
+    private fun clearPlaybackHistory(uris: List<String>) {
+        viewModelScope.launch {
+            try {
+                mediaRepository.delete(uris)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 }
 
 @Stable
@@ -146,4 +159,5 @@ sealed interface MediaPickerUiEvent {
     data class RenameVideo(val uri: Uri, val to: String) : MediaPickerUiEvent
     data class AddToSync(val uri: Uri) : MediaPickerUiEvent
     data class UpdateMenu(val preferences: ApplicationPreferences) : MediaPickerUiEvent
+    data class ClearPlaybackHistory(val uris: List<String>) : MediaPickerUiEvent
 }

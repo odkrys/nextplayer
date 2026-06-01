@@ -173,6 +173,7 @@ internal fun MediaPickerScreen(
     var showRenameActionFor: Video? by rememberSaveable { mutableStateOf(null) }
     var showInfoActionFor: Video? by rememberSaveable { mutableStateOf(null) }
     var showDeleteVideosConfirmation by rememberSaveable { mutableStateOf(false) }
+    var showClearHistoryConfirmation by rememberSaveable { mutableStateOf(false) }
 
     var rememberedShowRename by remember { mutableStateOf(false) }
     var rememberedShowInfo by remember { mutableStateOf(false) }
@@ -465,6 +466,9 @@ internal fun MediaPickerScreen(
                             ?.find { it.uriString == selectedVideo.uriString } ?: return@SelectionActionsSheet
                         showRenameActionFor = video
                     },
+                    onShareAction = {
+                        onEvent(MediaPickerUiEvent.ShareVideos(selectionManager.allSelectedVideos.map { it.uriString }))
+                    },
                     onInfoAction = {
                         val selectedVideo = selectionManager.selectedVideos.firstOrNull() ?: return@SelectionActionsSheet
                         val video = (uiState.mediaDataState as? DataState.Success)?.value?.mediaList
@@ -472,8 +476,13 @@ internal fun MediaPickerScreen(
                         showInfoActionFor = video
                         selectionManager.clearSelection()
                     },
-                    onShareAction = {
-                        onEvent(MediaPickerUiEvent.ShareVideos(selectionManager.allSelectedVideos.map { it.uriString }))
+                    onAddToPlaylistAction = {
+                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                        onAddToPlaylistClick(uris)
+                        selectionManager.exitSelectionMode()
+                    },
+                    onClearHistoryAction = {
+                        showClearHistoryConfirmation = true
                     },
                     onDeleteAction = {
                         if (MediaService.willSystemAsksForDeleteConfirmation()) {
@@ -482,11 +491,6 @@ internal fun MediaPickerScreen(
                         } else {
                             showDeleteVideosConfirmation = true
                         }
-                    },
-                    onAddToPlaylistAction = {
-                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
-                        onAddToPlaylistClick(uris)
-                        selectionManager.exitSelectionMode()
                     },
                 )
             }
@@ -728,6 +732,34 @@ internal fun MediaPickerScreen(
         )
     }
 
+    if (showClearHistoryConfirmation) {
+        NextDialog(
+            onDismissRequest = { showClearHistoryConfirmation = false },
+            title = { Text("Clear Playback History") },
+            content = {
+                Text(
+                    text = "Are you sure you want to clear the playback history for the selected items?",
+                    style = MaterialTheme.typography.titleSmall
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
+                        onEvent(MediaPickerUiEvent.ClearPlaybackHistory(uris))
+                        selectionManager.exitSelectionMode()
+                        showClearHistoryConfirmation = false
+                    }
+                ) {
+                    Text("Clear", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                CancelButton(onClick = { showClearHistoryConfirmation = false })
+            }
+        )
+    }
+
     if (showDeleteVideosConfirmation) {
         DeleteConfirmationDialog(
             selectedVideos = selectionManager.selectedVideos,
@@ -835,8 +867,9 @@ fun SelectionActionsSheet(
     onRenameAction: () -> Unit,
     onShareAction: () -> Unit,
     onInfoAction: () -> Unit,
-    onDeleteAction: () -> Unit,
     onAddToPlaylistAction: () -> Unit,
+    onClearHistoryAction: () -> Unit,
+    onDeleteAction: () -> Unit,
 ) {
     AnimatedVisibility(
         modifier = modifier.padding(
@@ -905,6 +938,11 @@ fun SelectionActionsSheet(
                     imageVector = NextIcons.Add,
                     title = "Playlist",
                     onClick = onAddToPlaylistAction,
+                )
+                SelectionAction(
+                    imageVector = NextIcons.History,
+                    title = "Clear\nHistory",
+                    onClick = onClearHistoryAction,
                 )
                 SelectionAction(
                     imageVector = NextIcons.Delete,

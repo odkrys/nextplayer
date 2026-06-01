@@ -6,6 +6,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.SearchHistoryRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetPopularFoldersUseCase
@@ -29,6 +30,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val mediaService: MediaService,
+    private val mediaRepository: MediaRepository,
     private val searchMediaUseCase: SearchMediaUseCase,
     private val getPopularFoldersUseCase: GetPopularFoldersUseCase,
     private val searchHistoryRepository: SearchHistoryRepository,
@@ -113,6 +115,7 @@ class SearchViewModel @Inject constructor(
             is SearchUiEvent.ShareVideos -> shareVideos(event.videos)
             is SearchUiEvent.DeleteVideos -> deleteVideos(event.videos)
             is SearchUiEvent.RenameVideo -> renameVideo(event.uri, event.to)
+            is SearchUiEvent.ClearPlaybackHistory -> clearPlaybackHistory(event.uris)
         }
     }
 
@@ -170,6 +173,16 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    private fun clearPlaybackHistory(uris: List<String>) {
+        viewModelScope.launch {
+            try {
+                mediaRepository.delete(uris)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     companion object {
         private const val SEARCH_DEBOUNCE_MS = 300L
     }
@@ -195,4 +208,5 @@ sealed interface SearchUiEvent {
     data class ShareVideos(val videos: List<String>) : SearchUiEvent
     data class DeleteVideos(val videos: List<String>) : SearchUiEvent
     data class RenameVideo(val uri: Uri, val to: String) : SearchUiEvent
+    data class ClearPlaybackHistory(val uris: List<String>) : SearchUiEvent
 }

@@ -11,13 +11,18 @@ import dev.anilbeesetti.nextplayer.core.domain.webdav.ListWebdavFilesUseCase
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 data class WebdavBrowserUiState(
     val server: WebdavServer? = null,
@@ -45,7 +50,11 @@ class WebdavBrowserViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WebdavBrowserUiState())
     val uiState: StateFlow<WebdavBrowserUiState> = _uiState.asStateFlow()
 
+    private val _navigationEvent = Channel<List<String>>()
+    val navigationEvent = _navigationEvent.receiveAsFlow()
+
     private var fileLoadingJob: Job? = null
+    private var playlistJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -350,6 +359,7 @@ class WebdavBrowserViewModel @Inject constructor(
     ): List<WebdavFile> {
         val result = mutableListOf<WebdavFile>()
         for (file in files) {
+            currentCoroutineContext().ensureActive()
             if (file.isDirectory) {
                 val children = listWebdavFilesUseCase(server, file.path)
                     .getOrElse { emptyList() }
@@ -366,9 +376,9 @@ class WebdavBrowserViewModel @Inject constructor(
     fun prepareMediaForPlaylist(
         server: WebdavServer,
         selectedFiles: List<WebdavFile>,
-        onReady: (List<String>) -> Unit,
     ) {
-        viewModelScope.launch {
+        playlistJob?.cancel()
+        playlistJob = viewModelScope.launch {
             _uiState.update { it.copy(isPreparingPlaylist = true) }
             try {
                 val collectedFiles = collectPlayableFiles(
@@ -377,15 +387,25 @@ class WebdavBrowserViewModel @Inject constructor(
                 )
 
                 val urls = collectedFiles.map { file ->
+                    currentCoroutineContext().ensureActive()
                     buildFileUrl(server, file)
                 }
 
-                onReady(urls)
+                currentCoroutineContext().ensureActive()
+                _navigationEvent.send(urls)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = e.message ?: "Failed to prepare playlist") }
             } finally {
                 _uiState.update { it.copy(isPreparingPlaylist = false) }
             }
         }
+    }
+
+    fun cancelPreparePlaylist() {
+        playlistJob?.cancel()
+        playlistJob = null
+        _uiState.update { it.copy(isPreparingPlaylist = false) }
     }
 }

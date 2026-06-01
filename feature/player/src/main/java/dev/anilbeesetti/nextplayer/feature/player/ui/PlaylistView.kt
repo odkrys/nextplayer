@@ -120,7 +120,7 @@ fun BoxScope.PlaylistView(
         }
     }
 */
-    LaunchedEffect(show, shuffleTrigger) {
+    LaunchedEffect(show, playlistState.currentMediaItemIndex, shuffleTrigger) {
         if (show && displayPlaylist.isNotEmpty()) {
             val currentRealIndex = playlistState.currentMediaItemIndex
 
@@ -128,8 +128,8 @@ fun BoxScope.PlaylistView(
                 realIndex == currentRealIndex
             }
 
-            if (targetUiIndex != -1) {
-                lazyListState.animateScrollToItem(targetUiIndex)
+            if (targetUiIndex != -1 && !lazyListState.isScrollInProgress) {
+                lazyListState.scrollToItem(targetUiIndex)
             }
         }
     }

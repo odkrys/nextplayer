@@ -33,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
@@ -51,6 +52,7 @@ import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
 fun VideoItem(
     video: Video,
     isRecentlyPlayedVideo: Boolean,
+    isDeadLink: Boolean = false,
     preferences: ApplicationPreferences,
     modifier: Modifier = Modifier,
     isFirstItem: Boolean = false,
@@ -64,6 +66,7 @@ fun VideoItem(
         MediaLayoutMode.LIST -> VideoListItem(
             video = video,
             isRecentlyPlayedVideo = isRecentlyPlayedVideo,
+            isDeadLink = isDeadLink,
             preferences = preferences,
             modifier = modifier,
             isFirstItem = isFirstItem,
@@ -91,6 +94,7 @@ fun VideoItem(
 @Composable
 private fun VideoListItem(
     video: Video,
+    isDeadLink: Boolean = false,
     isRecentlyPlayedVideo: Boolean,
     preferences: ApplicationPreferences,
     modifier: Modifier = Modifier,
@@ -138,6 +142,12 @@ private fun VideoListItem(
                 maxLines = 2,
                 style = MaterialTheme.typography.titleMedium,
                 overflow = TextOverflow.Ellipsis,
+                textDecoration = if (isDeadLink) TextDecoration.LineThrough else TextDecoration.None,
+                color = when {
+                    isDeadLink -> MaterialTheme.colorScheme.error
+                    isRecentlyPlayedVideo -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
             )
         },
         supportingContent = {

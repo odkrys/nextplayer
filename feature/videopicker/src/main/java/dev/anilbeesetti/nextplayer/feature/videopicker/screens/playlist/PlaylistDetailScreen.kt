@@ -126,6 +126,7 @@ fun PlaylistDetailScreen(
     var selectedUris by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var showClearHistoryDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeadLinksDialog by rememberSaveable { mutableStateOf(false) }
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
 
@@ -135,6 +136,12 @@ fun PlaylistDetailScreen(
     LaunchedEffect(uiState.sortOption) {
         if (uiState.sortedVideos.isNotEmpty()) {
             listState.scrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(deadLinks) {
+        if (deadLinks.isNotEmpty()) {
+            showDeadLinksDialog = true
         }
     }
 
@@ -311,6 +318,7 @@ fun PlaylistDetailScreen(
                         PlaylistDetailContent(
                             videos = uiState.sortedVideos,
                             lastPlayedUri = playlistData.lastPlayedUri,
+                            deadLinks = deadLinks,
                             preferences = uiState.preferences,
                             remoteProgress = remoteProgress,
                             remoteDurationMap = remoteDurationMap,
@@ -417,7 +425,7 @@ fun PlaylistDetailScreen(
             )
         }
 
-        if (deadLinks.isNotEmpty()) {
+        if (showDeadLinksDialog && deadLinks.isNotEmpty()) {
             val notFoundCount = deadLinks.count { it.errorType == LinkErrorType.NOT_FOUND }
             val unauthCount = deadLinks.count { it.errorType == LinkErrorType.UNAUTHORIZED }
             val networkCount = deadLinks.count { it.errorType == LinkErrorType.NETWORK_ERROR }
@@ -431,16 +439,21 @@ fun PlaylistDetailScreen(
             }
 
             AlertDialog(
-                onDismissRequest = onClearDeadLinks,
+                onDismissRequest = { showDeadLinksDialog = false },
                 title = { Text("Link Verification Results") },
                 text = { Text(messageBuilder) },
                 confirmButton = {
-                    TextButton(onClick = onRemoveDeadLinks) {
+                    TextButton(onClick = {
+                        onRemoveDeadLinks()
+                        showDeadLinksDialog = false
+                    }) {
                         Text("Remove", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = onClearDeadLinks) {
+                    TextButton(onClick = {
+                        showDeadLinksDialog = false
+                    }) {
                         Text("Cancel")
                     }
                 }
@@ -453,6 +466,7 @@ fun PlaylistDetailScreen(
 private fun PlaylistDetailContent(
     videos: List<Video>,
     lastPlayedUri: String?,
+    deadLinks: List<DeadLink> = emptyList(),
     preferences: ApplicationPreferences,
     remoteProgress: Map<String, Float> = emptyMap(),
     remoteDurationMap: Map<String, Long> = emptyMap(),
@@ -470,6 +484,7 @@ private fun PlaylistDetailContent(
         itemsIndexed(items = videos, key = { _, v -> v.uriString }) { index, video ->
             val isSelected = video.uriString in selectedUris
             val isRecentlyPlayed = video.uriString == lastPlayedUri
+            val isDeadLink = deadLinks.any { it.url == video.uriString }
             val effectiveVideo = if (video.duration == 0L) {
                 val realDuration = remoteDurationMap[video.uriString] ?: 0L
                 val realPosition = if (realDuration > 0L) {
@@ -487,6 +502,7 @@ private fun PlaylistDetailContent(
             VideoItem(
                 video = effectiveVideo,
                 isRecentlyPlayedVideo = isRecentlyPlayed,
+                isDeadLink = isDeadLink,
                 preferences = preferences,
                 modifier = Modifier
                     .animateItem()

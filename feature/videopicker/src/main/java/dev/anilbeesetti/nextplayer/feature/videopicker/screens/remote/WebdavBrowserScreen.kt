@@ -198,7 +198,19 @@ private fun WebdavBrowserContent(
         }
     }
 
+    LaunchedEffect(viewModel) {
+        viewModel.navigationEvent.collect { authUrls ->
+            onAddToPlaylistClick(authUrls)
+            isSelectionMode = false
+            selectedHrefs = emptySet()
+        }
+    }
+
     BackHandler {
+        if (uiState.isPreparingPlaylist) {
+            viewModel.cancelPreparePlaylist()
+            return@BackHandler
+        }
         if (isSelectionMode) {
             isSelectionMode = false
             selectedHrefs = emptySet()
@@ -255,6 +267,9 @@ private fun WebdavBrowserContent(
                         navigationIcon = {
                             IconButton(
                                 onClick = {
+                                    if (uiState.isPreparingPlaylist) {
+                                        viewModel.cancelPreparePlaylist()
+                                    }
                                     isSelectionMode = false
                                     selectedHrefs = emptySet()
                                 }
@@ -280,11 +295,7 @@ private fun WebdavBrowserContent(
 
                             IconButton(
                                 onClick = {
-                                    viewModel.prepareMediaForPlaylist(server, selectedFiles.toList()) { authUrls ->
-                                        onAddToPlaylistClick(authUrls)
-                                        isSelectionMode = false
-                                        selectedHrefs = emptySet()
-                                    }
+                                    viewModel.prepareMediaForPlaylist(server, selectedFiles.toList())
                                 },
                                 enabled = selectedFiles.isNotEmpty() && !uiState.isPreparingPlaylist,
                             ) {

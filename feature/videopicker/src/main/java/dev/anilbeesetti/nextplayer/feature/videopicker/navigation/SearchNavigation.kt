@@ -20,13 +20,17 @@ fun NavGraphBuilder.searchScreen(
     onNavigateUp: () -> Unit,
     //onPlayVideo: (uri: Uri) -> Unit,
     onPlayVideo: (videos: List<Video>, index: Int) -> Unit,
+    onPlayVideos: (uris: List<Uri>) -> Unit,
     onFolderClick: (folderPath: String) -> Unit,
+    onAddToPlaylistClick: (List<String>) -> Unit,
 ) {
     composable<SearchRoute> {
         SearchRoute(
             onPlayVideo = onPlayVideo,
+            onPlayVideos = onPlayVideos,
             onNavigateUp = onNavigateUp,
             onFolderClick = onFolderClick,
+            onAddToPlaylistClick = onAddToPlaylistClick,
         )
     }
 }

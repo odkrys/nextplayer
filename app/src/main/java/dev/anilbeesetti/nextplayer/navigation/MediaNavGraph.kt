@@ -73,9 +73,21 @@ fun NavGraphBuilder.mediaNavGraph(
                 }
                 context.startActivity(intent)
             },
+            onPlayVideos = { uris ->
+                if (uris.isNotEmpty()) {
+                    val intent = Intent(context, PlayerActivity::class.java).apply {
+                        action = Intent.ACTION_VIEW
+                        data = uris.first()
+                        putParcelableArrayListExtra(PlayerApi.API_PLAYLIST, ArrayList(uris))
+                    }
+                    context.startActivity(intent)
+                }
+            },
             onFolderClick = navController::navigateToMediaPickerScreen,
+            onAddToPlaylistClick = { uris ->
+                navController.navigateToPlaylist(uris)
+            },
         )
-
 
         playlistScreen(
             onPlaylistClick = { playlistId, _ ->

@@ -13,10 +13,13 @@ import dev.anilbeesetti.nextplayer.core.domain.playlist.RenamePlaylistUseCase
 import dev.anilbeesetti.nextplayer.core.domain.playlist.ReorderPlaylistsUseCase
 import dev.anilbeesetti.nextplayer.core.model.Playlist
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
+import kotlinx.coroutines.channels.Channel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -29,20 +32,27 @@ class PlaylistViewModel @Inject constructor(
     private val reorderPlaylistsUseCase: ReorderPlaylistsUseCase,
 ) : ViewModel() {
 
-    private val uiStateInternal = MutableStateFlow(PlaylistUiState())
-    val uiState = uiStateInternal.asStateFlow()
+    private val _playlists = getPlaylistsUseCase()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = null
+        )
 
-    init {
-        viewModelScope.launch {
-            getPlaylistsUseCase().collect { playlists ->
-                uiStateInternal.update { currentState ->
-                    currentState.copy(
-                        dataState = DataState.Success(playlists),
-                    )
-                }
-            }
+    val uiState: StateFlow<PlaylistUiState> = _playlists.map { playlists ->
+        if (playlists == null) {
+            PlaylistUiState(dataState = DataState.Loading)
+        } else {
+            PlaylistUiState(dataState = DataState.Success(playlists))
         }
-    }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = PlaylistUiState()
+    )
+
+    private val _playlistEvent = Channel<String>()
+    val playlistEvent = _playlistEvent.receiveAsFlow()
 
     fun onEvent(event: PlaylistUiEvent) {
         when (event) {
@@ -56,13 +66,11 @@ class PlaylistViewModel @Inject constructor(
 
     private fun createPlaylist(name: String) {
         viewModelScope.launch {
-            val currentPlaylists = (uiStateInternal.value.dataState as? DataState.Success)?.value ?: emptyList()
-
+            val currentPlaylists = _playlists.value ?: emptyList()
             val maxPosition = currentPlaylists.maxOfOrNull { it.position } ?: -1
-            val newPosition = maxPosition + 1
 
-            createPlaylistUseCase(name, newPosition).onFailure { throwable ->
-                uiStateInternal.update { it.copy(errorMessage = throwable.message) }
+            createPlaylistUseCase(name, maxPosition + 1).onFailure { throwable ->
+                _playlistEvent.send(throwable.message ?: "Failed to create playlist")
             }
         }
     }
@@ -83,21 +91,19 @@ class PlaylistViewModel @Inject constructor(
 
             addMediumToPlaylistUseCase(playlistId, newUris)
 
-            uiStateInternal.update {
-                it.copy(
-                    isDone = true,
-                    addedCount = newUris.size,
-                    skippedCount = uris.size - newUris.size,
-                    playlistName = targetPlaylistName
-                )
+            val message = when {
+                newUris.isEmpty() -> "All videos already in playlist '$targetPlaylistName'"
+                newUris.size == uris.size -> "Added ${newUris.size} videos to the playlist '$targetPlaylistName'"
+                else -> "Added ${newUris.size} videos to playlist '$targetPlaylistName' (${uris.size - newUris.size} already existed)"
             }
+            _playlistEvent.send(message)
         }
     }
 
     private fun renamePlaylist(playlistId: Long, name: String) {
         viewModelScope.launch {
             renamePlaylistUseCase(playlistId, name).onFailure { throwable ->
-                uiStateInternal.update { it.copy(errorMessage = throwable.message) }
+                _playlistEvent.send(throwable.message ?: "Failed to rename playlist")
             }
         }
     }
@@ -118,11 +124,6 @@ class PlaylistViewModel @Inject constructor(
 @Stable
 data class PlaylistUiState(
     val dataState: DataState<List<Playlist>> = DataState.Loading,
-    val errorMessage: String? = null,
-    val isDone: Boolean = false,
-    val addedCount: Int = 0,
-    val skippedCount: Int = 0,
-    val playlistName: String = "",
 )
 
 sealed interface PlaylistUiEvent {

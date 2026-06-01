@@ -67,6 +67,7 @@ fun RemoteHomeScreen(
     onBrowseServer: (WebdavServer) -> Unit,
 ) {
     val servers by viewModel.servers.collectAsStateWithLifecycle()
+    val isServersLoaded by viewModel.isServersLoaded.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -111,7 +112,7 @@ fun RemoteHomeScreen(
                 )
         ) {
             when {
-                uiState.isLoading -> {
+                !isServersLoaded -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 

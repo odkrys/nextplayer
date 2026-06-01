@@ -78,19 +78,12 @@ fun PlaylistRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    LaunchedEffect(uiState.isDone) {
-        if (uiState.isDone) {
+    LaunchedEffect(viewModel) {
+        viewModel.playlistEvent.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             if (selectedUris.isNotEmpty()) {
-                val playlistName = uiState.playlistName ?: "playlist"
-
-                val message = when {
-                    uiState.addedCount == 0 -> "All videos already in playlist '$playlistName'"
-                    uiState.skippedCount == 0 -> "Added ${uiState.addedCount} videos to the playlist '$playlistName'"
-                    else -> "Added ${uiState.addedCount} videos to playlist '$playlistName' (${uiState.skippedCount} already existed)"
-                }
-                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                onBackClick()
             }
-            onBackClick()
         }
     }
 

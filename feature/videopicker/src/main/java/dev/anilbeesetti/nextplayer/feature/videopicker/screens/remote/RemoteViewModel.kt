@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -38,11 +39,27 @@ class RemoteViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     ) : ViewModel() {
 
-    val servers: StateFlow<List<WebdavServer>> = getWebdavServersUseCase()
+    private val _dbServers = getWebdavServersUseCase()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList(),
+            initialValue = null
+        )
+
+    val isServersLoaded: StateFlow<Boolean> = _dbServers
+        .map { it != null }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = false
+        )
+
+    val servers: StateFlow<List<WebdavServer>> = _dbServers
+        .map { it ?: emptyList() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
         )
 
     private val _uiState = MutableStateFlow(RemoteUiState())

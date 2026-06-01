@@ -226,53 +226,60 @@ class PlaylistDetailViewModel @Inject constructor(
         if (_isVerifyingLinks.value) return
 
         viewModelScope.launch {
+            _deadLinksFound.value = emptyList()
             _isVerifyingLinks.value = true
 
-            val webdavUrls = uiStateInternal.value.videos
-                .map { it.uriString }
-                .filter { it.startsWith("http") }
-            val servers = webdavServerRepository.getAllServers().first()
+            try {
+                val webdavUrls = uiStateInternal.value.videos
+                    .map { it.uriString }
+                    .filter { it.startsWith("http") }
+                val servers = webdavServerRepository.getAllServers().first()
 
-            val serverHostMap = servers.associateBy {
-                val defaultPort = if (it.useSsl) 443 else 80
-                val port = if (it.port == defaultPort) -1 else it.port
-                val portSuffix = if (port != -1) ":$port" else ""
-                "${it.host}$portSuffix"
-            }
+                val serverHostMap = servers.associateBy {
+                    val defaultPort = if (it.useSsl) 443 else 80
+                    val port = if (it.port == defaultPort) -1 else it.port
+                    val portSuffix = if (port != -1) ":$port" else ""
+                    "${it.host}$portSuffix"
+                }
 
-            val deadLinks = withContext(Dispatchers.IO) {
-                webdavUrls.map { url ->
-                    async {
-                        semaphore.withPermit {
-                            val hostKey = try {
-                                val parsedUrl = URL(url)
-                                val portSuffix = if (parsedUrl.port != -1) ":${parsedUrl.port}" else ""
-                                "${parsedUrl.host}$portSuffix"
-                            } catch (e: Exception) {
-                                ""
-                            }
+                val deadLinks = withContext(Dispatchers.IO) {
+                    webdavUrls.map { url ->
+                        async {
+                            semaphore.withPermit {
+                                val hostKey = try {
+                                    val parsedUrl = URL(url)
+                                    val portSuffix = if (parsedUrl.port != -1) ":${parsedUrl.port}" else ""
+                                    "${parsedUrl.host}$portSuffix"
+                                } catch (e: Exception) {
+                                    ""
+                                }
 
-                            val server = serverHostMap[hostKey]
+                                val server = serverHostMap[hostKey]
 
-                            if (server != null) {
-                                val errorType = webdavClient.checkFile(server, url)
-                                if (errorType != null) {
-                                    DeadLink(url, errorType)
-                                } else null
-                            } else {
-                                null
+                                if (server != null) {
+                                    val errorType = webdavClient.checkFile(server, url)
+                                    if (errorType != null) {
+                                        DeadLink(url, errorType)
+                                    } else null
+                                } else {
+                                    null
+                                }
                             }
                         }
-                    }
-                }.awaitAll().filterNotNull()
-            }
+                    }.awaitAll().filterNotNull()
+                }
 
-            _isVerifyingLinks.value = false
+                if (deadLinks.isNotEmpty()) {
+                    _deadLinksFound.value = deadLinks
+                } else {
+                    _uiMessage.send("All links are valid")
+                }
 
-            if (deadLinks.isNotEmpty()) {
-                _deadLinksFound.value = deadLinks
-            } else {
-                _uiMessage.send("All links are valid")
+            } catch (e: Exception) {
+                _uiMessage.send("Verification failed: ${e.message}")
+                e.printStackTrace()
+            } finally {
+                _isVerifyingLinks.value = false
             }
         }
     }

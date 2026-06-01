@@ -92,3 +92,24 @@ fun Player.setIsScrubbingModeEnabled(enabled: Boolean) {
         is ExoPlayer -> this.isScrubbingModeEnabled = enabled
     }
 }
+
+fun Player.getPlaybackOrderIndices(): List<Int> {
+    val timeline = this.currentTimeline
+    if (timeline.isEmpty) return emptyList()
+
+    val orderIndices = mutableListOf<Int>()
+
+    var currentIndex = timeline.getFirstWindowIndex(this.shuffleModeEnabled)
+
+    while (currentIndex != C.INDEX_UNSET) {
+        orderIndices.add(currentIndex)
+
+        currentIndex = timeline.getNextWindowIndex(
+            currentIndex,
+            Player.REPEAT_MODE_OFF,
+            this.shuffleModeEnabled
+        )
+    }
+
+    return orderIndices
+}

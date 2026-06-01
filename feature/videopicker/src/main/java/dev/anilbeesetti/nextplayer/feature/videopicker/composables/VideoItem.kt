@@ -145,7 +145,7 @@ private fun VideoListItem(
                 textDecoration = if (isDeadLink) TextDecoration.LineThrough else TextDecoration.None,
                 color = when {
                     isDeadLink -> MaterialTheme.colorScheme.error
-                    isRecentlyPlayedVideo -> MaterialTheme.colorScheme.primary
+                    isRecentlyPlayedVideo && preferences.markLastPlayedMedia -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.onSurface
                 },
             )

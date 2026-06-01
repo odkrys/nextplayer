@@ -615,12 +615,22 @@ private fun FileListItem(
                 }
             },
             trailingContent = {
-                if (!isSelectionMode && playable) {
+                if (playable) {
                     Icon(
-                        imageVector = NextIcons.Play,
-                        contentDescription = "Playable",
+                        imageVector = if (isSelectionMode && isSelected) NextIcons.CheckBox else NextIcons.Play,
+                        contentDescription = if (isSelected) "Selected" else "Playable",
                         modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = if (isSelectionMode && isSelected)
+                            MaterialTheme.colorScheme.tertiary
+                        else
+                            MaterialTheme.colorScheme.primary,
+                    )
+                } else if (isSelectionMode && isSelected && file.isDirectory) {
+                    Icon(
+                        imageVector = NextIcons.CheckBox,
+                        contentDescription = "Selected",
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.tertiary,
                     )
                 }
             }

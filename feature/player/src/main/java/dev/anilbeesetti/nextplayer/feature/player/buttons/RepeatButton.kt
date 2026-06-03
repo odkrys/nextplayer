@@ -15,7 +15,8 @@ import dev.anilbeesetti.nextplayer.feature.player.LocalControlsVisibilityState
 
 @OptIn(UnstableApi::class)
 @Composable
-fun LoopButton(player: Player, modifier: Modifier = Modifier) {
+//fun LoopButton(player: Player, modifier: Modifier = Modifier) {
+fun LoopButton(player: Player, modifier: Modifier = Modifier, showControlsOnClick: Boolean = true) {
     val state = rememberRepeatButtonState(player)
     val controlsVisibilityState = LocalControlsVisibilityState.current
 
@@ -31,7 +32,10 @@ fun LoopButton(player: Player, modifier: Modifier = Modifier) {
                 else -> Player.REPEAT_MODE_OFF
             }
             player.repeatMode = nextMode
-            controlsVisibilityState?.showControls()
+            //controlsVisibilityState?.showControls()
+            if (showControlsOnClick) {
+                controlsVisibilityState?.showControls()
+            }
         },
     ) {
         Icon(

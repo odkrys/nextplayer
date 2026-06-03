@@ -54,6 +54,8 @@ import dev.anilbeesetti.nextplayer.core.common.Utils
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSegmentedListItem
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
+import dev.anilbeesetti.nextplayer.feature.player.buttons.LoopButton
+import dev.anilbeesetti.nextplayer.feature.player.buttons.ShuffleButton
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberPlaylistState
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.DragGestureDetector
@@ -87,7 +89,7 @@ fun BoxScope.PlaylistView(
         }
     }
 */
-    LaunchedEffect(show) {
+    LaunchedEffect(show, playlistState.scrollTrigger) {
         if (show && playlistState.currentMediaId != null) {
             val targetUiIndex = playlistState.displayItems.indexOfFirst { (_, item) ->
                 item.mediaId == playlistState.currentMediaId
@@ -102,6 +104,10 @@ fun BoxScope.PlaylistView(
         modifier = modifier,
         show = show,
         title = stringResource(R.string.now_playing),
+        actions = {
+            LoopButton(player = player, showControlsOnClick = false)
+            ShuffleButton(player = player, showControlsOnClick = false)
+        },
     ) {
         //if (playlistState.playlist.isEmpty()) {
         if (playlistState.displayItems.isEmpty()) {

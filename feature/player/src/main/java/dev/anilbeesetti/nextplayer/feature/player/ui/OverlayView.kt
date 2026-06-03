@@ -5,10 +5,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -38,6 +41,7 @@ fun BoxScope.OverlayView(
     modifier: Modifier = Modifier,
     show: Boolean,
     title: String,
+    actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val configuration = LocalConfiguration.current
@@ -78,11 +82,26 @@ fun BoxScope.OverlayView(
                     .padding(top = 24.dp)
                     .padding(end = endPadding),
             ) {
+/*
                 Text(
                     modifier = Modifier.padding(horizontal = 24.dp),
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
                 )
+ */
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Row { actions() }
+                }
                 Spacer(modifier = Modifier.size(8.dp))
                 content()
             }

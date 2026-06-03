@@ -15,7 +15,8 @@ import dev.anilbeesetti.nextplayer.feature.player.LocalControlsVisibilityState
 
 @OptIn(UnstableApi::class)
 @Composable
-fun ShuffleButton(player: Player, modifier: Modifier = Modifier) {
+//fun ShuffleButton(player: Player, modifier: Modifier = Modifier) {
+fun ShuffleButton(player: Player, modifier: Modifier = Modifier, showControlsOnClick: Boolean = true) {
     val state = rememberShuffleButtonState(player)
     val controlsVisibilityState = LocalControlsVisibilityState.current
 
@@ -24,7 +25,10 @@ fun ShuffleButton(player: Player, modifier: Modifier = Modifier) {
         isEnabled = state.isEnabled,
         onClick = {
             state.onClick()
-            controlsVisibilityState?.showControls()
+            //controlsVisibilityState?.showControls()
+            if (showControlsOnClick) {
+                controlsVisibilityState?.showControls()
+            }
         },
     ) {
         Icon(

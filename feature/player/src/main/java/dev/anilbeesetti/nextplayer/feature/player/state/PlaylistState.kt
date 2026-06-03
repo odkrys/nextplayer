@@ -86,12 +86,22 @@ class PlaylistState(
 
     var isDragging: Boolean = false
 
+    var scrollTrigger by mutableStateOf(0)
+        private set
+
+    private var pendingScroll = false
+
+    private val removingMediaIds = mutableSetOf<String>()
+
     suspend fun observe() {
         syncPlaylist()
         updateCurrentId()
 
         player.listen { events ->
             if (events.contains(Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED) || events.contains(Player.EVENT_TIMELINE_CHANGED)) {
+                if (events.contains(Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED)) {
+                    pendingScroll = true
+                }
                 syncPlaylist()
             }
 
@@ -120,15 +130,20 @@ class PlaylistState(
         val targetRealIndex = displayItems[targetUiIndex].first
         val isCurrentItem = mediaItem.mediaId == currentMediaId
 
-        displayItems = displayItems
-            .filterNot { it.second.mediaId == mediaItem.mediaId }
-            .map { (realIdx, item) ->
-                if (realIdx > targetRealIndex) Pair(realIdx - 1, item)
-                else Pair(realIdx, item)
+        displayItems = displayItems.mapNotNull { (realIdx, item) ->
+            when {
+                item.mediaId == mediaItem.mediaId -> null
+                realIdx > targetRealIndex -> Pair(realIdx - 1, item)
+                else -> Pair(realIdx, item)
             }
+        }
+
+        removingMediaIds.add(mediaItem.mediaId)
 
         if (isCurrentItem) {
-            if (player.hasNextMediaItem()) {
+            val isLastPhysicalItem = targetRealIndex == player.mediaItemCount - 1
+
+            if (isLastPhysicalItem && player.hasNextMediaItem()) {
                 player.seekToNext()
             }
         }
@@ -146,6 +161,14 @@ class PlaylistState(
         }
 
         try {
+            if (removingMediaIds.isNotEmpty()) {
+                val stillExists = (0 until player.mediaItemCount).any { i ->
+                    player.getMediaItemAt(i).mediaId in removingMediaIds
+                }
+                if (stillExists) return
+                removingMediaIds.clear()
+            }
+
             val orderIndices = player.getPlaybackOrderIndices()
 
             if (orderIndices.isEmpty()) {
@@ -153,23 +176,24 @@ class PlaylistState(
                 return
             }
 
-            if (player.shuffleModeEnabled && orderIndices.size > 2) {
-                var isFakeSequential = true
-                for (i in orderIndices.indices) {
-                    if (orderIndices[i] != i) {
-                        isFakeSequential = false
-                        break
-                    }
-                }
-                if (isFakeSequential) {
-                    return
-                }
+            if (player.shuffleModeEnabled && orderIndices.size > 2 && orderIndices.indices.all { orderIndices[it] == it }) {
+                return
             }
 
             displayItems = orderIndices.mapNotNull { realIndex ->
                 if (realIndex in 0 until player.mediaItemCount) {
                     Pair(realIndex, player.getMediaItemAt(realIndex))
                 } else null
+            }
+
+            if (pendingScroll) {
+                val shuffleReady = !player.shuffleModeEnabled ||
+                            orderIndices.firstOrNull() == player.currentMediaItemIndex
+
+                if (shuffleReady) {
+                    pendingScroll = false
+                    scrollTrigger++
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()

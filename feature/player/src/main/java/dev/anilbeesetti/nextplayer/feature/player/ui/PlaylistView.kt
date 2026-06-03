@@ -25,12 +25,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,8 +54,8 @@ import dev.anilbeesetti.nextplayer.core.common.Utils
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSegmentedListItem
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
-import dev.anilbeesetti.nextplayer.feature.player.extensions.getPlaybackOrderIndices
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberPlaylistState
+import kotlinx.coroutines.launch
 import sh.calvin.reorderable.DragGestureDetector
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -74,40 +71,10 @@ fun BoxScope.PlaylistView(
     val hapticFeedback = LocalHapticFeedback.current
     val playlistState = rememberPlaylistState(player)
     val lazyListState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState) { from, to ->
         playlistState.moveItem(from.index, to.index)
         hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-    }
-
-    var shuffleTrigger by remember { mutableIntStateOf(0) }
-
-    DisposableEffect(player) {
-        val listener = object : Player.Listener {
-            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                shuffleTrigger++
-            }
-            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
-                if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
-                    shuffleTrigger++
-                }
-            }
-        }
-        player.addListener(listener)
-        onDispose {
-            player.removeListener(listener)
-        }
-    }
-
-    val displayPlaylist = remember(playlistState.playlist, player.shuffleModeEnabled, shuffleTrigger) {
-        player.getPlaybackOrderIndices().mapNotNull { realIndex ->
-            val mediaItem = playlistState.playlist.getOrNull(realIndex)
-
-            if (mediaItem != null) {
-                Pair(realIndex, mediaItem)
-            } else {
-                null
-            }
-        }
     }
 /*
     // Auto-scroll to current item when playlist opens
@@ -120,15 +87,12 @@ fun BoxScope.PlaylistView(
         }
     }
 */
-    LaunchedEffect(show, playlistState.currentMediaItemIndex, shuffleTrigger) {
-        if (show && displayPlaylist.isNotEmpty()) {
-            val currentRealIndex = playlistState.currentMediaItemIndex
-
-            val targetUiIndex = displayPlaylist.indexOfFirst { (realIndex, _) ->
-                realIndex == currentRealIndex
+    LaunchedEffect(show) {
+        if (show && playlistState.currentMediaId != null) {
+            val targetUiIndex = playlistState.displayItems.indexOfFirst { (_, item) ->
+                item.mediaId == playlistState.currentMediaId
             }
-
-            if (targetUiIndex != -1 && !lazyListState.isScrollInProgress) {
+            if (targetUiIndex != -1) {
                 lazyListState.scrollToItem(targetUiIndex)
             }
         }
@@ -139,7 +103,8 @@ fun BoxScope.PlaylistView(
         show = show,
         title = stringResource(R.string.now_playing),
     ) {
-        if (playlistState.playlist.isEmpty()) {
+        //if (playlistState.playlist.isEmpty()) {
+        if (playlistState.displayItems.isEmpty()) {
             // Empty state
             EmptyPlaylistView()
         } else {
@@ -155,34 +120,51 @@ fun BoxScope.PlaylistView(
                     key = { _, item -> item.mediaId },
                 ) { index, mediaItem ->
 */
-                    items = displayPlaylist,
+                    items = playlistState.displayItems,
                     key = { _, (_, item) -> item.mediaId },
-                    ) { uiIndex, (realIndex, mediaItem) ->
+                ) { uiIndex, (realIndex, mediaItem) ->
                     ReorderableItem(
                         state = reorderableLazyListState,
                         key = mediaItem.mediaId,
                     ) {
                         //val isCurrentItem = index == playlistState.currentMediaItemIndex
-                        val isCurrentItem = realIndex == playlistState.currentMediaItemIndex
+                        val isCurrentItem = mediaItem.mediaId == playlistState.currentMediaId
                         PlaylistItemView(
+                            modifier = Modifier.animateItem(),
                             mediaItem = mediaItem,
 /*
                             index = index,
                             isFirstItem = index == 0,
                             isLastItem = index == playlistState.playlist.lastIndex,
+
 */
                             index = uiIndex,
                             isFirstItem = uiIndex == 0,
-                            isLastItem = uiIndex == displayPlaylist.lastIndex,
+                            isLastItem = uiIndex == playlistState.displayItems.lastIndex,
                             isCurrentItem = isCurrentItem,
-                            canDelete = playlistState.playlist.size > 1,
 /*
+                            canDelete = playlistState.playlist.size > 1,
                             onClick = { playlistState.seekToItem(index) },
                             onDelete = { playlistState.removeItem(index) },
+
 */
+                            canDelete = playlistState.displayItems.size > 1,
                             onClick = { playlistState.seekToItem(realIndex) },
-                            onDelete = { playlistState.removeItem(mediaItem) },
+                            onDelete = {
+                                val isLastItemDeleted = uiIndex == playlistState.displayItems.lastIndex
+                                val wasPlaying = mediaItem.mediaId == playlistState.currentMediaId
+
+                                playlistState.removeItem(mediaItem)
+
+                                if (isLastItemDeleted && wasPlaying && playlistState.displayItems.isNotEmpty()) {
+                                    scope.launch {
+                                        lazyListState.scrollToItem(0)
+                                    }
+                                }
+                            },
                             isShuffleEnabled = player.shuffleModeEnabled,
+                            onDragStarted = { playlistState.isDragging = true },
+                            onDragStopped = { playlistState.isDragging = false },
                         )
                     }
                 }
@@ -194,34 +176,41 @@ fun BoxScope.PlaylistView(
 @kotlin.OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReorderableCollectionItemScope.PlaylistItemView(
+    modifier: Modifier,
     mediaItem: MediaItem,
     index: Int,
     isFirstItem: Boolean = false,
     isLastItem: Boolean = false,
     isCurrentItem: Boolean,
     canDelete: Boolean,
-    isShuffleEnabled: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    isShuffleEnabled: Boolean,
+    onDragStarted: () -> Unit,
+    onDragStopped: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
 
     NextSegmentedListItem(
-        modifier = Modifier
+        //modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .draggableHandle(
                 enabled = !isShuffleEnabled,
                 onDragStarted = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                    onDragStarted()
                 },
                 onDragStopped = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                    onDragStopped()
                 },
                 interactionSource = interactionSource,
                 dragGestureDetector = DragGestureDetector.LongPress,
             ),
+
         selected = isCurrentItem,
         contentPadding = PaddingValues(8.dp),
         interactionSource = interactionSource,

@@ -328,6 +328,7 @@ private fun ThumbnailView(
         AsyncImage(
             model = ImageRequest.Builder(context)
                 .data(mediaItem.mediaId)
+                .size(512, 512)
                 .crossfade(true)
                 .build(),
             contentDescription = null,

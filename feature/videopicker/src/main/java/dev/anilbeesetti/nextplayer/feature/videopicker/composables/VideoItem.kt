@@ -282,6 +282,7 @@ private fun ThumbnailView(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(video.uriString)
+                    .size(512, 512)
                     .crossfade(true)
                     .build(),
                 contentDescription = null,

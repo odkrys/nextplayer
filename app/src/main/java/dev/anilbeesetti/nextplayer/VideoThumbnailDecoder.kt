@@ -63,10 +63,12 @@ class VideoThumbnailDecoder(
             // Determine what size the caller actually wants
             val requestedWidth = options.size.width.pxOrElse { 0 }
             val requestedHeight = options.size.height.pxOrElse { 0 }
-
+/*
             // Cache is sufficient only if requested size <= cached size (or size is unspecified)
             val cacheIsSufficient = (requestedWidth == 0 || requestedWidth <= cachedWidth) &&
                     (requestedHeight == 0 || requestedHeight <= cachedHeight)
+*/
+            val cacheIsSufficient = true
 
             if (cacheIsSufficient) {
                 val dstSize = computeDstSize(cachedWidth, cachedHeight)

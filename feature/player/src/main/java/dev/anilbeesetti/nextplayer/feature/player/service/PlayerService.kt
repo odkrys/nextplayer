@@ -36,6 +36,8 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import coil3.ImageLoader
 import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Scale
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import dev.anilbeesetti.nextplayer.core.common.extensions.deleteFiles
@@ -1175,6 +1177,8 @@ class PlayerService : MediaSessionService() {
             val request = ImageRequest.Builder(this@PlayerService)
                 .data(uri)
                 .size(512, 512)
+                .scale(Scale.FILL)
+                .precision(Precision.INEXACT)
                 .build()
             imageLoader.execute(request)
             val diskCache = imageLoader.diskCache ?: return@withContext null

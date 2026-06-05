@@ -119,7 +119,7 @@ class PlaylistDetailViewModel @Inject constructor(
                     val state = mediaRepository.getVideoState(video.uriString) ?: return@forEach
                     val position = state.position?.takeIf { it > 0 } ?: return@forEach
                     val duration = state.durationMs?.takeIf { it > 0 } ?: return@forEach
-                    android.util.Log.d("PlaylistDebug", "duration raw = $duration for ${video.uriString}")
+
                     durationMap[video.uriString] = duration
                     progressMap[video.uriString] = (position.toFloat() / duration).coerceIn(0f, 1f)
                 } catch (e: Exception) {

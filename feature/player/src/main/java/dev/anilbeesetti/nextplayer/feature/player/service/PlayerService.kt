@@ -252,12 +252,23 @@ class PlayerService : MediaSessionService() {
             if (!isMediaItemReady && tracks.groups.isNotEmpty()) {
                 isMediaItemReady = true
 
-                if (!playerPreferences.rememberSelections) return
+                //if (!playerPreferences.rememberSelections) return
+                if (!playerPreferences.rememberSelections) {
+                    applySubtitleFallback(tracks)
+                    return
+                }
+
                 mediaSession?.player?.mediaMetadata?.audioTrackIndex?.let {
                     mediaSession?.player?.switchTrack(C.TRACK_TYPE_AUDIO, it)
                 }
-                mediaSession?.player?.mediaMetadata?.subtitleTrackIndex?.let {
-                    mediaSession?.player?.switchTrack(C.TRACK_TYPE_TEXT, it)
+                //mediaSession?.player?.mediaMetadata?.subtitleTrackIndex?.let {
+                //    mediaSession?.player?.switchTrack(C.TRACK_TYPE_TEXT, it)
+
+                val subtitleTrackIndex = mediaSession?.player?.mediaMetadata?.subtitleTrackIndex
+                if (subtitleTrackIndex != null) {
+                    mediaSession?.player?.switchTrack(C.TRACK_TYPE_TEXT, subtitleTrackIndex)
+                } else {
+                    applySubtitleFallback(tracks)
                 }
             }
         }
@@ -1285,6 +1296,30 @@ class PlayerService : MediaSessionService() {
             Resume.REMOTE_ONLY -> isRemote
             Resume.NO          -> false
         }
+    }
+
+    private fun applySubtitleFallback(tracks: Tracks) {
+        val player = mediaSession?.player ?: return
+        val preferredLang = playerPreferences.preferredSubtitleLanguage.takeIf { it.isNotBlank() }
+
+        val textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
+        if (textGroups.isEmpty()) return
+
+        if (textGroups.any { it.isSelected && it.isSupported }) return
+
+        val bestTrackIndex = textGroups
+            .withIndex()
+            .filter { it.value.isSupported }
+            .minByOrNull { (_, group) ->
+                val lang = group.getTrackFormat(0).language
+                when {
+                    preferredLang != null && lang == preferredLang -> 0
+                    lang == "und" || lang == null -> 1
+                    else -> 2
+                }
+            }?.index ?: return
+
+        player.switchTrack(C.TRACK_TYPE_TEXT, bestTrackIndex)
     }
 }
 

@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -239,14 +240,21 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             },
                                             icon = { Icon(NextIcons.Movie, contentDescription = "Media") },
-                                            label = { Text("Media") }
+                                            label = { Text("Media") },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                            )
                                         )
                                         VerticalDivider(
                                             modifier = Modifier
                                                 .height(48.dp)
                                                 .align(Alignment.CenterVertically),
                                             color = MaterialTheme.colorScheme.outlineVariant,
-                                            thickness = 1.dp,
+                                            thickness = 2.dp,
                                         )
                                         NavigationBarItem(
                                             selected = isPlaylistSelected,
@@ -268,14 +276,21 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             },
                                             icon = { Icon(NextIcons.Bookmarks, contentDescription = "Playlist") },
-                                            label = { Text("Playlist") }
+                                            label = { Text("Playlist") },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                            )
                                         )
                                         VerticalDivider(
                                             modifier = Modifier
                                                 .height(48.dp)
                                                 .align(Alignment.CenterVertically),
                                             color = MaterialTheme.colorScheme.outlineVariant,
-                                            thickness = 1.dp,
+                                            thickness = 2.dp,
                                         )
                                         NavigationBarItem(
                                             selected = isWebDavSelected,
@@ -297,7 +312,14 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             },
                                             icon = { Icon(NextIcons.Storage, contentDescription = "WebDAV") },
-                                            label = { Text("WebDAV") }
+                                            label = { Text("WebDAV") },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                            )
                                         )
                                     }
                                 }

@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.anilbeesetti.nextplayer.core.common.Utils.formatDurationMillis
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedPlaylistUseCase
@@ -239,8 +240,11 @@ class PlayerViewModel @Inject constructor(
             val current = _currentVideo.value
 
             if (dbVideo != null) {
+                val mergedDuration = current?.duration?.takeIf { it > 0 } ?: dbVideo.duration
+
                 _currentVideo.value = dbVideo.copy(
-                    duration = current?.duration?.takeIf { it > 0 } ?: dbVideo.duration,
+                    duration = mergedDuration,
+                    formattedDuration = if (mergedDuration > 0L) formatDurationMillis(mergedDuration) else dbVideo.formattedDuration,
                     videoStream = dbVideo.videoStream ?: current?.videoStream,
                     audioStreams = dbVideo.audioStreams.ifEmpty { current?.audioStreams ?: emptyList() },
                     subtitleStreams = dbVideo.subtitleStreams.ifEmpty { current?.subtitleStreams ?: emptyList() },

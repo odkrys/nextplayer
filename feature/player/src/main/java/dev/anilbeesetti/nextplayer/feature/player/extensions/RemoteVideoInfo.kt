@@ -4,7 +4,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import dev.anilbeesetti.nextplayer.core.common.Utils
+import dev.anilbeesetti.nextplayer.core.common.Utils.formatDurationMillis
 import dev.anilbeesetti.nextplayer.core.model.AudioStreamInfo
 import dev.anilbeesetti.nextplayer.core.model.SubtitleStreamInfo
 import dev.anilbeesetti.nextplayer.core.model.Video
@@ -94,7 +94,7 @@ fun Player.remoteVideoInfo(currentVideo: Video?): Video? {
             path = mediaId,
             parentPath = decodedMediaId.substringBeforeLast("/").takeIf { it.isNotEmpty() } ?: "Unknown",
             duration = resolvedDuration ?: 0L,
-            formattedDuration = resolvedDuration?.let { Utils.formatDurationMillis(it) } ?: "",
+            formattedDuration = resolvedDuration?.let { formatDurationMillis(it) } ?: "",
             uriString = mediaId,
             nameWithExtension = currentMediaName.takeIf { it.isNotEmpty() } ?: "Unknown Streaming",
             width = 0,
@@ -107,7 +107,7 @@ fun Player.remoteVideoInfo(currentVideo: Video?): Video? {
 
     return base.copy(
         duration = finalDuration ,
-        formattedDuration = if (finalDuration > 0L) Utils.formatDurationMillis(finalDuration) else base.formattedDuration,
+        formattedDuration = if (finalDuration > 0L) formatDurationMillis(finalDuration) else base.formattedDuration,
         videoStream = videoStreamInfo ?: base.videoStream,
         audioStreams = audioStreams.ifEmpty { base.audioStreams },
         subtitleStreams = subtitleStreams.ifEmpty { base.subtitleStreams },

@@ -64,6 +64,7 @@ import dev.anilbeesetti.nextplayer.feature.player.R
 import dev.anilbeesetti.nextplayer.feature.player.extensions.DynamicRangeCompressor
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
+import dev.anilbeesetti.nextplayer.feature.player.extensions.buildSubtitleUrisFromStream
 import dev.anilbeesetti.nextplayer.feature.player.extensions.copy
 import dev.anilbeesetti.nextplayer.feature.player.extensions.getManuallySelectedTrackIndex
 import dev.anilbeesetti.nextplayer.feature.player.extensions.playbackSpeed
@@ -1069,7 +1070,14 @@ class PlayerService : MediaSessionService() {
                             )
                         }
                     } else {
-                        emptyList()
+                        val remoteUris = buildSubtitleUrisFromStream(uri, okHttpClient)
+
+                        remoteUris.map { subUri ->
+                            uriToSubtitleConfiguration(
+                                uri = subUri,
+                                subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                            )
+                        }
                     }
                 } else {
                     emptyList()

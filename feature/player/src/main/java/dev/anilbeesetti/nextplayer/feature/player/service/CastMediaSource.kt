@@ -1,12 +1,8 @@
 package dev.anilbeesetti.nextplayer.feature.player.service
 
 import android.net.Uri
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.withContext
+import dev.anilbeesetti.nextplayer.feature.player.extensions.buildSubtitleUrisFromStream
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.File
 
 sealed class CastMediaSource {
@@ -74,11 +70,9 @@ suspend fun resolveMediaSource(
 ): CastMediaSource? {
     if (uri.startsWith("http://") || uri.startsWith("https://")) {
         val parsedUri = Uri.parse(uri)
-        val host = parsedUri.host ?: ""
-        val auth = authHeaders[host]
 
-        val subtitleUrl = extractSubtitleUrlFromFragment(parsedUri, auth)
-            ?: buildSubtitleUrisFromStream(parsedUri, auth, okHttpClient).firstOrNull()?.toString()
+        val subtitleUrl = extractSubtitleUrlFromFragment(parsedUri)
+            ?: buildSubtitleUrisFromStream(parsedUri, okHttpClient).firstOrNull()?.toString()
 
         val cleanUrl = parsedUri.buildUpon().fragment(null).build().toString()
 
@@ -97,7 +91,7 @@ suspend fun resolveMediaSource(
     return CastMediaSource.LocalFile(file = videoFile, subtitleFile = subtitleFile)
 }
 
-private fun extractSubtitleUrlFromFragment(uri: Uri, auth: String?): String? {
+private fun extractSubtitleUrlFromFragment(uri: Uri): String? {
     val fragment = uri.fragment?.takeIf { it.isNotBlank() } ?: return null
     val priority = listOf("srt", "ssa", "ass", "vtt", "ttml", "xml", "dfxp")
 
@@ -107,41 +101,4 @@ private fun extractSubtitleUrlFromFragment(uri: Uri, auth: String?): String? {
     }.toMap()
 
     return priority.firstNotNullOfOrNull { ext -> subMap[ext] }
-}
-
-private suspend fun buildSubtitleUrisFromStream(
-    videoUri: Uri,
-    auth: String?,
-    okHttpClient: OkHttpClient,
-): List<Uri> = withContext(Dispatchers.IO) {
-    val subtitleExtensions = listOf(".srt", ".vtt", ".ass", ".ssa", ".ttml", ".xml", ".dfxp")
-    val lastSegment = videoUri.lastPathSegment ?: return@withContext emptyList()
-    val baseName = Uri.encode(lastSegment.substringBeforeLast("."))
-    val parentPath = videoUri.toString().substringBeforeLast("/")
-
-    subtitleExtensions.map { ext ->
-        Uri.parse("$parentPath/$baseName$ext")
-    }.map { uri ->
-        async {
-            if (isRemoteFileExists(uri, auth, okHttpClient)) uri else null
-        }
-    }.awaitAll().filterNotNull()
-}
-
-private fun isRemoteFileExists(uri: Uri, auth: String?, okHttpClient: OkHttpClient): Boolean {
-    if (!uri.scheme.orEmpty().startsWith("http")) return false
-    return try {
-        val request = Request.Builder().url(uri.toString()).apply {
-            get()
-            header("Range", "bytes=0-0")
-            auth?.let { header("Authorization", it) }
-        }.build()
-
-        val response = okHttpClient.newCall(request).execute()
-        val isSuccessful = response.isSuccessful
-        response.close()
-        isSuccessful
-    } catch (e: Exception) {
-        false
-    }
 }

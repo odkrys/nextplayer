@@ -100,7 +100,7 @@ fun BoxScope.OverlayView(
                         text = title,
                         style = MaterialTheme.typography.headlineSmall,
                     )
-                    Row { actions() }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { actions() }
                 }
                 Spacer(modifier = Modifier.size(8.dp))
                 content()

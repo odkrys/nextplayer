@@ -222,6 +222,10 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun updateCurrentVideoInfo(updatedVideo: Video?) {
+        _currentVideo.value = updatedVideo
+    }
+
     fun loadVideoInfo(uriString: String?) {
         if (uriString == null) return
         _currentVideoUri.value = uriString
@@ -229,7 +233,21 @@ class PlayerViewModel @Inject constructor(
         loadVideoInfoJob = viewModelScope.launch {
             mediaInfoSynchronizer.syncAndAwait(Uri.parse(uriString))
             if (_currentVideoUri.value != uriString) return@launch
-            _currentVideo.value = mediaRepository.getVideoByUri(uriString)
+            //_currentVideo.value = mediaRepository.getVideoByUri(uriString)
+
+            val dbVideo = mediaRepository.getVideoByUri(uriString)
+            val current = _currentVideo.value
+
+            if (dbVideo != null) {
+                _currentVideo.value = dbVideo.copy(
+                    duration = current?.duration?.takeIf { it > 0 } ?: dbVideo.duration,
+                    videoStream = dbVideo.videoStream ?: current?.videoStream,
+                    audioStreams = dbVideo.audioStreams.ifEmpty { current?.audioStreams ?: emptyList() },
+                    subtitleStreams = dbVideo.subtitleStreams.ifEmpty { current?.subtitleStreams ?: emptyList() },
+                )
+            } else if (current == null) {
+                _currentVideo.value = null
+            }
         }
     }
 

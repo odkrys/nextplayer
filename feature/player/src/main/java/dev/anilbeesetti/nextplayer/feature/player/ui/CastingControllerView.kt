@@ -42,6 +42,7 @@ import dev.anilbeesetti.nextplayer.feature.player.ui.controls.PlayerSeekbar
 fun CastingControllerView(
     mediaId: String,
     position: Long,
+    bufferedPosition: Float = 0f,
     duration: Long,
     isPlaying: Boolean,
     title: String,
@@ -219,6 +220,7 @@ fun CastingControllerView(
                     PlayerSeekbar(
                         position = displayPositionMs,
                         duration = if (duration > 0) duration.toFloat() else 1.0f,
+                        bufferedPosition = bufferedPosition,
                         onSeek = { draggedMs ->
                             if (duration > 0L) {
                                 onInteraction()

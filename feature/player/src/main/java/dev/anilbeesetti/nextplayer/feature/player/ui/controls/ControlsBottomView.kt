@@ -48,6 +48,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -86,6 +89,7 @@ fun ControlsBottomView(
     onSkipIntroClick: () -> Unit = {},
     onSeek: (Long) -> Unit,
     onSeekEnd: () -> Unit,
+    showBuffer: Boolean = false,
 ) {
     val systemBarsPadding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues()
     Column(
@@ -122,8 +126,17 @@ fun ControlsBottomView(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White,
                 )
+                val bufferDiffSeconds = ((mediaPresentationState.bufferedPosition - mediaPresentationState.position) / 1000).coerceAtLeast(0L)
                 Text(
-                    text = mediaPresentationState.durationFormatted,
+                    //text = mediaPresentationState.durationFormatted,
+                    text = buildAnnotatedString {
+                        append(mediaPresentationState.durationFormatted)
+                        if (showBuffer && bufferDiffSeconds > 0) {
+                            withStyle(style = SpanStyle(color = Color.White.copy(alpha = 0.6f))) {
+                                append(" (+${bufferDiffSeconds}s)")
+                            }
+                        }
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White,
                 )
@@ -146,6 +159,7 @@ fun ControlsBottomView(
         PlayerSeekbar(
             position = mediaPresentationState.position.toFloat(),
             duration = mediaPresentationState.duration.toFloat(),
+            bufferedPosition = if (showBuffer) mediaPresentationState.bufferedPosition.toFloat() else 0f,
             onSeek = { onSeek(it.toLong()) },
             onSeekFinished = { onSeekEnd() },
         )
@@ -212,6 +226,7 @@ internal fun PlayerSeekbar(
     modifier: Modifier = Modifier,
     position: Float,
     duration: Float,
+    bufferedPosition: Float = 0f,
     onSeek: (Float) -> Unit,
     onSeekFinished: () -> Unit,
 ) {
@@ -221,6 +236,7 @@ internal fun PlayerSeekbar(
                 modifier = modifier.fillMaxWidth(),
                 value = position,
                 valueRange = 0f..duration,
+                bufferedPosition = bufferedPosition,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
             )
@@ -229,6 +245,7 @@ internal fun PlayerSeekbar(
                 modifier = modifier.fillMaxWidth(),
                 value = position,
                 valueRange = 0f..duration,
+                bufferedPosition = bufferedPosition,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
             )
@@ -242,6 +259,7 @@ private fun MaterialYouSlider(
     modifier: Modifier = Modifier,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
+    bufferedPosition: Float = 0f,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
@@ -271,13 +289,15 @@ private fun MaterialYouSlider(
                 val range = (max - min).takeIf { it > 0f } ?: 1f
                 val playedFraction = ((sliderState.value - min) / range).coerceIn(0f, 1f)
                 val playedPixels = size.width * playedFraction
+                val bufferedFraction = ((bufferedPosition - min) / range).coerceIn(0f, 1f)
+                val bufferedPixels = size.width * bufferedFraction
 
                 val endCornerRadius = size.height / 2f
                 val insideCornerRadius = 2.dp.toPx()
                 val gapHalf = trackThumbGapWidth.toPx() / 2f
                 val leftEnd = (playedPixels - gapHalf).coerceIn(0f, size.width)
                 val rightStart = (playedPixels + gapHalf).coerceIn(0f, size.width)
-
+/*
                 // Inactive track left side
                 if (leftEnd > 0f) {
                     drawRoundedRect(
@@ -308,6 +328,38 @@ private fun MaterialYouSlider(
                         color = primaryColor,
                         startCornerRadius = endCornerRadius,
                         endCornerRadius = insideCornerRadius,
+                    )
+                }
+*/
+                if (leftEnd > 0f) {
+                    drawRoundedRect(
+                        offset = Offset(0f, 0f),
+                        size = Size(leftEnd, size.height),
+                        color = primaryColor,
+                        startCornerRadius = endCornerRadius,
+                        endCornerRadius = insideCornerRadius,
+                    )
+                }
+
+                if (rightStart < size.width) {
+                    drawRoundedRect(
+                        offset = Offset(rightStart, 0f),
+                        size = Size(size.width - rightStart, size.height),
+                        color = primaryColor.copy(alpha = 0.3f),
+                        startCornerRadius = insideCornerRadius,
+                        endCornerRadius = endCornerRadius,
+                    )
+                }
+
+                if (bufferedPixels > rightStart) {
+                    val isBufferAtEnd = bufferedPixels >= size.width - 1f
+
+                    drawRoundedRect(
+                        offset = Offset(rightStart, 0f),
+                        size = Size(bufferedPixels - rightStart, size.height),
+                        color = primaryColor.copy(alpha = 0.4f),
+                        startCornerRadius = insideCornerRadius,
+                        endCornerRadius = if (isBufferAtEnd) endCornerRadius else insideCornerRadius,
                     )
                 }
             }
@@ -353,9 +405,12 @@ private fun SimpleSlider(
     modifier: Modifier = Modifier,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
+    bufferedPosition: Float = 0f,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+
     Slider(
         value = value,
         valueRange = valueRange,
@@ -370,6 +425,7 @@ private fun SimpleSlider(
             )
         },
         track = {
+/*
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -377,12 +433,43 @@ private fun SimpleSlider(
                     .clip(MaterialTheme.shapes.extraSmall)
                     .background(Color.White.copy(0.5f))
             ) {
+
                 if (valueRange.endInclusive > 0f) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(value / valueRange.endInclusive)
                             .height(4.dp)
                             .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+*/
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+            ) {
+                val range = valueRange.endInclusive.takeIf { it > 0f } ?: 1f
+                val playedFraction = (value / range).coerceIn(0f, 1f)
+                val playedPixels = size.width * playedFraction
+                val bufferedFraction = (bufferedPosition / range).coerceIn(0f, 1f)
+                val bufferedPixels = size.width * bufferedFraction
+
+                drawRect(color = Color.White.copy(0.3f), size = size)
+
+                if (bufferedPixels > playedPixels) {
+                    drawRect(
+                        color = Color.White.copy(0.6f),
+                        topLeft = Offset(playedPixels, 0f),
+                        size = Size(bufferedPixels - playedPixels, size.height)
+                    )
+                }
+
+                if (playedPixels > 0f) {
+                    drawRect(
+                        color = primaryColor,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(playedPixels, size.height)
                     )
                 }
             }

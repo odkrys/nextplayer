@@ -659,6 +659,7 @@ fun MediaPlayerScreen(
                                         },
                                         showSkipIntroButton = showSkipIntro,
                                         onSkipIntroClick = { player.seekTo(skipIntroTimeMs) },
+                                        showBuffer = playerPreferences.showBuffer,
                                     )
                                 }
                             },

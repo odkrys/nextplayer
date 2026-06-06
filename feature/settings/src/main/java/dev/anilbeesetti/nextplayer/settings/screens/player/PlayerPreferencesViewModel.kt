@@ -51,6 +51,7 @@ class PlayerPreferencesViewModel @Inject constructor(
             is PlayerPreferencesUiEvent.UpdateDefaultPlaybackSpeed -> updateDefaultPlaybackSpeed(event.value)
             is PlayerPreferencesUiEvent.UpdateControlAutoHideTimeout -> updateControlAutoHideTimeout(event.value)
             PlayerPreferencesUiEvent.ToggleUseMaterialYouControls -> toggleUseMaterialYouControls()
+            PlayerPreferencesUiEvent.ToggleShowBuffer -> toggleShowBuffer()
         }
     }
 
@@ -157,6 +158,14 @@ class PlayerPreferencesViewModel @Inject constructor(
             }
         }
     }
+
+    private fun toggleShowBuffer() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(showBuffer = !it.showBuffer)
+            }
+        }
+    }
 }
 
 @Stable
@@ -185,4 +194,5 @@ sealed interface PlayerPreferencesUiEvent {
     data class UpdateDefaultPlaybackSpeed(val value: Float) : PlayerPreferencesUiEvent
     data class UpdateControlAutoHideTimeout(val value: Int) : PlayerPreferencesUiEvent
     data object ToggleUseMaterialYouControls : PlayerPreferencesUiEvent
+    data object ToggleShowBuffer : PlayerPreferencesUiEvent
 }

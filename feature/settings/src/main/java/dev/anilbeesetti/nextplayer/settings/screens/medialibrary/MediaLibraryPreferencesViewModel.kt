@@ -34,6 +34,7 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         when (event) {
             MediaLibraryPreferencesUiEvent.ToggleMarkLastPlayedMedia -> toggleMarkLastPlayedMedia()
             MediaLibraryPreferencesUiEvent.ToggleHideExcludedMediaInPlaylists -> toggleHideExcludedMediaInPlaylists()
+            is MediaLibraryPreferencesUiEvent.UpdateMediaCacheSize -> updateMediaCacheSize(event.sizeMb)
         }
     }
 
@@ -52,6 +53,14 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
             }
         }
     }
+
+    private fun updateMediaCacheSize(sizeMb: Int) {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(diskCacheSizeMb = sizeMb)
+            }
+        }
+    }
 }
 
 data class MediaLibraryPreferencesUiState(
@@ -61,4 +70,5 @@ data class MediaLibraryPreferencesUiState(
 sealed interface MediaLibraryPreferencesUiEvent {
     data object ToggleMarkLastPlayedMedia : MediaLibraryPreferencesUiEvent
     data object ToggleHideExcludedMediaInPlaylists : MediaLibraryPreferencesUiEvent
+    data class UpdateMediaCacheSize(val sizeMb: Int) : MediaLibraryPreferencesUiEvent
 }

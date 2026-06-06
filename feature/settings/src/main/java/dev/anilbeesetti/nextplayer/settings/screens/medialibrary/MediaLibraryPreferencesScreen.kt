@@ -4,28 +4,44 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.anilbeesetti.nextplayer.core.common.extensions.restartApplication
 import dev.anilbeesetti.nextplayer.core.model.ThumbnailGenerationStrategy
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
@@ -34,6 +50,8 @@ import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
 import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSwitch
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun MediaLibraryPreferencesScreen(
@@ -64,6 +82,12 @@ private fun MediaLibraryPreferencesContent(
 ) {
     val preferences = uiState.preferences
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var showCacheDialog by remember { mutableStateOf(false) }
+    var showRestartDialog by remember { mutableStateOf(false) }
+    val currentCacheSize = preferences.diskCacheSizeMb
+    var pendingCacheSize by remember { mutableStateOf<Int?>(null) }
 
     Scaffold(
         topBar = {
@@ -162,7 +186,203 @@ private fun MediaLibraryPreferencesContent(
                     isLastItem = true,
                 )
             }
+
+            ListSectionTitle(text = "Disk Cache")
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                ClickablePreferenceItem(
+                    title = "WebDAV Disk Cache",
+                    description = when {
+                        currentCacheSize == 0 -> "Off"
+                        currentCacheSize >= 1024 -> "${"%.1f".format(currentCacheSize / 1024f)} GB"
+                        else -> "$currentCacheSize MB"
+                    },
+                    icon = NextIcons.Storage,
+                    onClick = { showCacheDialog = true },
+                    isFirstItem = true,
+                    isLastItem = true,
+                )
+            }
         }
+    }
+
+    var showCustomCacheInput by remember { mutableStateOf(false) }
+    var customCacheInput by remember { mutableStateOf("") }
+
+    if (showCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showCacheDialog = false },
+            title = { Text("Select Cache Size") },
+            text = {
+                Column {
+                    val options = listOf(0, 256, 512, 1024, 2048)
+                    val isCustom = currentCacheSize !in listOf(0, 256, 512, 1024, 2048)
+
+                    options.forEach { sizeMb ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (sizeMb != currentCacheSize) {
+                                        pendingCacheSize = sizeMb
+                                        showCacheDialog = false
+                                        showRestartDialog = true
+                                    } else {
+                                        showCacheDialog = false
+                                    }
+                                }
+                                .padding(vertical = 12.dp)
+                        ) {
+                            RadioButton(
+                                selected = (sizeMb == currentCacheSize),
+                                onClick = null
+                            )
+                            Text(
+                                text = when {
+                                    sizeMb == 0 -> "Off"
+                                    sizeMb >= 1024 -> "${sizeMb / 1024} GB"
+                                    else -> "$sizeMb MB"
+                                },
+                                modifier = Modifier.padding(start = 12.dp),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                customCacheInput = if (isCustom) {
+                                    "%.1f".format(currentCacheSize / 1024f)
+                                } else ""
+                                showCacheDialog = false
+                                showCustomCacheInput = true
+                            }
+                            .padding(vertical = 12.dp)
+                    ) {
+                        RadioButton(
+                            selected = isCustom,
+                            onClick = null
+                        )
+                        Text(
+                            text = if (isCustom) {
+                                "Custom (${"%.1f".format(currentCacheSize / 1024f)} GB)"
+                            } else "Custom",
+                            modifier = Modifier.padding(start = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCacheDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showCustomCacheInput) {
+        val gb = customCacheInput.toFloatOrNull()
+        val isValid = gb != null && gb in 0.1f..64f
+
+        AlertDialog(
+            onDismissRequest = {
+                showCustomCacheInput = false
+                customCacheInput = ""
+            },
+            title = { Text("Custom Cache Size") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Enter size in GB (e.g. 1.5) (Max 64GB)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = customCacheInput,
+                        onValueChange = { input ->
+                            if (input.matches(Regex("^\\d{0,2}(\\.\\d?)?\$"))) {
+                                customCacheInput = input
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        suffix = { Text("GB") },
+                        isError = customCacheInput.isNotEmpty() && !isValid,
+                        supportingText = if (customCacheInput.isNotEmpty() && !isValid) {
+                            { Text("Enter a value between 0.1 and 64 GB") }
+                        } else null,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val gb = customCacheInput.toFloatOrNull()
+                        if (gb != null && gb in 0.1f..64f) {
+                            val sizeMb = (gb * 1024).toInt()
+                            if (sizeMb != currentCacheSize) {
+                                pendingCacheSize = sizeMb
+                                showCustomCacheInput = false
+                                showRestartDialog = true
+                            } else {
+                                showCustomCacheInput = false
+                            }
+                        }
+                    },
+                    enabled = isValid
+                ) {
+                    Text(stringResource(R.string.okay))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showCustomCacheInput = false
+                    customCacheInput = ""
+                }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showRestartDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showRestartDialog = false
+                pendingCacheSize = null
+            },
+            title = { Text("Restart Required") },
+            text = { Text("The app needs to be restarted to apply the new cache size") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onEvent(MediaLibraryPreferencesUiEvent.UpdateMediaCacheSize(pendingCacheSize!!))
+                        scope.launch {
+                            delay(300L)
+                            restartApplication(context)
+                        }
+                    },
+                ) {
+                    Text("Restart Now")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showRestartDialog = false
+                        pendingCacheSize = null
+                    }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 

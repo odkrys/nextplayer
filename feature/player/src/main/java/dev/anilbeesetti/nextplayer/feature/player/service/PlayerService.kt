@@ -22,6 +22,7 @@ import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -126,6 +127,9 @@ class PlayerService : MediaSessionService() {
 
     @Inject
     lateinit var webdavClient: WebdavClient
+
+    @Inject
+    lateinit var cacheDataSourceFactory: CacheDataSource.Factory
 
     internal lateinit var okHttpClient: OkHttpClient
 
@@ -902,7 +906,15 @@ class PlayerService : MediaSessionService() {
             .build()
 
         val okHttpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
-        val defaultDataSourceFactory = DefaultDataSource.Factory(applicationContext, okHttpDataSourceFactory)
+
+        val cacheSizeMb = preferencesRepository.applicationPreferences.value.diskCacheSizeMb
+        val defaultDataSourceFactory = if (cacheSizeMb > 0) {
+            val configuredCacheFactory = cacheDataSourceFactory
+                .setUpstreamDataSourceFactory(okHttpDataSourceFactory)
+            DefaultDataSource.Factory(applicationContext, configuredCacheFactory)
+        } else {
+            DefaultDataSource.Factory(applicationContext, okHttpDataSourceFactory)
+        }
 
         val player = ExoPlayer.Builder(applicationContext)
             .setRenderersFactory(renderersFactory)

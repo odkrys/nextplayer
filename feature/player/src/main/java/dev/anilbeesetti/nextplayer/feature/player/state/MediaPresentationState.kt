@@ -37,6 +37,9 @@ class MediaPresentationState(
     var duration: Long by mutableLongStateOf(0L)
         private set
 
+    var bufferedPosition: Long by mutableLongStateOf(0L)
+        private set
+
     var isPlaying: Boolean by mutableStateOf(false)
         private set
 
@@ -87,6 +90,7 @@ class MediaPresentationState(
                 delay(tickIntervalMs)
                 if (player.isPlaying) {
                     updatePosition()
+                    updateBufferedPosition()
                 }
             }
         }
@@ -98,6 +102,10 @@ class MediaPresentationState(
 
     private fun updateDuration() {
         duration = player.duration.coerceAtLeast(0L)
+    }
+
+    private fun updateBufferedPosition() {
+        bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
     }
 }
 

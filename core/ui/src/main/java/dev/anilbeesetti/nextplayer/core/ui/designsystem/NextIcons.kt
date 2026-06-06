@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.DeveloperBoard
 import androidx.compose.material.icons.rounded.Devices
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.DoubleArrow
+import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.FileOpen
@@ -189,4 +190,5 @@ object NextIcons {
     val Bookmarks = Icons.Rounded.Bookmarks
     val Sort = Icons.AutoMirrored.Rounded.Sort
     val CloudSync = Icons.Rounded.CloudSync
+    val Downloading = Icons.Rounded.Downloading
 }

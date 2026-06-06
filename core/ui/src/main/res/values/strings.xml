@@ -315,4 +315,6 @@
     <string name="drc_preset_strong">Strong</string>
     <string name="hide_excluded_media_in_playlists">Hide excluded media in playlists</string>
     <string name="hide_excluded_media_in_playlists_desc">Hide media from excluded folders in your playlists as well</string>
+    <string name="show_buffer">Show Buffer</string>
+    <string name="show_buffer_desc">Display the buffer next to the playback time and on the seekbar</string>
 </resources>

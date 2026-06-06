@@ -97,6 +97,13 @@ private fun PlayerPreferencesContent(
                     onClick = { onEvent(PlayerPreferencesUiEvent.ToggleUseMaterialYouControls) },
                     isFirstItem = true
                 )
+                PreferenceSwitch(
+                    title = stringResource(id = R.string.show_buffer),
+                    description = stringResource(id = R.string.show_buffer_desc),
+                    icon = NextIcons.Downloading,
+                    isChecked = uiState.preferences.showBuffer,
+                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleShowBuffer) },
+                )
                 PreferenceSlider(
                     title = stringResource(R.string.controller_timeout),
                     description = stringResource(R.string.seconds, uiState.preferences.controllerAutoHideTimeout),

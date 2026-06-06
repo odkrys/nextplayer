@@ -27,6 +27,9 @@ data class ApplicationPreferences(
     // Thumbnail generation
     val thumbnailGenerationStrategy: ThumbnailGenerationStrategy = ThumbnailGenerationStrategy.FRAME_AT_PERCENTAGE,
     val thumbnailFramePosition: Float = DEFAULT_THUMBNAIL_FRAME_POSITION,
+
+    // Disk Cache
+    val diskCacheSizeMb: Int = 512,
 ) {
 
     companion object {

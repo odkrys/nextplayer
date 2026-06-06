@@ -38,6 +38,8 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.SimpleCache
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -66,6 +68,10 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var mediaOperationsService: MediaOperationsService
+
+    @UnstableApi
+    @Inject
+    lateinit var simpleCache: SimpleCache
 
     private val viewModel: MainViewModel by viewModels()
 

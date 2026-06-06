@@ -30,6 +30,7 @@ import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.mozilla.universalchardet.UniversalDetector
+import kotlin.system.exitProcess
 
 val VIDEO_COLLECTION_URI: Uri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
 
@@ -416,3 +417,14 @@ fun Context.appIcon(): Bitmap? {
 val Context.isPipFeatureSupported: Boolean
     get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
         packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+fun restartApplication(context: Context) {
+    val packageManager = context.packageManager
+    val intent = packageManager.getLaunchIntentForPackage(context.packageName)
+    val componentName = intent?.component
+
+    val mainIntent = Intent.makeRestartActivityTask(componentName)
+    context.startActivity(mainIntent)
+
+    exitProcess(0)
+}

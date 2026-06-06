@@ -330,13 +330,9 @@ class PlayerService : MediaSessionService() {
             super.onPlaybackStateChanged(playbackState)
 
             if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
-                mediaSession?.player?.trackSelectionParameters = TrackSelectionParameters.DEFAULT
-                    .buildUpon()
-                    .setPreferredAudioLanguage(playerPreferences.preferredAudioLanguage)
-                    .setPreferredTextLanguage(playerPreferences.preferredSubtitleLanguage)
-                    .setSelectUndeterminedTextLanguage(true)
-                    .build()
-                mediaSession?.player?.setPlaybackSpeed(playerPreferences.defaultPlaybackSpeed)
+                //mediaSession?.player?.trackSelectionParameters = TrackSelectionParameters.DEFAULT
+                //mediaSession?.player?.setPlaybackSpeed(playerPreferences.defaultPlaybackSpeed)
+                isMediaItemReady = false
             }
 
             if (playbackState == Player.STATE_READY) {

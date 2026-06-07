@@ -831,16 +831,20 @@ class PlayerService : MediaSessionService() {
                 CustomCommands.SET_AB_REPEAT_A -> {
                     val positionMs = args.getLong(CustomCommands.AB_REPEAT_A_KEY, C.TIME_UNSET)
                     abRepeatAMs = positionMs
-                    if (abRepeatBMs != C.TIME_UNSET && abRepeatBMs <= abRepeatAMs) {
-                        abRepeatBMs = C.TIME_UNSET
-                        stopAbRepeatLoop()
+                    if (abRepeatBMs != C.TIME_UNSET) {
+                        if (abRepeatBMs <= abRepeatAMs) {
+                            abRepeatBMs = C.TIME_UNSET
+                            cancelAbRepeatJob()
+                        } else if (mediaSession?.player?.isPlaying == true) {
+                            startAbRepeatLoop()
+                        }
                     }
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
                 CustomCommands.SET_AB_REPEAT_B -> {
                     val positionMs = args.getLong(CustomCommands.AB_REPEAT_B_KEY, C.TIME_UNSET)
-                    if (abRepeatAMs == C.TIME_UNSET || positionMs <= abRepeatAMs) {
+                    if (abRepeatAMs != C.TIME_UNSET && positionMs <= abRepeatAMs) {
                         return@future SessionResult(SessionError.ERROR_BAD_VALUE)
                     }
                     val duration = mediaSession?.player?.duration ?: C.TIME_UNSET
@@ -848,7 +852,7 @@ class PlayerService : MediaSessionService() {
                         return@future SessionResult(SessionError.ERROR_BAD_VALUE)
                     }
                     abRepeatBMs = positionMs
-                    if (mediaSession?.player?.isPlaying == true) {
+                    if (abRepeatAMs != C.TIME_UNSET && mediaSession?.player?.isPlaying == true) {
                         startAbRepeatLoop()
                     }
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)

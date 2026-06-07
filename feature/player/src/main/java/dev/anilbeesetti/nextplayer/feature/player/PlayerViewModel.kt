@@ -244,7 +244,7 @@ class PlayerViewModel @Inject constructor(
             //_currentVideo.value = mediaRepository.getVideoByUri(uriString)
 
             val dbVideo = mediaRepository.getVideoByUri(uriString)
-            val current = _currentVideo.value
+            val current = _currentVideo.value?.takeIf { it.uriString == uriString }
 
             if (dbVideo != null) {
                 val mergedDuration = current?.duration?.takeIf { it > 0 } ?: dbVideo.duration

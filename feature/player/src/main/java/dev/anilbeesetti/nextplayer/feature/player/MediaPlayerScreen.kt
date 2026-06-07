@@ -41,8 +41,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -100,6 +102,7 @@ import dev.anilbeesetti.nextplayer.feature.player.ui.VerticalProgressView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsBottomView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsTopView
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 val LocalControlsVisibilityState = compositionLocalOf<ControlsVisibilityState?> { null }
@@ -243,6 +246,7 @@ fun MediaPlayerScreen(
     var isDlnaMenuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val isCastingActiveRef = rememberUpdatedState(dlnaPlaybackState.isActive)
+    val coroutineScope = rememberCoroutineScope()
 
     DisposableEffect(player) {
         var lastMediaId: String? = player.currentMediaItem?.mediaId
@@ -701,7 +705,12 @@ fun MediaPlayerScreen(
                                                 Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
                                                 pictureInPictureState.openPictureInPictureSettings()
                                             } else {
-                                                pictureInPictureState.enterPictureInPictureMode()
+                                                coroutineScope.launch {
+                                                    controlsVisibilityState.hideControls()
+                                                    withFrameNanos {}
+                                                    withFrameNanos {}
+                                                    pictureInPictureState.enterPictureInPictureMode()
+                                                }
                                             }
                                         },
                                         showSkipIntroButton = showSkipIntro,

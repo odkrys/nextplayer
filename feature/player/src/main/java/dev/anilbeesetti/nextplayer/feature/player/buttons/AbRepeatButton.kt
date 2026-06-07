@@ -1,16 +1,19 @@
 package dev.anilbeesetti.nextplayer.feature.player.buttons
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,36 +32,48 @@ fun AbRepeatButton(
 
     val useMaterialYou = LocalUseMaterialYouControls.current
 
-    val containerColor = when {
-        useMaterialYou && isActive -> MaterialTheme.colorScheme.primary
-        useMaterialYou && !isActive -> MaterialTheme.colorScheme.secondaryContainer
-        !useMaterialYou && isActive -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-        else -> Color.Transparent
+    val buttonText = when {
+        isSetABUI -> "AB"
+        isSetAOnlyUI -> "A.."
+        else -> "AB"
     }
 
-    val contentColor = when {
-        useMaterialYou && isActive -> MaterialTheme.colorScheme.onPrimary
-        useMaterialYou && !isActive -> MaterialTheme.colorScheme.onSecondaryContainer
-        else -> Color.White
-    }
-
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(color = containerColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = when {
-                isSetABUI -> "AB"
-                isSetAOnlyUI -> "A.."
-                else -> "AB"
-            },
-            color = contentColor,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Black
-        )
+    if (useMaterialYou) {
+        PlayerButton(onClick = onClick) {
+            Text(
+                text = buttonText,
+                color = if (isActive) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black
+            )
+        }
+    } else {
+        CompositionLocalProvider(
+            LocalRippleConfiguration provides RippleConfiguration(
+                color = Color.White,
+                rippleAlpha = RippleAlpha(
+                    pressedAlpha = 0.5f,
+                    focusedAlpha = 0.5f,
+                    draggedAlpha = 0.5f,
+                    hoveredAlpha = 0.5f
+                )
+            )
+        ) {
+            Surface(
+                onClick = onClick,
+                shape = CircleShape,
+                color = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else Color.Transparent,
+                contentColor = Color.White,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = buttonText,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+        }
     }
 }

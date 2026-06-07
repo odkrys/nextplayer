@@ -46,8 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -185,6 +187,8 @@ fun MediaPlayerScreen(
     val abRepeatA = viewModel.abRepeatA
     val abRepeatB = viewModel.abRepeatB
     var showAbRepeatPanel by remember { mutableStateOf(false) }
+    var bottomControlsHeightPx by remember { mutableIntStateOf(0) }
+    val bottomControlsHeightDp = with(LocalDensity.current) { bottomControlsHeightPx.toDp() }
 
     LaunchedEffect(player) {
         if (player == null) return@LaunchedEffect
@@ -649,59 +653,64 @@ fun MediaPlayerScreen(
                                             currentPositionMs < skipIntroTimeMs &&
                                             isLongEnough && !dlnaPlaybackState.isActive
 
-                                    ControlsBottomView(
-                                        player = player,
-                                        mediaPresentationState = mediaPresentationState,
-                                        controlsAlignment = when (playerPreferences.controlButtonsPosition) {
-                                            ControlButtonsPosition.LEFT -> Alignment.Start
-                                            ControlButtonsPosition.RIGHT -> Alignment.End
-                                        },
-                                        videoContentScale = videoZoomAndContentScaleState.videoContentScale,
-                                        isPipSupported = pictureInPictureState.isPipSupported,
-                                        onSeek = seekGestureState::onSeek,
-                                        onSeekEnd = seekGestureState::onSeekEnd,
-                                        //onRotateClick = rotationState::rotate,
-                                        onRotateClick = {
-                                            controlsVisibilityState.showControls()
-                                            rotationState.rotate()
-                                        },
-                                        onPlayInBackgroundClick = onPlayInBackgroundClick,
-                                        onLockControlsClick = {
-                                            controlsVisibilityState.showControls()
-                                            controlsVisibilityState.lockControls()
-                                        },
-                                        onVideoContentScaleClick = {
-                                            controlsVisibilityState.showControls()
-                                            videoZoomAndContentScaleState.switchToNextVideoContentScale()
-                                        },
-                                        onVideoContentScaleLongClick = {
-                                            //controlsVisibilityState.hideControls()
-                                            //overlayView = OverlayView.VIDEO_CONTENT_SCALE
-                                            controlsVisibilityState.showControls()
-                                            videoZoomAndContentScaleState.resetZoomAndOffset()
-                                        },
-                                        onPictureInPictureClick = {
-                                            if (!pictureInPictureState.hasPipPermission) {
-                                                Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
-                                                pictureInPictureState.openPictureInPictureSettings()
-                                            } else {
-                                                pictureInPictureState.enterPictureInPictureMode()
+                                    if (controlsVisibilityState.controlsVisible) {
+                                        ControlsBottomView(
+                                            modifier = Modifier.onSizeChanged { size ->
+                                                bottomControlsHeightPx = size.height
+                                            },
+                                            player = player,
+                                            mediaPresentationState = mediaPresentationState,
+                                            controlsAlignment = when (playerPreferences.controlButtonsPosition) {
+                                                ControlButtonsPosition.LEFT -> Alignment.Start
+                                                ControlButtonsPosition.RIGHT -> Alignment.End
+                                            },
+                                            videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                                            isPipSupported = pictureInPictureState.isPipSupported,
+                                            onSeek = seekGestureState::onSeek,
+                                            onSeekEnd = seekGestureState::onSeekEnd,
+                                            //onRotateClick = rotationState::rotate,
+                                            onRotateClick = {
+                                                controlsVisibilityState.showControls()
+                                                rotationState.rotate()
+                                            },
+                                            onPlayInBackgroundClick = onPlayInBackgroundClick,
+                                            onLockControlsClick = {
+                                                controlsVisibilityState.showControls()
+                                                controlsVisibilityState.lockControls()
+                                            },
+                                            onVideoContentScaleClick = {
+                                                controlsVisibilityState.showControls()
+                                                videoZoomAndContentScaleState.switchToNextVideoContentScale()
+                                            },
+                                            onVideoContentScaleLongClick = {
+                                                //controlsVisibilityState.hideControls()
+                                                //overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                                controlsVisibilityState.showControls()
+                                                videoZoomAndContentScaleState.resetZoomAndOffset()
+                                            },
+                                            onPictureInPictureClick = {
+                                                if (!pictureInPictureState.hasPipPermission) {
+                                                    Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
+                                                    pictureInPictureState.openPictureInPictureSettings()
+                                                } else {
+                                                    pictureInPictureState.enterPictureInPictureMode()
+                                                }
+                                            },
+                                            showSkipIntroButton = showSkipIntro,
+                                            onSkipIntroClick = { player.seekTo(skipIntroTimeMs) },
+                                            showBuffer = playerPreferences.showBuffer,
+                                            abRepeatA = abRepeatA,
+                                            abRepeatB = abRepeatB,
+                                            onAbRepeatOnClick = {
+                                                showAbRepeatPanel = !showAbRepeatPanel
+                                                if (showAbRepeatPanel) {
+                                                    controlsVisibilityState.keepVisible()
+                                                } else {
+                                                    controlsVisibilityState.releaseKeepVisible()
+                                                }
                                             }
-                                        },
-                                        showSkipIntroButton = showSkipIntro,
-                                        onSkipIntroClick = { player.seekTo(skipIntroTimeMs) },
-                                        showBuffer = playerPreferences.showBuffer,
-                                        abRepeatA = abRepeatA,
-                                        abRepeatB = abRepeatB,
-                                        onAbRepeatOnClick = {
-                                            showAbRepeatPanel = !showAbRepeatPanel
-                                            if (showAbRepeatPanel) {
-                                                controlsVisibilityState.keepVisible()
-                                            } else {
-                                                controlsVisibilityState.releaseKeepVisible()
-                                            }
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             },
                         )
@@ -719,7 +728,7 @@ fun MediaPlayerScreen(
                         },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = if (isLandscape) 100.dp else 180.dp)
+                            .padding(bottom = if (isLandscape) bottomControlsHeightDp - 44.dp else bottomControlsHeightDp)
                     )
                 }
 

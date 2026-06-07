@@ -28,6 +28,7 @@ fun PlayerGestures(
     seekGestureState: SeekGestureState,
     videoZoomAndContentScaleState: VideoZoomAndContentScaleState,
     volumeAndBrightnessGestureState: VolumeAndBrightnessGestureState,
+    onTap: (() -> Unit)? = null,
 ) {
     BoxWithConstraints {
         Box(
@@ -40,7 +41,8 @@ fun PlayerGestures(
                     detectTapGestures(
                         onTap = {
                             if (tapGestureState.seekMillis != 0L) return@detectTapGestures
-                            controlsVisibilityState.toggleControlsVisibility()
+                            //controlsVisibilityState.toggleControlsVisibility()
+                            onTap?.invoke() ?: controlsVisibilityState.toggleControlsVisibility()
                         },
                         onDoubleTap = {
                             if (controlsVisibilityState.controlsLocked) return@detectTapGestures

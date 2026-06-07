@@ -41,6 +41,7 @@ import dev.anilbeesetti.nextplayer.feature.player.extensions.uriToSubtitleConfig
 import dev.anilbeesetti.nextplayer.feature.player.service.DlnaManager
 import dev.anilbeesetti.nextplayer.feature.player.service.PlayerService
 import dev.anilbeesetti.nextplayer.feature.player.service.addSubtitleTrack
+import dev.anilbeesetti.nextplayer.feature.player.service.getAbRepeatState
 import dev.anilbeesetti.nextplayer.feature.player.service.stopPlayerSession
 import dev.anilbeesetti.nextplayer.feature.player.utils.PlayerApi
 import java.util.concurrent.CopyOnWriteArrayList
@@ -146,6 +147,10 @@ class PlayerActivity : ComponentActivity() {
                 updateKeepScreenOnFlag()
                 addListener(playbackStateListener)
                 startPlayback()
+
+                val (a, b) = getAbRepeatState()
+                viewModel.abRepeatA = a
+                viewModel.abRepeatB = b
             }
         }
     }

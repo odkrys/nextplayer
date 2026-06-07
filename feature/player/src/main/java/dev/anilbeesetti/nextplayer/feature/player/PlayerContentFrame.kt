@@ -38,6 +38,7 @@ fun PlayerContentFrame(
     videoZoomAndContentScaleState: VideoZoomAndContentScaleState,
     volumeAndBrightnessGestureState: VolumeAndBrightnessGestureState,
     subtitleConfiguration: SubtitleConfiguration,
+    onTap: (() -> Unit)? = null,
 ) {
     val presentationState = rememberPresentationState(player)
     PlayerSurface(
@@ -84,6 +85,7 @@ fun PlayerContentFrame(
         seekGestureState = seekGestureState,
         videoZoomAndContentScaleState = videoZoomAndContentScaleState,
         volumeAndBrightnessGestureState = volumeAndBrightnessGestureState,
+        onTap = onTap,
     )
 /*
     SubtitleView(

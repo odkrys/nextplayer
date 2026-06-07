@@ -82,10 +82,23 @@ class ControlsVisibilityState(
     }
 
     suspend fun observe() {
+        if (!player.isPlaying && player.currentMediaItem != null) {
+            showControls()
+        }
+
         player.listen { events ->
+/*
             if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
                 if (player.isPlaying) {
                     autoHideControls()
+                }
+            }
+*/
+            if (events.contains(Player.EVENT_PLAY_WHEN_READY_CHANGED)) {
+                if (player.playWhenReady) {
+                    autoHideControls()
+                } else {
+                    autoHideControlsJob?.cancel()
                 }
             }
         }
@@ -96,7 +109,8 @@ class ControlsVisibilityState(
         if (keepVisibleCount > 0) return
         autoHideControlsJob = scope.launch {
             delay(duration)
-            if (player.isPlaying) {
+            //if (player.isPlaying) {
+            if (player.playWhenReady) {
                 controlsVisible = false
             }
         }

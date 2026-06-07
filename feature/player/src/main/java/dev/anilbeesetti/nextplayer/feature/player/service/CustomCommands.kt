@@ -27,6 +27,10 @@ enum class CustomCommands(val customAction: String) {
     GET_SKIP_INTRO_ENABLED(customAction = "GET_SKIP_INTRO_ENABLED"),
     SET_SKIP_INTRO_TIME(customAction = "SET_SKIP_INTRO_TIME"),
     GET_SKIP_INTRO_TIME(customAction = "GET_SKIP_INTRO_TIME"),
+    SET_AB_REPEAT_A(customAction = "SET_AB_REPEAT_A"),
+    SET_AB_REPEAT_B(customAction = "SET_AB_REPEAT_B"),
+    CLEAR_AB_REPEAT(customAction = "CLEAR_AB_REPEAT"),
+    GET_AB_REPEAT_STATE(customAction = "GET_AB_REPEAT_STATE"),
     ;
 
     val sessionCommand = SessionCommand(customAction, Bundle.EMPTY)
@@ -52,6 +56,8 @@ enum class CustomCommands(val customAction: String) {
         const val IS_DRC_SUPPORTED_KEY = "is_drc_supported"
         const val SKIP_INTRO_ENABLED_KEY = "skip_intro_enabled"
         const val SKIP_INTRO_TIME_KEY = "skip_intro_time"
+        const val AB_REPEAT_A_KEY = "ab_repeat_a_ms"
+        const val AB_REPEAT_B_KEY = "ab_repeat_b_ms"
     }
 }
 
@@ -167,4 +173,30 @@ fun MediaController.setSkipIntroTime(timeSeconds: Int) {
         putInt(CustomCommands.SKIP_INTRO_TIME_KEY, timeSeconds)
     }
     sendCustomCommand(CustomCommands.SET_SKIP_INTRO_TIME.sessionCommand, args)
+}
+
+fun MediaController.setAbRepeatA(positionMs: Long) {
+    val args = Bundle().apply {
+        putLong(CustomCommands.AB_REPEAT_A_KEY, positionMs)
+    }
+    sendCustomCommand(CustomCommands.SET_AB_REPEAT_A.sessionCommand, args)
+}
+
+fun MediaController.setAbRepeatB(positionMs: Long) {
+    val args = Bundle().apply {
+        putLong(CustomCommands.AB_REPEAT_B_KEY, positionMs)
+    }
+    sendCustomCommand(CustomCommands.SET_AB_REPEAT_B.sessionCommand, args)
+}
+
+fun MediaController.clearAbRepeat() {
+    sendCustomCommand(CustomCommands.CLEAR_AB_REPEAT.sessionCommand, Bundle.EMPTY)
+}
+
+suspend fun MediaController.getAbRepeatState(): Pair<Long, Long> {
+    val result = sendCustomCommand(CustomCommands.GET_AB_REPEAT_STATE.sessionCommand, Bundle.EMPTY).await()
+    return Pair(
+        result.extras.getLong(CustomCommands.AB_REPEAT_A_KEY, androidx.media3.common.C.TIME_UNSET),
+        result.extras.getLong(CustomCommands.AB_REPEAT_B_KEY, androidx.media3.common.C.TIME_UNSET),
+    )
 }

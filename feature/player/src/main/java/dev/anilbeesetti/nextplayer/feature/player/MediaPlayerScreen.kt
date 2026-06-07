@@ -67,6 +67,7 @@ import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.ui.composables.VideoInfoDialog
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
+import dev.anilbeesetti.nextplayer.feature.player.buttons.AbRepeatPanelOverlay
 import dev.anilbeesetti.nextplayer.feature.player.buttons.DlnaCastButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.NextButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayPauseButton
@@ -137,6 +138,12 @@ fun MediaPlayerScreen(
         player = player,
         sensitivity = playerPreferences.seekSensitivity,
         enableSeekGesture = playerPreferences.useSeekControls,
+        onSeekStart = {
+            if (controlsVisibilityState.controlsVisible) {
+                controlsVisibilityState.keepVisible()
+            }
+        },
+        onSeekFinished = { controlsVisibilityState.releaseKeepVisible() },
     )
     /*
     val pictureInPictureState = rememberPictureInPictureState(
@@ -175,6 +182,10 @@ fun MediaPlayerScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var currentPositionMs by remember { mutableLongStateOf(0L) }
+
+    val abRepeatA = viewModel.abRepeatA
+    val abRepeatB = viewModel.abRepeatB
+    var showAbRepeatPanel by remember { mutableStateOf(false) }
 
     LaunchedEffect(player) {
         if (player == null) return@LaunchedEffect
@@ -234,10 +245,19 @@ fun MediaPlayerScreen(
     val isCastingActiveRef = rememberUpdatedState(dlnaPlaybackState.isActive)
 
     DisposableEffect(player) {
+        var lastMediaId: String? = player.currentMediaItem?.mediaId
         val listener = object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 val uri = mediaItem?.mediaId ?: return
-                viewModel.loadVideoInfo(uri)
+                if (uri != lastMediaId) {
+                    viewModel.loadVideoInfo(uri)
+
+                    viewModel.abRepeatA = C.TIME_UNSET
+                    viewModel.abRepeatB = C.TIME_UNSET
+                    showAbRepeatPanel = false
+
+                    lastMediaId = uri
+                }
 
                 if (isCastingActiveRef.value &&
                     reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
@@ -299,10 +319,19 @@ fun MediaPlayerScreen(
         }
     }
 
+    DisposableEffect(abRepeatA, abRepeatB) {
+        val isSetAOnly = abRepeatA != C.TIME_UNSET && abRepeatB == C.TIME_UNSET
+        if (isSetAOnly) controlsVisibilityState.keepVisible()
+        onDispose {
+            if (isSetAOnly) controlsVisibilityState.releaseKeepVisible()
+        }
+    }
+
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
         var interactionTick by remember { mutableIntStateOf(0) }
         val autoHideTimeout = playerPreferences.controllerAutoHideTimeout.seconds
         var wasCasting by remember { mutableStateOf(false) }
+        var showBuffering by remember { mutableStateOf(false) }
 
         LaunchedEffect(dlnaPlaybackState.isActive) {
             if (dlnaPlaybackState.isActive) {
@@ -311,6 +340,15 @@ fun MediaPlayerScreen(
             } else if (wasCasting) {
                 wasCasting = false
                 controlsVisibilityState.showControls()
+            }
+        }
+
+        LaunchedEffect(mediaPresentationState.isBuffering) {
+            if (mediaPresentationState.isBuffering) {
+                delay(250)
+                showBuffering = true
+            } else {
+                showBuffering = false
             }
         }
 
@@ -338,6 +376,14 @@ fun MediaPlayerScreen(
                         applyEmbeddedStyles = playerPreferences.applyEmbeddedStyles,
                         subtitlePosition = playerPreferences.subtitlePosition,
                     ),
+                    onTap = {
+                        if (showAbRepeatPanel) {
+                            showAbRepeatPanel = false
+                            controlsVisibilityState.releaseKeepVisible()
+                        } else {
+                            controlsVisibilityState.toggleControlsVisibility()
+                        }
+                    }
                 )
 
                 AnimatedVisibility(
@@ -352,7 +398,8 @@ fun MediaPlayerScreen(
                     )
                 }
 
-                if (mediaPresentationState.isBuffering) {
+                //if (mediaPresentationState.isBuffering) {
+                if (showBuffering) {
                     CircularProgressIndicator(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -660,11 +707,36 @@ fun MediaPlayerScreen(
                                         showSkipIntroButton = showSkipIntro,
                                         onSkipIntroClick = { player.seekTo(skipIntroTimeMs) },
                                         showBuffer = playerPreferences.showBuffer,
+                                        abRepeatA = abRepeatA,
+                                        abRepeatB = abRepeatB,
+                                        onAbRepeatOnClick = {
+                                            showAbRepeatPanel = !showAbRepeatPanel
+                                            if (showAbRepeatPanel) {
+                                                controlsVisibilityState.keepVisible()
+                                            } else {
+                                                controlsVisibilityState.releaseKeepVisible()
+                                            }
+                                        }
                                     )
                                 }
                             },
                         )
                     }
+                }
+
+                if (showAbRepeatPanel && player != null) {
+                    AbRepeatPanelOverlay(
+                        player = player,
+                        abRepeatA = abRepeatA,
+                        abRepeatB = abRepeatB,
+                        onStateChanged = { a, b ->
+                            viewModel.abRepeatA = a
+                            viewModel.abRepeatB = b
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = if (isLandscape) 100.dp else 180.dp)
+                    )
                 }
 
                 if (playerPreferences.dlnaCast && !dlnaPlaybackState.isActive) {

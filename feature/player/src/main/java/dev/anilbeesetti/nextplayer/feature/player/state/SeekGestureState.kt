@@ -23,12 +23,16 @@ fun rememberSeekGestureState(
     player: Player,
     sensitivity: Float = 0.5f,
     enableSeekGesture: Boolean,
+    onSeekStart: () -> Unit = {},
+    onSeekFinished: () -> Unit = {},
 ): SeekGestureState {
     val seekGestureState = remember {
         SeekGestureState(
             player = player,
             sensitivity = sensitivity,
             enableSeekGesture = enableSeekGesture,
+            onSeekStart = onSeekStart,
+            onSeekFinished = onSeekFinished,
         )
     }
     return seekGestureState
@@ -39,6 +43,8 @@ class SeekGestureState(
     private val player: Player,
     private val enableSeekGesture: Boolean = true,
     private val sensitivity: Float = 0.5f,
+    private val onSeekStart: () -> Unit = {},
+    private val onSeekFinished: () -> Unit = {},
 ) {
     var isSeeking: Boolean by mutableStateOf(false)
         private set
@@ -56,6 +62,7 @@ class SeekGestureState(
             isSeeking = true
             seekStartPosition = player.currentPosition
             player.setIsScrubbingModeEnabled(true)
+            onSeekStart()
         }
 
         seekAmount = (value - seekStartPosition!!).coerceIn(
@@ -85,6 +92,7 @@ class SeekGestureState(
         seekStartPosition = player.currentPosition
 
         player.setIsScrubbingModeEnabled(true)
+        onSeekStart()
     }
 
     @OptIn(UnstableApi::class)
@@ -116,6 +124,7 @@ class SeekGestureState(
         seekAmount = null
 
         seekStartX = 0f
+        onSeekFinished()
     }
 }
 

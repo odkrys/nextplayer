@@ -4,8 +4,12 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.anilbeesetti.nextplayer.core.common.Utils.formatDurationMillis
@@ -72,6 +76,9 @@ class PlayerViewModel @Inject constructor(
 
     val dlnaPlaybackState = DlnaManager.playbackState
     private var autoStopJob: Job? = null
+
+    var abRepeatA by mutableLongStateOf(C.TIME_UNSET)
+    var abRepeatB by mutableLongStateOf(C.TIME_UNSET)
 
     init {
         viewModelScope.launch {

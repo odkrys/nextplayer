@@ -97,6 +97,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
@@ -147,8 +148,11 @@ class PlayerService : MediaSessionService() {
 
     private var pendingSkipIntroMs: Long = 0L
 
-    @Volatile
-    private var pendingShuffleStartIndex: Int = C.INDEX_UNSET
+    @Volatile private var pendingShuffleStartIndex: Int = C.INDEX_UNSET
+
+    @Volatile private var abRepeatAMs: Long = C.TIME_UNSET
+    @Volatile private var abRepeatBMs: Long = C.TIME_UNSET
+    private var abRepeatJob: Job? = null
 
     private val playbackStateListener = object : Player.Listener {
         override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
@@ -172,6 +176,8 @@ class PlayerService : MediaSessionService() {
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             super.onMediaItemTransition(mediaItem, reason)
+
+            stopAbRepeatLoop()
 
             pendingSkipIntroMs = 0L
 
@@ -458,6 +464,14 @@ class PlayerService : MediaSessionService() {
                     )
                 }
 */
+            if (isPlaying) {
+                if (abRepeatAMs != C.TIME_UNSET && abRepeatBMs != C.TIME_UNSET) {
+                    startAbRepeatLoop()
+                }
+            } else {
+                cancelAbRepeatJob()
+            }
+
             mediaSession?.run {
                 val currentMediaItem = player.currentMediaItem ?: return
                 val mediaId = currentMediaItem.mediaId
@@ -814,6 +828,48 @@ class PlayerService : MediaSessionService() {
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
+                CustomCommands.SET_AB_REPEAT_A -> {
+                    val positionMs = args.getLong(CustomCommands.AB_REPEAT_A_KEY, C.TIME_UNSET)
+                    abRepeatAMs = positionMs
+                    if (abRepeatBMs != C.TIME_UNSET && abRepeatBMs <= abRepeatAMs) {
+                        abRepeatBMs = C.TIME_UNSET
+                        stopAbRepeatLoop()
+                    }
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.SET_AB_REPEAT_B -> {
+                    val positionMs = args.getLong(CustomCommands.AB_REPEAT_B_KEY, C.TIME_UNSET)
+                    if (abRepeatAMs == C.TIME_UNSET || positionMs <= abRepeatAMs) {
+                        return@future SessionResult(SessionError.ERROR_BAD_VALUE)
+                    }
+                    val duration = mediaSession?.player?.duration ?: C.TIME_UNSET
+                    if (duration != C.TIME_UNSET && positionMs > duration) {
+                        return@future SessionResult(SessionError.ERROR_BAD_VALUE)
+                    }
+                    abRepeatBMs = positionMs
+                    if (mediaSession?.player?.isPlaying == true) {
+                        startAbRepeatLoop()
+                    }
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.CLEAR_AB_REPEAT -> {
+                    stopAbRepeatLoop()
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.GET_AB_REPEAT_STATE -> {
+                    return@future SessionResult(
+                        SessionResult.RESULT_SUCCESS,
+                        Bundle().apply {
+                            putLong(CustomCommands.AB_REPEAT_A_KEY, abRepeatAMs)
+                            putLong(CustomCommands.AB_REPEAT_B_KEY, abRepeatBMs)
+                        }
+                    )
+                }
+
+
                 CustomCommands.STOP_PLAYER_SESSION -> {
                     mediaSession?.run {
                         serviceScope.launch {
@@ -977,6 +1033,7 @@ class PlayerService : MediaSessionService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        stopAbRepeatLoop()
         artworkLoadJob?.cancel()
         loudnessEnhancer?.release()
         loudnessEnhancer = null
@@ -1328,6 +1385,36 @@ class PlayerService : MediaSessionService() {
             }?.index ?: return
 
         player.switchTrack(C.TRACK_TYPE_TEXT, bestTrackIndex)
+    }
+
+    private fun startAbRepeatLoop() {
+        abRepeatJob?.cancel()
+        abRepeatJob = serviceScope.launch {
+            while (isActive) {
+                delay(50)
+                val a = abRepeatAMs
+                val b = abRepeatBMs
+                if (a == C.TIME_UNSET || b == C.TIME_UNSET) continue
+
+                val player = mediaSession?.player ?: continue
+                val pos = player.currentPosition
+
+                if (pos >= b) {
+                    player.seekTo(a)
+                }
+            }
+        }
+    }
+
+    private fun cancelAbRepeatJob() {
+        abRepeatJob?.cancel()
+        abRepeatJob = null
+    }
+
+    private fun stopAbRepeatLoop() {
+        cancelAbRepeatJob()
+        abRepeatAMs = C.TIME_UNSET
+        abRepeatBMs = C.TIME_UNSET
     }
 }
 

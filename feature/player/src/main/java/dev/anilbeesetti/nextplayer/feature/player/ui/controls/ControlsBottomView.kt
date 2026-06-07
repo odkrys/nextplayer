@@ -53,12 +53,14 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
 import dev.anilbeesetti.nextplayer.feature.player.LocalUseMaterialYouControls
+import dev.anilbeesetti.nextplayer.feature.player.buttons.AbRepeatButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.LoopButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.ShuffleButton
@@ -87,6 +89,9 @@ fun ControlsBottomView(
     onPlayInBackgroundClick: () -> Unit,
     showSkipIntroButton: Boolean = false,
     onSkipIntroClick: () -> Unit = {},
+    abRepeatA: Long = C.TIME_UNSET,
+    abRepeatB: Long = C.TIME_UNSET,
+    onAbRepeatOnClick: () -> Unit,
     onSeek: (Long) -> Unit,
     onSeekEnd: () -> Unit,
     showBuffer: Boolean = false,
@@ -160,6 +165,8 @@ fun ControlsBottomView(
             position = mediaPresentationState.position.toFloat(),
             duration = mediaPresentationState.duration.toFloat(),
             bufferedPosition = if (showBuffer) mediaPresentationState.bufferedPosition.toFloat() else 0f,
+            abRepeatA = abRepeatA,
+            abRepeatB = abRepeatB,
             onSeek = { onSeek(it.toLong()) },
             onSeekFinished = { onSeekEnd() },
         )
@@ -207,6 +214,11 @@ fun ControlsBottomView(
                         contentDescription = null,
                     )
                 }
+                AbRepeatButton(
+                    abRepeatA = abRepeatA,
+                    abRepeatB = abRepeatB,
+                    onClick = onAbRepeatOnClick,
+                )
             }
 
             if (showSkipIntroButton) {
@@ -227,6 +239,8 @@ internal fun PlayerSeekbar(
     position: Float,
     duration: Float,
     bufferedPosition: Float = 0f,
+    abRepeatA: Long = C.TIME_UNSET,
+    abRepeatB: Long = C.TIME_UNSET,
     onSeek: (Float) -> Unit,
     onSeekFinished: () -> Unit,
 ) {
@@ -237,6 +251,8 @@ internal fun PlayerSeekbar(
                 value = position,
                 valueRange = 0f..duration,
                 bufferedPosition = bufferedPosition,
+                abRepeatA = abRepeatA,
+                abRepeatB = abRepeatB,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
             )
@@ -246,6 +262,8 @@ internal fun PlayerSeekbar(
                 value = position,
                 valueRange = 0f..duration,
                 bufferedPosition = bufferedPosition,
+                abRepeatA = abRepeatA,
+                abRepeatB = abRepeatB,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
             )
@@ -260,6 +278,8 @@ private fun MaterialYouSlider(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     bufferedPosition: Float = 0f,
+    abRepeatA: Long = C.TIME_UNSET,
+    abRepeatB: Long = C.TIME_UNSET,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
@@ -362,6 +382,33 @@ private fun MaterialYouSlider(
                         endCornerRadius = if (isBufferAtEnd) endCornerRadius else insideCornerRadius,
                     )
                 }
+
+                if (abRepeatA != C.TIME_UNSET && abRepeatB != C.TIME_UNSET) {
+                    val startX = size.width * ((abRepeatA.toFloat() - min) / range).coerceIn(0f, 1f)
+                    val endX = size.width * ((abRepeatB.toFloat() - min) / range).coerceIn(0f, 1f)
+
+                    drawRect(
+                        color = Color.Yellow.copy(0.8f),
+                        topLeft = Offset(startX, 0f),
+                        size = Size(endX - startX, size.height)
+                    )
+                }
+
+                fun drawMarker(timeMs: Long, color: Color) {
+                    if (timeMs == C.TIME_UNSET) return
+                    val fraction = ((timeMs.toFloat() - min) / range).coerceIn(0f, 1f)
+                    val x = size.width * fraction
+
+                    drawLine(
+                        color = color,
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = 4.dp.toPx()
+                    )
+                }
+
+                drawMarker(abRepeatA, Color.Yellow)
+                drawMarker(abRepeatB, Color.Yellow)
             }
         },
         thumb = {
@@ -369,7 +416,11 @@ private fun MaterialYouSlider(
                 modifier = Modifier
                     .width(thumbWidth)
                     .height(20.dp)
-                    .background(primaryColor, CircleShape),
+                    //.background(primaryColor, CircleShape),
+                    .background(
+                        color = if (abRepeatA != C.TIME_UNSET) primaryColor.copy(alpha = 0.7f) else primaryColor,
+                        shape = CircleShape
+                    ),
             )
         },
     )
@@ -406,6 +457,8 @@ private fun SimpleSlider(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     bufferedPosition: Float = 0f,
+    abRepeatA: Long = C.TIME_UNSET,
+    abRepeatB: Long = C.TIME_UNSET,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
@@ -421,7 +474,8 @@ private fun SimpleSlider(
             Box(
                 modifier = Modifier.size(16.dp)
                     .shadow(4.dp, CircleShape)
-                    .background(Color.White)
+                    //.background(Color.White)
+                    .background(color = if (abRepeatA != C.TIME_UNSET) Color.White.copy(alpha = 0.7f) else Color.White)
             )
         },
         track = {
@@ -472,6 +526,30 @@ private fun SimpleSlider(
                         size = Size(playedPixels, size.height)
                     )
                 }
+
+                if (abRepeatA != C.TIME_UNSET && abRepeatB != C.TIME_UNSET) {
+                    val startX = size.width * (abRepeatA.toFloat() / range).coerceIn(0f, 1f)
+                    val endX = size.width * (abRepeatB.toFloat() / range).coerceIn(0f, 1f)
+                    drawRect(
+                        color = Color.Yellow.copy(0.8f),
+                        topLeft = Offset(startX, 0f),
+                        size = Size(endX - startX, size.height)
+                    )
+                }
+
+                fun drawMarker(timeMs: Long) {
+                    if (timeMs == C.TIME_UNSET) return
+                    val x = size.width * (timeMs.toFloat() / range).coerceIn(0f, 1f)
+                    drawLine(
+                        color = Color.Yellow,
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = 4.dp.toPx()
+                    )
+                }
+
+                drawMarker(abRepeatA)
+                drawMarker(abRepeatB)
             }
         }
     )

@@ -390,51 +390,52 @@ fun MediaPlayerScreen(
                     }
                 )
 
-                AnimatedVisibility(
-                    visible = controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    Box(
-                        modifier = modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f)),
-                    )
-                }
+                if (!pictureInPictureState.isInPictureInPictureMode) {
+                    AnimatedVisibility(
+                        visible = controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Box(
+                            modifier = modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f)),
+                        )
+                    }
 
-                //if (mediaPresentationState.isBuffering) {
-                if (showBuffering) {
-                    CircularProgressIndicator(
+                    //if (mediaPresentationState.isBuffering) {
+                    if (showBuffering) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(72.dp),
+                        )
+                    }
+
+                    DoubleTapIndicator(tapGestureState = tapGestureState)
+
+                    AnimatedVisibility(
                         modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(72.dp),
-                    )
-                }
-
-                DoubleTapIndicator(tapGestureState = tapGestureState)
-
-                AnimatedVisibility(
-                    modifier = Modifier
-                        .padding(top = 24.dp)
-                        .align(Alignment.TopCenter),
-                    visible = tapGestureState.isLongPressGestureInAction,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    Surface(shape = CircleShape) {
-                        Row(
-                            modifier = Modifier.padding(
-                                horizontal = 16.dp,
-                                vertical = 8.dp,
-                            ),
-                        ) {
-                            Text(
-                                text = stringResource(coreUiR.string.fast_playback_speed, tapGestureState.longPressSpeed),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                            .padding(top = 24.dp)
+                            .align(Alignment.TopCenter),
+                        visible = tapGestureState.isLongPressGestureInAction,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Surface(shape = CircleShape) {
+                            Row(
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp,
+                                ),
+                            ) {
+                                Text(
+                                    text = stringResource(coreUiR.string.fast_playback_speed, tapGestureState.longPressSpeed),
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
                         }
                     }
-                }
 
 /*
                 if (controlsVisibilityState.controlsVisible && controlsVisibilityState.controlsLocked) {
@@ -464,10 +465,6 @@ fun MediaPlayerScreen(
                             ) {
                                 ControlsTopView(
                                     title = metadataState.title ?: "",
-                                    onTitleClick = {
-                                        controlsVisibilityState.hideControls()
-                                        showVideoInfoDialog = true
-                                    },
                                     onAudioClick = {
                                         controlsVisibilityState.hideControls()
                                         overlayView = OverlayView.AUDIO_SELECTOR
@@ -492,7 +489,6 @@ fun MediaPlayerScreen(
                             when {
                                 seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
                                 videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
-                                videoZoomAndContentScaleState.showResetIndicator -> InfoView(info = "Reset")
                                 videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
                                 controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
                                 else -> Unit
@@ -516,11 +512,7 @@ fun MediaPlayerScreen(
                                     isPipSupported = pictureInPictureState.isPipSupported,
                                     onSeek = seekGestureState::onSeek,
                                     onSeekEnd = seekGestureState::onSeekEnd,
-                                    //onRotateClick = rotationState::rotate,
-                                    onRotateClick = {
-                                        controlsVisibilityState.showControls()
-                                        rotationState.rotate()
-                                    },
+                                    onRotateClick = rotationState::rotate,
                                     onPlayInBackgroundClick = onPlayInBackgroundClick,
                                     onLockControlsClick = {
                                         controlsVisibilityState.showControls()
@@ -531,10 +523,8 @@ fun MediaPlayerScreen(
                                         videoZoomAndContentScaleState.switchToNextVideoContentScale()
                                     },
                                     onVideoContentScaleLongClick = {
-                                        //controlsVisibilityState.hideControls()
-                                        //overlayView = OverlayView.VIDEO_CONTENT_SCALE
-                                        controlsVisibilityState.showControls()
-                                        videoZoomAndContentScaleState.resetZoomAndOffset()
+                                        controlsVisibilityState.hideControls()
+                                        overlayView = OverlayView.VIDEO_CONTENT_SCALE
                                     },
                                     onPictureInPictureClick = {
                                         if (!pictureInPictureState.hasPipPermission) {
@@ -551,269 +541,270 @@ fun MediaPlayerScreen(
                 }
 */
 
-                when {
-                    controlsVisibilityState.controlsVisible && controlsVisibilityState.controlsLocked -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .safeDrawingPadding()
-                                .padding(top = 24.dp),
-                        ) {
-                            PlayerButton(
-                                containerColor = Color.Black.copy(0.5f),
-                                onClick = { controlsVisibilityState.unlockControls() },
+                    when {
+                        controlsVisibilityState.controlsVisible && controlsVisibilityState.controlsLocked -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .safeDrawingPadding()
+                                    .padding(top = 24.dp),
                             ) {
-                                Icon(
-                                    painter = painterResource(coreUiR.drawable.ic_lock),
-                                    contentDescription = stringResource(coreUiR.string.controls_unlock),
+                                PlayerButton(
+                                    containerColor = Color.Black.copy(0.5f),
+                                    onClick = { controlsVisibilityState.unlockControls() },
+                                ) {
+                                    Icon(
+                                        painter = painterResource(coreUiR.drawable.ic_lock),
+                                        contentDescription = stringResource(coreUiR.string.controls_unlock),
+                                    )
+                                }
+                            }
+                        }
+
+                        dlnaPlaybackState.isActive -> {
+                            LaunchedEffect(controlsVisibilityState.controlsVisible, dlnaPlaybackState.isPlaying, interactionTick) {
+                                if (controlsVisibilityState.controlsVisible && dlnaPlaybackState.isPlaying) {
+                                    delay(autoHideTimeout)
+                                    controlsVisibilityState.hideControls()
+                                }
+                            }
+
+                            CastingControllerView(
+                                mediaId = dlnaPlaybackState.mediaId,
+                                position = dlnaPlaybackState.positionMs,
+                                duration = dlnaPlaybackState.durationMs,
+                                isPlaying = dlnaPlaybackState.isPlaying,
+                                title = currentVideo?.nameWithExtension ?: metadataState.title ?: "",
+                                controlsVisible = controlsVisibilityState.controlsVisible,
+                                dlnaAutoplay = playerPreferences.dlnaAutoplay ?: false,
+                                onToggleAutoplay = viewModel::toggleDlnaAutoplay,
+                                onTap = {
+                                    if (controlsVisibilityState.controlsVisible) {
+                                        controlsVisibilityState.hideControls()
+                                    } else {
+                                        interactionTick++
+                                        controlsVisibilityState.showControls()
+                                    }
+                                },
+                                onInteraction = {
+                                    interactionTick++
+                                    controlsVisibilityState.showControls()
+                                },
+                                onSeek = viewModel::seekCasting,
+                                onStop = { viewModel.stopCasting(context) },
+                                onPlayPause = viewModel::toggleCastingPlayPause,
+                                onPrevious = viewModel::playPreviousCasting,
+                                onNext = viewModel::playNextCasting,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+
+                        else -> {
+                            PlayerControlsView(
+                                topView = {
+                                    AnimatedVisibility(
+                                        visible = controlsVisibilityState.controlsVisible,
+                                        enter = fadeIn(),
+                                        exit = fadeOut(),
+                                    ) {
+                                        ControlsTopView(
+                                            title = metadataState.title ?: "",
+                                            onTitleClick = {
+                                                controlsVisibilityState.hideControls()
+                                                showVideoInfoDialog = true
+                                            },
+                                            onAudioClick = {
+                                                controlsVisibilityState.hideControls()
+                                                overlayView = OverlayView.AUDIO_SELECTOR
+                                            },
+                                            onSubtitleClick = {
+                                                controlsVisibilityState.hideControls()
+                                                overlayView = OverlayView.SUBTITLE_SELECTOR
+                                            },
+                                            onPlaybackSpeedClick = {
+                                                controlsVisibilityState.hideControls()
+                                                overlayView = OverlayView.PLAYBACK_SPEED
+                                            },
+                                            onPlaylistClick = {
+                                                controlsVisibilityState.hideControls()
+                                                overlayView = OverlayView.PLAYLIST
+                                            },
+                                            onBackClick = onBackClick,
+                                        )
+                                    }
+                                },
+                                middleView = {
+                                    when {
+                                        seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
+                                        videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
+                                        videoZoomAndContentScaleState.showResetIndicator -> InfoView(info = "Reset")
+                                        videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
+                                        controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
+                                        else -> Unit
+                                    }
+                                },
+                                bottomView = {
+                                    AnimatedVisibility(
+                                        visible = controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked,
+                                        enter = fadeIn(),
+                                        exit = fadeOut(),
+                                    ) {
+                                        val context = LocalContext.current
+
+                                        val skipIntroTimeMs = playerPreferences.skipIntroTime * 1000L
+                                        val durationMs = player.duration
+                                        val isLongEnough = durationMs == C.TIME_UNSET || durationMs > skipIntroTimeMs
+
+                                        val showSkipIntro = isLandscape && skipIntroTimeMs > 0 &&
+                                                currentPositionMs < skipIntroTimeMs &&
+                                                isLongEnough && !dlnaPlaybackState.isActive
+
+                                        if (controlsVisibilityState.controlsVisible) {
+                                            ControlsBottomView(
+                                                modifier = Modifier.onSizeChanged { size ->
+                                                    bottomControlsHeightPx = size.height
+                                                },
+                                                player = player,
+                                                mediaPresentationState = mediaPresentationState,
+                                                controlsAlignment = when (playerPreferences.controlButtonsPosition) {
+                                                    ControlButtonsPosition.LEFT -> Alignment.Start
+                                                    ControlButtonsPosition.RIGHT -> Alignment.End
+                                                },
+                                                videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                                                isPipSupported = pictureInPictureState.isPipSupported,
+                                                onSeek = seekGestureState::onSeek,
+                                                onSeekEnd = seekGestureState::onSeekEnd,
+                                                //onRotateClick = rotationState::rotate,
+                                                onRotateClick = {
+                                                    controlsVisibilityState.showControls()
+                                                    rotationState.rotate()
+                                                },
+                                                onPlayInBackgroundClick = onPlayInBackgroundClick,
+                                                onLockControlsClick = {
+                                                    controlsVisibilityState.showControls()
+                                                    controlsVisibilityState.lockControls()
+                                                },
+                                                onVideoContentScaleClick = {
+                                                    controlsVisibilityState.showControls()
+                                                    videoZoomAndContentScaleState.switchToNextVideoContentScale()
+                                                },
+                                                onVideoContentScaleLongClick = {
+                                                    //controlsVisibilityState.hideControls()
+                                                    //overlayView = OverlayView.VIDEO_CONTENT_SCALE
+                                                    controlsVisibilityState.showControls()
+                                                    videoZoomAndContentScaleState.resetZoomAndOffset()
+                                                },
+                                                onPictureInPictureClick = {
+                                                    if (!pictureInPictureState.hasPipPermission) {
+                                                        Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
+                                                        pictureInPictureState.openPictureInPictureSettings()
+                                                    } else {
+                                                        pictureInPictureState.enterPictureInPictureMode()
+                                                    }
+                                                },
+                                                showSkipIntroButton = showSkipIntro,
+                                                onSkipIntroClick = { player.seekTo(skipIntroTimeMs) },
+                                                showBuffer = playerPreferences.showBuffer,
+                                                abRepeatA = abRepeatA,
+                                                abRepeatB = abRepeatB,
+                                                onAbRepeatOnClick = {
+                                                    showAbRepeatPanel = !showAbRepeatPanel
+                                                    if (showAbRepeatPanel) {
+                                                        controlsVisibilityState.keepVisible()
+                                                    } else {
+                                                        controlsVisibilityState.releaseKeepVisible()
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                    }
+
+                    if (showAbRepeatPanel && player != null) {
+                        AbRepeatPanelOverlay(
+                            player = player,
+                            abRepeatA = abRepeatA,
+                            abRepeatB = abRepeatB,
+                            onStateChanged = { a, b ->
+                                viewModel.abRepeatA = a
+                                viewModel.abRepeatB = b
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = if (isLandscape) bottomControlsHeightDp - 44.dp else bottomControlsHeightDp)
+                        )
+                    }
+
+                    if (playerPreferences.dlnaCast && !dlnaPlaybackState.isActive) {
+                        AnimatedVisibility(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .safeDrawingPadding()
+                                .padding(top = 54.dp, end = 12.dp),
+                            visible = controlsVisibilityState.controlsVisible &&
+                                    !controlsVisibilityState.controlsLocked,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.Black.copy(alpha = 0.5f),
+                            ) {
+                                DlnaCastButton(
+                                    devices = dlnaDevices,
+                                    isSearching = isDlnaSearching,
+                                    isCasting = dlnaPlaybackState.isActive,
+                                    expanded = isDlnaMenuExpanded,
+                                    onExpandedChange = { isDlnaMenuExpanded = it },
+                                    onOpen = { viewModel.searchDlnaDevices(context) },
+                                    onDeviceSelected = { device ->
+                                        currentUri?.let { viewModel.castToDevice(device, it, context) }
+                                        isDlnaMenuExpanded = false
+                                    },
+                                    onStopCasting = { viewModel.stopCasting(context) },
+                                    modifier = Modifier.size(40.dp)
                                 )
                             }
                         }
                     }
 
-                    dlnaPlaybackState.isActive -> {
-                        LaunchedEffect(controlsVisibilityState.controlsVisible, dlnaPlaybackState.isPlaying, interactionTick) {
-                            if (controlsVisibilityState.controlsVisible && dlnaPlaybackState.isPlaying) {
-                                delay(autoHideTimeout)
-                                controlsVisibilityState.hideControls()
-                            }
-                        }
-
-                        CastingControllerView(
-                            mediaId = dlnaPlaybackState.mediaId,
-                            position = dlnaPlaybackState.positionMs,
-                            duration = dlnaPlaybackState.durationMs,
-                            isPlaying = dlnaPlaybackState.isPlaying,
-                            title = currentVideo?.nameWithExtension ?: metadataState.title ?: "",
-                            controlsVisible = controlsVisibilityState.controlsVisible,
-                            dlnaAutoplay = playerPreferences.dlnaAutoplay ?: false,
-                            onToggleAutoplay = viewModel::toggleDlnaAutoplay,
-                            onTap = {
-                                if (controlsVisibilityState.controlsVisible) {
-                                    controlsVisibilityState.hideControls()
-                                } else {
-                                    interactionTick++
-                                    controlsVisibilityState.showControls()
-                                }
-                            },
-                            onInteraction = {
-                                interactionTick++
-                                controlsVisibilityState.showControls()
-                            },
-                            onSeek = viewModel::seekCasting,
-                            onStop = { viewModel.stopCasting(context) },
-                            onPlayPause = viewModel::toggleCastingPlayPause,
-                            onPrevious = viewModel::playPreviousCasting,
-                            onNext = viewModel::playNextCasting,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-
-                    else -> {
-                        PlayerControlsView(
-                            topView = {
-                                AnimatedVisibility(
-                                    visible = controlsVisibilityState.controlsVisible,
-                                    enter = fadeIn(),
-                                    exit = fadeOut(),
-                                ) {
-                                    ControlsTopView(
-                                        title = metadataState.title ?: "",
-                                        onTitleClick = {
-                                            controlsVisibilityState.hideControls()
-                                            showVideoInfoDialog = true
-                                        },
-                                        onAudioClick = {
-                                            controlsVisibilityState.hideControls()
-                                            overlayView = OverlayView.AUDIO_SELECTOR
-                                        },
-                                        onSubtitleClick = {
-                                            controlsVisibilityState.hideControls()
-                                            overlayView = OverlayView.SUBTITLE_SELECTOR
-                                        },
-                                        onPlaybackSpeedClick = {
-                                            controlsVisibilityState.hideControls()
-                                            overlayView = OverlayView.PLAYBACK_SPEED
-                                        },
-                                        onPlaylistClick = {
-                                            controlsVisibilityState.hideControls()
-                                            overlayView = OverlayView.PLAYLIST
-                                        },
-                                        onBackClick = onBackClick,
-                                    )
-                                }
-                            },
-                            middleView = {
-                                when {
-                                    seekGestureState.seekAmount != null -> InfoView(info = "${seekGestureState.seekAmountFormatted}\n[${seekGestureState.seekToPositionFormated}]")
-                                    videoZoomAndContentScaleState.isZooming -> InfoView(info = "${(videoZoomAndContentScaleState.zoom * 100).toInt()}%")
-                                    videoZoomAndContentScaleState.showResetIndicator -> InfoView(info = "Reset")
-                                    videoZoomAndContentScaleState.showContentScaleIndicator -> InfoView(info = stringResource(videoZoomAndContentScaleState.videoContentScale.nameRes()))
-                                    controlsVisibilityState.controlsVisible -> ControlsMiddleView(player = player)
-                                    else -> Unit
-                                }
-                            },
-                            bottomView = {
-                                AnimatedVisibility(
-                                    visible = controlsVisibilityState.controlsVisible && !controlsVisibilityState.controlsLocked,
-                                    enter = fadeIn(),
-                                    exit = fadeOut(),
-                                ) {
-                                    val context = LocalContext.current
-
-                                    val skipIntroTimeMs = playerPreferences.skipIntroTime * 1000L
-                                    val durationMs = player.duration
-                                    val isLongEnough = durationMs == C.TIME_UNSET || durationMs > skipIntroTimeMs
-
-                                    val showSkipIntro = isLandscape && skipIntroTimeMs > 0 &&
-                                            currentPositionMs < skipIntroTimeMs &&
-                                            isLongEnough && !dlnaPlaybackState.isActive
-
-                                    if (controlsVisibilityState.controlsVisible) {
-                                        ControlsBottomView(
-                                            modifier = Modifier.onSizeChanged { size ->
-                                                bottomControlsHeightPx = size.height
-                                            },
-                                            player = player,
-                                            mediaPresentationState = mediaPresentationState,
-                                            controlsAlignment = when (playerPreferences.controlButtonsPosition) {
-                                                ControlButtonsPosition.LEFT -> Alignment.Start
-                                                ControlButtonsPosition.RIGHT -> Alignment.End
-                                            },
-                                            videoContentScale = videoZoomAndContentScaleState.videoContentScale,
-                                            isPipSupported = pictureInPictureState.isPipSupported,
-                                            onSeek = seekGestureState::onSeek,
-                                            onSeekEnd = seekGestureState::onSeekEnd,
-                                            //onRotateClick = rotationState::rotate,
-                                            onRotateClick = {
-                                                controlsVisibilityState.showControls()
-                                                rotationState.rotate()
-                                            },
-                                            onPlayInBackgroundClick = onPlayInBackgroundClick,
-                                            onLockControlsClick = {
-                                                controlsVisibilityState.showControls()
-                                                controlsVisibilityState.lockControls()
-                                            },
-                                            onVideoContentScaleClick = {
-                                                controlsVisibilityState.showControls()
-                                                videoZoomAndContentScaleState.switchToNextVideoContentScale()
-                                            },
-                                            onVideoContentScaleLongClick = {
-                                                //controlsVisibilityState.hideControls()
-                                                //overlayView = OverlayView.VIDEO_CONTENT_SCALE
-                                                controlsVisibilityState.showControls()
-                                                videoZoomAndContentScaleState.resetZoomAndOffset()
-                                            },
-                                            onPictureInPictureClick = {
-                                                if (!pictureInPictureState.hasPipPermission) {
-                                                    Toast.makeText(context, coreUiR.string.enable_pip_from_settings, Toast.LENGTH_SHORT).show()
-                                                    pictureInPictureState.openPictureInPictureSettings()
-                                                } else {
-                                                    pictureInPictureState.enterPictureInPictureMode()
-                                                }
-                                            },
-                                            showSkipIntroButton = showSkipIntro,
-                                            onSkipIntroClick = { player.seekTo(skipIntroTimeMs) },
-                                            showBuffer = playerPreferences.showBuffer,
-                                            abRepeatA = abRepeatA,
-                                            abRepeatB = abRepeatB,
-                                            onAbRepeatOnClick = {
-                                                showAbRepeatPanel = !showAbRepeatPanel
-                                                if (showAbRepeatPanel) {
-                                                    controlsVisibilityState.keepVisible()
-                                                } else {
-                                                    controlsVisibilityState.releaseKeepVisible()
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            },
-                        )
-                    }
-                }
-
-                if (showAbRepeatPanel && player != null) {
-                    AbRepeatPanelOverlay(
-                        player = player,
-                        abRepeatA = abRepeatA,
-                        abRepeatB = abRepeatB,
-                        onStateChanged = { a, b ->
-                            viewModel.abRepeatA = a
-                            viewModel.abRepeatB = b
-                        },
+                    val systemBarsPadding = WindowInsets.systemBars.asPaddingValues()
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = if (isLandscape) bottomControlsHeightDp - 44.dp else bottomControlsHeightDp)
-                    )
-                }
-
-                if (playerPreferences.dlnaCast && !dlnaPlaybackState.isActive) {
-                    AnimatedVisibility(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .safeDrawingPadding()
-                            .padding(top = 54.dp, end = 12.dp),
-                        visible = controlsVisibilityState.controlsVisible &&
-                                !controlsVisibilityState.controlsLocked,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
+                            .fillMaxSize()
+                            .displayCutoutPadding()
+                            .padding(systemBarsPadding.copy(top = 0.dp, bottom = 0.dp))
+                            .padding(24.dp),
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.5f),
+                        AnimatedVisibility(
+                            modifier = Modifier.align(Alignment.CenterStart),
+                            visible = volumeAndBrightnessGestureState.activeGesture == VerticalGesture.VOLUME,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
                         ) {
-                            DlnaCastButton(
-                                devices = dlnaDevices,
-                                isSearching = isDlnaSearching,
-                                isCasting = dlnaPlaybackState.isActive,
-                                expanded = isDlnaMenuExpanded,
-                                onExpandedChange = { isDlnaMenuExpanded = it },
-                                onOpen = { viewModel.searchDlnaDevices(context) },
-                                onDeviceSelected = { device ->
-                                    currentUri?.let { viewModel.castToDevice(device, it, context) }
-                                    isDlnaMenuExpanded = false
-                                },
-                                onStopCasting = { viewModel.stopCasting(context) },
-                                modifier = Modifier.size(40.dp)
+                            VerticalProgressView(
+                                //value = volumeState.volumePercentage,
+                                value = volumeState.currentVolume,
+                                //maxValue = volumeState.maxVolumePercentage,
+                                maxValue = volumeState.maxVolume,
+                                icon = painterResource(coreUiR.drawable.ic_volume),
                             )
                         }
-                    }
-                }
 
-                val systemBarsPadding = WindowInsets.systemBars.asPaddingValues()
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .displayCutoutPadding()
-                        .padding(systemBarsPadding.copy(top = 0.dp, bottom = 0.dp))
-                        .padding(24.dp),
-                ) {
-                    AnimatedVisibility(
-                        modifier = Modifier.align(Alignment.CenterStart),
-                        visible = volumeAndBrightnessGestureState.activeGesture == VerticalGesture.VOLUME,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                    ) {
-                        VerticalProgressView(
-                            //value = volumeState.volumePercentage,
-                            value = volumeState.currentVolume,
-                            //maxValue = volumeState.maxVolumePercentage,
-                            maxValue = volumeState.maxVolume,
-                            icon = painterResource(coreUiR.drawable.ic_volume),
-                        )
-                    }
-
-                    AnimatedVisibility(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        visible = volumeAndBrightnessGestureState.activeGesture == VerticalGesture.BRIGHTNESS,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                    ) {
-                        VerticalProgressView(
-                            value = brightnessState.brightnessPercentage,
-                            icon = painterResource(coreUiR.drawable.ic_brightness),
-                        )
+                        AnimatedVisibility(
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            visible = volumeAndBrightnessGestureState.activeGesture == VerticalGesture.BRIGHTNESS,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                        ) {
+                            VerticalProgressView(
+                                value = brightnessState.brightnessPercentage,
+                                icon = painterResource(coreUiR.drawable.ic_brightness),
+                            )
+                        }
                     }
                 }
             }

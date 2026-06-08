@@ -82,7 +82,7 @@ class ControlsVisibilityState(
     }
 
     suspend fun observe() {
-        if (!player.isPlaying && player.currentMediaItem != null) {
+        if (!player.isPlaying && !player.playWhenReady && player.currentMediaItem != null) {
             showControls()
         }
 

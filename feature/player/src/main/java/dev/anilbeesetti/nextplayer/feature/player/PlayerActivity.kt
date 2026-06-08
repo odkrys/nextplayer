@@ -2,11 +2,13 @@ package dev.anilbeesetti.nextplayer.feature.player
 
 import android.annotation.SuppressLint
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -164,11 +166,27 @@ class PlayerActivity : ComponentActivity() {
         if (subtitleFileSuspendLauncher.isAwaitingResult || !shouldPlayInBackground) {
             mediaController?.pause()
         }
-
+/*
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode) {
             finish()
             if (!shouldPlayInBackground) {
                 mediaController?.stopPlayerSession()
+            }
+        }
+*/
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val isScreenOff = !powerManager.isInteractive
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode) {
+            if (isScreenOff) {
+                if (!shouldPlayInBackground) {
+                    mediaController?.pause()
+                }
+            } else {
+                finish()
+                if (!shouldPlayInBackground) {
+                    mediaController?.stopPlayerSession()
+                }
             }
         }
 

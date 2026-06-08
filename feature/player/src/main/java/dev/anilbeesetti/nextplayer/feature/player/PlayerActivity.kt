@@ -164,20 +164,10 @@ class PlayerActivity : ComponentActivity() {
         if (subtitleFileSuspendLauncher.isAwaitingResult || !shouldPlayInBackground) {
             mediaController?.pause()
         }
-/*
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode) {
             finish()
             if (!shouldPlayInBackground) {
-                mediaController?.stopPlayerSession()
-            }
-        }
-*/
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode) {
-            if (isFinishing) {
-                mediaController?.stopPlayerSession()
-            }
-        } else {
-            if (isFinishing && !shouldPlayInBackground) {
                 mediaController?.stopPlayerSession()
             }
         }

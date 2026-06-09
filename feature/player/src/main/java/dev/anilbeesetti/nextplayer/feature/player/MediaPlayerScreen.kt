@@ -86,6 +86,7 @@ import dev.anilbeesetti.nextplayer.feature.player.state.rememberMetadataState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberPictureInPictureState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberRotationState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberSeekGestureState
+import dev.anilbeesetti.nextplayer.feature.player.state.rememberSleepTimerState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberTapGestureState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVideoZoomAndContentScaleState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberVolumeAndBrightnessGestureState
@@ -189,6 +190,7 @@ fun MediaPlayerScreen(
     var showAbRepeatPanel by remember { mutableStateOf(false) }
     var bottomControlsHeightPx by remember { mutableIntStateOf(0) }
     val bottomControlsHeightDp = with(LocalDensity.current) { bottomControlsHeightPx.toDp() }
+    val sleepTimerState = rememberSleepTimerState(player = player)
 
     LaunchedEffect(player) {
         if (player == null) return@LaunchedEffect
@@ -703,7 +705,12 @@ fun MediaPlayerScreen(
                                                     } else {
                                                         controlsVisibilityState.releaseKeepVisible()
                                                     }
-                                                }
+                                                },
+                                                sleepTimerState = sleepTimerState,
+                                                onSleepTimerClick = {
+                                                    controlsVisibilityState.hideControls()
+                                                    overlayView = OverlayView.SLEEP_TIMER
+                                                },
                                             )
                                         }
                                     }
@@ -801,11 +808,13 @@ fun MediaPlayerScreen(
             OverlayShowView(
                 player = player,
                 overlayView = overlayView,
+                playerPreferences = playerPreferences,
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
                 isDrcEnabled = playerPreferences.enableDrc,
                 onDrcToggle = { viewModel.toggleDrc() },
                 drcPreset = playerPreferences.drcPreset,
                 onDrcPresetChange = { viewModel.setDrcPreset(it) },
+                sleepTimerState = sleepTimerState,
                 onDismiss = { overlayView = null },
                 onSelectSubtitleClick = onSelectSubtitleClick,
                 onSubtitleOptionEvent = viewModel::onSubtitleOptionEvent,

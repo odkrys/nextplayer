@@ -1,26 +1,32 @@
 package dev.anilbeesetti.nextplayer.feature.player.ui
 
 import android.content.res.Configuration
+import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.DrcPreset
+import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.feature.player.extensions.noRippleClickable
+import dev.anilbeesetti.nextplayer.feature.player.state.SleepTimerState
 import dev.anilbeesetti.nextplayer.feature.player.state.SubtitleOptionsEvent
 
+@OptIn(UnstableApi::class)
 @Composable
 fun BoxScope.OverlayShowView(
     player: Player,
     overlayView: OverlayView?,
+    playerPreferences: PlayerPreferences,
     videoContentScale: VideoContentScale,
     isDrcEnabled: Boolean = false,
     onDrcToggle: (Boolean) -> Unit = {},
     drcPreset: DrcPreset = DrcPreset.LIGHT,
     onDrcPresetChange: (DrcPreset) -> Unit = {},
-    onAlphaChange: (Float) -> Unit = {},
+    sleepTimerState: SleepTimerState,
     subtitleTextSize: Int = 20,
     initialPosition: Float = 0.08f,
     onDismiss: () -> Unit = {},
@@ -76,6 +82,12 @@ fun BoxScope.OverlayShowView(
         show = overlayView == OverlayView.PLAYLIST,
         player = player,
     )
+
+    SleepTimerView(
+        show = overlayView == OverlayView.SLEEP_TIMER,
+        sleepTimerState = sleepTimerState,
+        lastSleepTimerMinutes = playerPreferences.lastSleepTimerMinutes,
+    )
 }
 
 val Configuration.isPortrait: Boolean
@@ -87,4 +99,5 @@ enum class OverlayView {
     PLAYBACK_SPEED,
     VIDEO_CONTENT_SCALE,
     PLAYLIST,
+    SLEEP_TIMER,
 }

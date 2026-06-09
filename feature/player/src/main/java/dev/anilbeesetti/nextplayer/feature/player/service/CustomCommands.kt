@@ -31,6 +31,10 @@ enum class CustomCommands(val customAction: String) {
     SET_AB_REPEAT_B(customAction = "SET_AB_REPEAT_B"),
     CLEAR_AB_REPEAT(customAction = "CLEAR_AB_REPEAT"),
     GET_AB_REPEAT_STATE(customAction = "GET_AB_REPEAT_STATE"),
+    SET_SLEEP_TIMER(customAction = "SET_SLEEP_TIMER"),
+    CANCEL_SLEEP_TIMER(customAction = "CANCEL_SLEEP_TIMER"),
+    GET_SLEEP_TIMER_REMAINING(customAction = "GET_SLEEP_TIMER_REMAINING"),
+    SET_PAUSE_AT_END_ONCE(customAction = "SET_PAUSE_AT_END_ONCE"),
     ;
 
     val sessionCommand = SessionCommand(customAction, Bundle.EMPTY)
@@ -58,6 +62,9 @@ enum class CustomCommands(val customAction: String) {
         const val SKIP_INTRO_TIME_KEY = "skip_intro_time"
         const val AB_REPEAT_A_KEY = "ab_repeat_a_ms"
         const val AB_REPEAT_B_KEY = "ab_repeat_b_ms"
+        const val SLEEP_TIMER_DURATION_KEY = "sleep_timer_duration_ms"
+        const val SLEEP_TIMER_REMAINING_KEY = "sleep_timer_remaining_ms"
+        const val PAUSE_AT_END_ONCE_KEY = "pause_at_end_once"
     }
 }
 
@@ -198,5 +205,32 @@ suspend fun MediaController.getAbRepeatState(): Pair<Long, Long> {
     return Pair(
         result.extras.getLong(CustomCommands.AB_REPEAT_A_KEY, androidx.media3.common.C.TIME_UNSET),
         result.extras.getLong(CustomCommands.AB_REPEAT_B_KEY, androidx.media3.common.C.TIME_UNSET),
+    )
+}
+
+fun MediaController.setSleepTimer(durationMs: Long) {
+    val args = Bundle().apply {
+        putLong(CustomCommands.SLEEP_TIMER_DURATION_KEY, durationMs)
+    }
+    sendCustomCommand(CustomCommands.SET_SLEEP_TIMER.sessionCommand, args)
+}
+
+fun MediaController.cancelSleepTimer() {
+    sendCustomCommand(CustomCommands.CANCEL_SLEEP_TIMER.sessionCommand, Bundle.EMPTY)
+}
+
+suspend fun MediaController.getSleepTimerState(): Triple<Long, Long, Boolean> {
+    val result = sendCustomCommand(CustomCommands.GET_SLEEP_TIMER_REMAINING.sessionCommand, Bundle.EMPTY).await()
+    return Triple(
+        result.extras.getLong(CustomCommands.SLEEP_TIMER_REMAINING_KEY, 0L),
+        result.extras.getLong(CustomCommands.SLEEP_TIMER_DURATION_KEY, 0L),
+        result.extras.getBoolean(CustomCommands.PAUSE_AT_END_ONCE_KEY, false)
+    )
+}
+
+fun MediaController.setPauseAtEndOnce(enabled: Boolean) {
+    sendCustomCommand(
+        CustomCommands.SET_PAUSE_AT_END_ONCE.sessionCommand,
+        Bundle().apply { putBoolean(CustomCommands.PAUSE_AT_END_ONCE_KEY, enabled) }
     )
 }

@@ -45,6 +45,7 @@ data class PlayerPreferences(
     val hidePlayerButtonsBackground: Boolean = false,
     val useMaterialYouControls: Boolean = false,
     val showBuffer: Boolean = false,
+    val lastSleepTimerMinutes: Int = 0,
 
     // Audio Preferences
     val preferredAudioLanguage: String = "",

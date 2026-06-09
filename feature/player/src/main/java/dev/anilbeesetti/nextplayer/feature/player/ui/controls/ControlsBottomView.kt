@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.feature.player.ui.controls
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -58,6 +59,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
 import dev.anilbeesetti.nextplayer.core.ui.R
+import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
 import dev.anilbeesetti.nextplayer.feature.player.LocalUseMaterialYouControls
 import dev.anilbeesetti.nextplayer.feature.player.buttons.AbRepeatButton
@@ -65,9 +67,11 @@ import dev.anilbeesetti.nextplayer.feature.player.buttons.LoopButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.ShuffleButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.SkipIntroButton
+import dev.anilbeesetti.nextplayer.feature.player.buttons.SleepTimerButton
 import dev.anilbeesetti.nextplayer.feature.player.extensions.drawableRes
 import dev.anilbeesetti.nextplayer.feature.player.extensions.noRippleClickable
 import dev.anilbeesetti.nextplayer.feature.player.state.MediaPresentationState
+import dev.anilbeesetti.nextplayer.feature.player.state.SleepTimerState
 import dev.anilbeesetti.nextplayer.feature.player.state.durationFormatted
 import dev.anilbeesetti.nextplayer.feature.player.state.pendingPositionFormatted
 import dev.anilbeesetti.nextplayer.feature.player.state.positionFormatted
@@ -92,6 +96,8 @@ fun ControlsBottomView(
     abRepeatA: Long = C.TIME_UNSET,
     abRepeatB: Long = C.TIME_UNSET,
     onAbRepeatOnClick: () -> Unit,
+    sleepTimerState: SleepTimerState,
+    onSleepTimerClick: () -> Unit,
     onSeek: (Long) -> Unit,
     onSeekEnd: () -> Unit,
     showBuffer: Boolean = false,
@@ -145,6 +151,35 @@ fun ControlsBottomView(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White,
                 )
+                if (sleepTimerState.isActive) {
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .border(
+                                width = 1.5.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = CircleShape
+                            )
+                            .padding(start = 6.dp, top = 2.dp, end = 7.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = NextIcons.Snooze,
+                            contentDescription = "SleepTimer",
+                            modifier = Modifier.size(12.dp),
+                            tint = Color.White
+                        )
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Text(
+                            text = sleepTimerState.badgeText,
+                            style = MaterialTheme.typography.labelMediumEmphasized,
+                            color = Color.White
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -218,6 +253,10 @@ fun ControlsBottomView(
                     abRepeatA = abRepeatA,
                     abRepeatB = abRepeatB,
                     onClick = onAbRepeatOnClick,
+                )
+                SleepTimerButton(
+                    isActive = sleepTimerState.formattedRemainingTime.isNotEmpty() || sleepTimerState.isPauseAtEndEnabled,
+                    onClick = onSleepTimerClick
                 )
             }
 

@@ -76,6 +76,7 @@ import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.SmartButton
+import androidx.compose.material.icons.rounded.Snooze
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Straighten
@@ -191,4 +192,5 @@ object NextIcons {
     val Sort = Icons.AutoMirrored.Rounded.Sort
     val CloudSync = Icons.Rounded.CloudSync
     val Downloading = Icons.Rounded.Downloading
+    val Snooze = Icons.Rounded.Snooze
 }

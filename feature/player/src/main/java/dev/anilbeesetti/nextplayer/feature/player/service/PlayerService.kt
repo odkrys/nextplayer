@@ -154,6 +154,9 @@ class PlayerService : MediaSessionService() {
     @Volatile private var abRepeatBMs: Long = C.TIME_UNSET
     private var abRepeatJob: Job? = null
 
+    private var sleepTimerJob: Job? = null
+    private var pauseAtEndOnce: Boolean = false
+
     private val playbackStateListener = object : Player.Listener {
         override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
             super.onTimelineChanged(timeline, reason)
@@ -429,6 +432,16 @@ class PlayerService : MediaSessionService() {
             super.onPlayWhenReadyChanged(playWhenReady, reason)
 
             if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+                if (pauseAtEndOnce) {
+                    pauseAtEndOnce = false
+                    val player = mediaSession?.player
+
+                    (player as? ExoPlayer)?.pauseAtEndOfMediaItems = !playerPreferences.autoplay
+
+                    player?.pause()
+                    return
+                }
+
                 if (mediaSession?.player?.repeatMode != Player.REPEAT_MODE_OFF) {
                     mediaSession?.player?.seekTo(0)
                     mediaSession?.player?.play()
@@ -873,6 +886,55 @@ class PlayerService : MediaSessionService() {
                     )
                 }
 
+                CustomCommands.SET_PAUSE_AT_END_ONCE -> {
+                    val enabled = args.getBoolean(CustomCommands.PAUSE_AT_END_ONCE_KEY)
+                    pauseAtEndOnce = enabled
+
+                    (mediaSession?.player as? ExoPlayer)?.pauseAtEndOfMediaItems =
+                        if (enabled) true else !playerPreferences.autoplay
+
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.SET_SLEEP_TIMER -> {
+                    pauseAtEndOnce = false
+                    (mediaSession?.player as? ExoPlayer)?.pauseAtEndOfMediaItems = !playerPreferences.autoplay
+
+                    val durationMs = args.getLong(CustomCommands.SLEEP_TIMER_DURATION_KEY, 0L)
+                    val minutes = (durationMs / (60 * 1000L)).toInt()
+                    val calculatedEndTime = System.currentTimeMillis() + durationMs
+
+                    startSleepTimer(durationMs, durationMs, calculatedEndTime)
+
+                    serviceScope.launch {
+                        preferencesRepository.updatePlayerPreferences {
+                            it.copy(lastSleepTimerMinutes = minutes)
+                        }
+                    }
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.CANCEL_SLEEP_TIMER -> {
+                    cancelSleepTimer()
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.GET_SLEEP_TIMER_REMAINING -> {
+                    val currentTime = System.currentTimeMillis()
+                    val remainingMs = if (sleepTimerEndTimeMs > currentTime) {
+                        sleepTimerEndTimeMs - currentTime
+                    } else {
+                        0L
+                    }
+                    return@future SessionResult(
+                        SessionResult.RESULT_SUCCESS,
+                        Bundle().apply {
+                            putLong(CustomCommands.SLEEP_TIMER_REMAINING_KEY, remainingMs)
+                            putLong(CustomCommands.SLEEP_TIMER_DURATION_KEY, sleepTimerInitialDurationMs)
+                            putBoolean(CustomCommands.PAUSE_AT_END_ONCE_KEY, pauseAtEndOnce)
+                        }
+                    )
+                }
 
                 CustomCommands.STOP_PLAYER_SESSION -> {
                     mediaSession?.run {
@@ -898,6 +960,9 @@ class PlayerService : MediaSessionService() {
 
     companion object {
         var instance: PlayerService? = null
+
+        private var sleepTimerEndTimeMs: Long = 0L
+        private var sleepTimerInitialDurationMs: Long = 0L
 
         private val webdavCredentials = mutableMapOf<String, String>()
 
@@ -1025,17 +1090,44 @@ class PlayerService : MediaSessionService() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        val currentTime = System.currentTimeMillis()
+        if (sleepTimerEndTimeMs > currentTime) {
+            val remainingMs = sleepTimerEndTimeMs - currentTime
+            startSleepTimer(remainingMs, sleepTimerInitialDurationMs, sleepTimerEndTimeMs)
+        } else {
+            sleepTimerEndTimeMs = 0L
+            sleepTimerInitialDurationMs = 0L
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val player = mediaSession?.player!!
-        if (!player.playWhenReady || player.mediaItemCount == 0 || player.playbackState == Player.STATE_ENDED) {
+        //val player = mediaSession?.player!!
+        //if (!player.playWhenReady || player.mediaItemCount == 0 || player.playbackState == Player.STATE_ENDED) {
+        serviceScope.launch {
+            delay(150)
+
+            val player = mediaSession?.player ?: return@launch
+
+            if (player.playWhenReady && player.playbackState != Player.STATE_ENDED) {
+                return@launch
+            }
+
+            cancelSleepTimer()
+
+            mediaSession?.run {
+                this.player.clearMediaItems()
+                this.player.stop()
+            }
+
             stopSelf()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
         instance = null
         stopAbRepeatLoop()
         artworkLoadJob?.cancel()
@@ -1419,6 +1511,32 @@ class PlayerService : MediaSessionService() {
         cancelAbRepeatJob()
         abRepeatAMs = C.TIME_UNSET
         abRepeatBMs = C.TIME_UNSET
+    }
+
+    private fun startSleepTimer(remainingMs: Long, totalDurationMs: Long, endTimeMs: Long) {
+        sleepTimerJob?.cancel()
+
+        if (remainingMs <= 0) return
+
+        sleepTimerInitialDurationMs = totalDurationMs
+        sleepTimerEndTimeMs = endTimeMs
+
+        sleepTimerJob = serviceScope.launch {
+            delay(remainingMs)
+
+            mediaSession?.player?.pause()
+
+            sleepTimerEndTimeMs = 0L
+            sleepTimerInitialDurationMs = 0L
+            sleepTimerJob = null
+        }
+    }
+
+    private fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        sleepTimerEndTimeMs = 0L
+        sleepTimerInitialDurationMs = 0L
     }
 }
 

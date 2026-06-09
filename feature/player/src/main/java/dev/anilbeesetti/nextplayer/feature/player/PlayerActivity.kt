@@ -217,12 +217,21 @@ class PlayerActivity : ComponentActivity() {
         val isNewUriTheCurrentMediaItem = mediaController?.currentMediaItem?.localConfiguration?.uri.toString() == uri.toString()
 
         if (returningFromBackground || isNewUriTheCurrentMediaItem) {
+/*
             mediaController?.prepare()
-            //mediaController?.playWhenReady = viewModel.playWhenReady
+            mediaController?.playWhenReady = viewModel.playWhenReady
+            return
+*/
+            mediaController?.prepare()
             if (DlnaManager.currentDevice != null) {
                 mediaController?.pause()
             } else {
-                mediaController?.playWhenReady = viewModel.playWhenReady
+                val shouldPlayInBackground = playInBackground || playerPreferences?.autoBackgroundPlay == true
+                if (shouldPlayInBackground) {
+                    // keep state
+                } else {
+                    mediaController?.playWhenReady = viewModel.playWhenReady
+                }
             }
             return
         }

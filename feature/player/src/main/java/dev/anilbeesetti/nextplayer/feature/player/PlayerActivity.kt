@@ -205,8 +205,9 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun startPlayback() {
-        val uri = intent.data ?: return
+        //val uri = intent.data ?: return
         val currentUri = mediaController?.currentMediaItem?.localConfiguration?.uri
+        val uri = intent.data ?: currentUri ?: return
 
         if (!isIntentNew && uri != currentUri && mediaController?.currentMediaItem == null) {
             finish()

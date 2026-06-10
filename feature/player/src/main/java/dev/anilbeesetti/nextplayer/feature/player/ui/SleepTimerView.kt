@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -125,7 +126,7 @@ fun BoxScope.SleepTimerView(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             val isCustomActive = activeMinutes > 0 && activeMinutes !in presetMinutesList
 
@@ -217,13 +218,13 @@ fun BoxScope.SleepTimerView(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             if (remainingMs > 0L) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -261,12 +262,13 @@ fun BoxScope.SleepTimerView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .clickable {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             sleepTimerState.togglePauseAtEnd(!isPauseAtEndEnabled)
                         }
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                        .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {

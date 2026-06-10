@@ -1,9 +1,11 @@
 package dev.anilbeesetti.nextplayer.feature.player
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -22,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,8 +84,25 @@ class PlayerActivity : ComponentActivity() {
 
     private val subtitleFileSuspendLauncher = registerForSuspendActivityResult(OpenDocument())
 
+    private val closeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "${packageName}.ACTION_CLOSE_PLAYER") {
+                if (!isFinishing) {
+                    finish()
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ContextCompat.registerReceiver(
+            this,
+            closeReceiver,
+            IntentFilter("${packageName}.ACTION_CLOSE_PLAYER"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -195,6 +215,11 @@ class PlayerActivity : ComponentActivity() {
             controllerFuture = null
         }
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        runCatching { unregisterReceiver(closeReceiver) }
     }
 
     private fun maybeInitControllerFuture() {

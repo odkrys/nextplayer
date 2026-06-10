@@ -949,6 +949,12 @@ class PlayerService : MediaSessionService() {
                         player.clearMediaItems()
                         player.stop()
                     }
+
+                    val intent = Intent("${packageName}.ACTION_CLOSE_PLAYER").apply {
+                        setPackage(packageName)
+                    }
+                    sendBroadcast(intent)
+
                     stopSelf()
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }

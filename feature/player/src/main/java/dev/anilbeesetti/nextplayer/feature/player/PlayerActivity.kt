@@ -407,8 +407,17 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun finishAndStopPlayerSession() {
-        finish()
+        //mediaController?.stopPlayerSession()
+        //finish()
+        mediaController?.clearVideoSurface()
         mediaController?.stopPlayerSession()
+
+        controllerFuture?.let {
+            MediaController.releaseFuture(it)
+            controllerFuture = null
+        }
+        mediaController = null
+        finish()
     }
 
     override fun onWindowAttributesChanged(params: WindowManager.LayoutParams?) {

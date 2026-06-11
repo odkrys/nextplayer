@@ -1,6 +1,10 @@
 package dev.anilbeesetti.nextplayer.feature.player.ui.controls
 
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -95,6 +99,7 @@ fun ControlsBottomView(
     onSkipIntroClick: () -> Unit = {},
     abRepeatA: Long = C.TIME_UNSET,
     abRepeatB: Long = C.TIME_UNSET,
+    showAbRepeatPanel: Boolean = false,
     onAbRepeatOnClick: () -> Unit,
     sleepTimerState: SleepTimerState,
     onSleepTimerClick: () -> Unit,
@@ -103,14 +108,18 @@ fun ControlsBottomView(
     showBuffer: Boolean = false,
 ) {
     val systemBarsPadding = WindowInsets.systemBars.union(WindowInsets.displayCutout).asPaddingValues()
+
+    val baseBottomPadding = 8.dp.takeIf { systemBarsPadding.calculateBottomPadding() == 0.dp } ?: 0.dp
+    val extraBottomPadding by animateDpAsState(targetValue = if (showAbRepeatPanel) 8.dp else 0.dp)
+
     Column(
         modifier = modifier
             .padding(systemBarsPadding.copy(top = 0.dp))
             .padding(horizontal = 8.dp)
             .padding(top = 16.dp)
-            .padding(bottom = 16.dp.takeIf { systemBarsPadding.calculateBottomPadding() == 0.dp } ?: 0.dp),
+            //.padding(bottom = 16.dp.takeIf { systemBarsPadding.calculateBottomPadding() == 0.dp } ?: 0.dp),
+            .padding(bottom = baseBottomPadding + extraBottomPadding),
         //verticalArrangement = Arrangement.spacedBy(4.dp)
-        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp),
@@ -196,6 +205,9 @@ fun ControlsBottomView(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
         PlayerSeekbar(
             position = mediaPresentationState.position.toFloat(),
             duration = mediaPresentationState.duration.toFloat(),
@@ -205,66 +217,116 @@ fun ControlsBottomView(
             onSeek = { onSeek(it.toLong()) },
             onSeekFinished = { onSeekEnd() },
         )
-
+/*
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = controlsAlignment),
         ) {
-            Row(
-                modifier = Modifier
-                    //.fillMaxWidth()
-                    .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = controlsAlignment),
+            PlayerButton(onClick = onLockControlsClick) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lock_open),
+                    contentDescription = null,
+                )
+            }
+            PlayerButton(
+                onClick = onVideoContentScaleClick,
+                onLongClick = onVideoContentScaleLongClick,
             ) {
-                PlayerButton(onClick = onLockControlsClick) {
+                Icon(
+                    painter = painterResource(videoContentScale.drawableRes()),
+                    contentDescription = null,
+                )
+            }
+            if (isPipSupported) {
+                PlayerButton(onClick = onPictureInPictureClick) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_lock_open),
+                        painter = painterResource(R.drawable.ic_pip),
                         contentDescription = null,
                     )
                 }
-                PlayerButton(
-                    onClick = onVideoContentScaleClick,
-                    onLongClick = onVideoContentScaleLongClick,
+            }
+            PlayerButton(onClick = onPlayInBackgroundClick) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_headset),
+                    contentDescription = null,
+                )
+            }
+            LoopButton(player = player)
+            ShuffleButton(player = player)
+        }
+    }
+*/
+        AnimatedVisibility(
+            visible = !showAbRepeatPanel,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = painterResource(videoContentScale.drawableRes()),
-                        contentDescription = null,
-                    )
-                }
-                LoopButton(player = player)
-                ShuffleButton(player = player)
-                if (isPipSupported) {
-                    PlayerButton(onClick = onPictureInPictureClick) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_pip),
-                            contentDescription = null,
+                    Row(
+                        modifier = Modifier
+                            //.fillMaxWidth()
+                            .weight(1f)
+                            .horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, alignment = controlsAlignment),
+                    ) {
+                        PlayerButton(onClick = onLockControlsClick) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lock_open),
+                                contentDescription = null,
+                            )
+                        }
+                        PlayerButton(
+                            onClick = onVideoContentScaleClick,
+                            onLongClick = onVideoContentScaleLongClick,
+                        ) {
+                            Icon(
+                                painter = painterResource(videoContentScale.drawableRes()),
+                                contentDescription = null,
+                            )
+                        }
+                        LoopButton(player = player)
+                        ShuffleButton(player = player)
+                        if (isPipSupported) {
+                            PlayerButton(onClick = onPictureInPictureClick) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_pip),
+                                    contentDescription = null,
+                                )
+                            }
+                        }
+                        PlayerButton(onClick = onPlayInBackgroundClick) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_headset),
+                                contentDescription = null,
+                            )
+                        }
+                        AbRepeatButton(
+                            abRepeatA = abRepeatA,
+                            abRepeatB = abRepeatB,
+                            onClick = onAbRepeatOnClick,
+                        )
+                        SleepTimerButton(
+                            isActive = sleepTimerState.formattedRemainingTime.isNotEmpty() || sleepTimerState.isPauseAtEndEnabled,
+                            onClick = onSleepTimerClick,
+                        )
+                    }
+
+                    if (showSkipIntroButton) {
+                        SkipIntroButton(
+                            onClick = onSkipIntroClick,
+                            modifier = Modifier.padding(horizontal = 16.dp),
                         )
                     }
                 }
-                PlayerButton(onClick = onPlayInBackgroundClick) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_headset),
-                        contentDescription = null,
-                    )
-                }
-                AbRepeatButton(
-                    abRepeatA = abRepeatA,
-                    abRepeatB = abRepeatB,
-                    onClick = onAbRepeatOnClick,
-                )
-                SleepTimerButton(
-                    isActive = sleepTimerState.formattedRemainingTime.isNotEmpty() || sleepTimerState.isPauseAtEndEnabled,
-                    onClick = onSleepTimerClick
-                )
-            }
-
-            if (showSkipIntroButton) {
-                SkipIntroButton(
-                    onClick = onSkipIntroClick,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
             }
         }
     }

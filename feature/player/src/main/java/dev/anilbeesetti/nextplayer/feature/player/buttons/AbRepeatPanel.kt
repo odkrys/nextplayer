@@ -6,11 +6,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,109 +55,165 @@ fun AbRepeatPanelOverlay(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                "-", color = Color.White, fontSize = 20.sp,
-                modifier = Modifier.clickable {
-                    if (abRepeatA != C.TIME_UNSET) {
-                        val newA = (abRepeatA - 1000L).coerceAtLeast(0L)
-                        controller.setAbRepeatA(newA)
-                        onStateChanged(newA, abRepeatB)
-                        player.seekTo(newA)
-                    }
-                }.padding(4.dp)
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .clickable {
-                        val currentPos = player.currentPosition
-                        if (abRepeatB != C.TIME_UNSET && currentPos >= abRepeatB) {
-                            controller.setAbRepeatB(C.TIME_UNSET)
-                            controller.setAbRepeatA(currentPos)
-                            onStateChanged(currentPos, C.TIME_UNSET)
-                        } else {
-                            controller.setAbRepeatA(currentPos)
-                            onStateChanged(currentPos, abRepeatB)
-                        }
-                    }
-                    .padding(vertical = 4.dp),
-                contentAlignment = Alignment.Center
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.width(IntrinsicSize.Max)
             ) {
-                Text(
-                    text = if (abRepeatA == C.TIME_UNSET) "A" else abRepeatA.milliseconds.formatted(),
-                    color = if (abRepeatA == C.TIME_UNSET) Color.Gray else Color.Yellow,
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "A :",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 18.sp,
+                            modifier = Modifier.padding(end = 6.dp),
+                        )
+                        Icon(
+                            imageVector = NextIcons.RemoveCircleOutline,
+                            contentDescription = "-",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 40.dp)
+                                .clickable {
+                                    if (abRepeatA != C.TIME_UNSET) {
+                                        val newA = (abRepeatA - 1000L).coerceAtLeast(0L)
+                                        controller.setAbRepeatA(newA)
+                                        onStateChanged(newA, abRepeatB)
+                                        player.seekTo(newA)
+                                    }
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                            .clickable {
+                                val currentPos = player.currentPosition
+                                if (abRepeatB != C.TIME_UNSET && currentPos >= abRepeatB) {
+                                    controller.setAbRepeatB(C.TIME_UNSET)
+                                    controller.setAbRepeatA(currentPos)
+                                    onStateChanged(currentPos, C.TIME_UNSET)
+                                } else {
+                                    controller.setAbRepeatA(currentPos)
+                                    onStateChanged(currentPos, abRepeatB)
+                                }
+                            }
+                            .padding(vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (abRepeatA == C.TIME_UNSET) "Click" else abRepeatA.milliseconds.formatted(),
+                            color = if (abRepeatA == C.TIME_UNSET) Color.Gray else Color.Yellow,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    Icon(
+                        imageVector = NextIcons.AddCircleOutline,
+                        contentDescription = "+",
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 40.dp)
+                            .clickable {
+                                if (abRepeatA != C.TIME_UNSET) {
+                                    val maxA = if (abRepeatB != C.TIME_UNSET) abRepeatB - 1000L else player.duration
+                                    val newA = (abRepeatA + 1000L).coerceAtMost(maxA)
+                                    controller.setAbRepeatA(newA)
+                                    onStateChanged(newA, abRepeatB)
+                                    player.seekTo(newA)
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.2f), thickness = 1.dp)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "B :",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 18.sp,
+                            modifier = Modifier.padding(end = 6.dp)
+                        )
+                        Icon(
+                            imageVector = NextIcons.RemoveCircleOutline,
+                            contentDescription = "-",
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier
+                                .defaultMinSize(minWidth = 40.dp)
+                                .clickable {
+                                    if (abRepeatB != C.TIME_UNSET) {
+                                        val minB = if (abRepeatA != C.TIME_UNSET) abRepeatA + 1000L else 0L
+                                        val newB = (abRepeatB - 1000L).coerceAtLeast(minB)
+                                        controller.setAbRepeatB(newB)
+                                        onStateChanged(abRepeatA, newB)
+                                        player.seekTo(newB)
+                                    }
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(80.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                            .clickable {
+                                val currentPos = player.currentPosition
+                                if (abRepeatA != C.TIME_UNSET && currentPos <= abRepeatA) {
+                                    Toast.makeText(context, "Point B must be after Point A", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    controller.setAbRepeatB(currentPos)
+                                    onStateChanged(abRepeatA, currentPos)
+                                }
+                            }
+                            .padding(vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (abRepeatB == C.TIME_UNSET) "Click" else abRepeatB.milliseconds.formatted(),
+                            color = if (abRepeatB == C.TIME_UNSET) Color.Gray else Color.Yellow,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    Icon(
+                        imageVector = NextIcons.AddCircleOutline,
+                        contentDescription = "+",
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier
+                            .defaultMinSize(minWidth = 40.dp)
+                            .clickable {
+                                if (abRepeatB != C.TIME_UNSET) {
+                                    val newB = (abRepeatB + 1000L).coerceAtMost(player.duration)
+                                    controller.setAbRepeatB(newB)
+                                    onStateChanged(abRepeatA, newB)
+                                    player.seekTo(newB)
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    )
+                }
             }
-
-            Text(
-                "+", color = Color.White, fontSize = 20.sp,
-                modifier = Modifier.clickable {
-                    if (abRepeatA != C.TIME_UNSET) {
-                        val maxA = if (abRepeatB != C.TIME_UNSET) abRepeatB - 1000L else player.duration
-                        val newA = (abRepeatA + 1000L).coerceAtMost(maxA)
-                        controller.setAbRepeatA(newA)
-                        onStateChanged(newA, abRepeatB)
-                        player.seekTo(newA)
-                    }
-                }.padding(4.dp)
-            )
-
-            Box(modifier = Modifier.width(1.dp).height(24.dp).background(Color.White.copy(0.2f)))
-
-            Text(
-                "-", color = Color.White, fontSize = 20.sp,
-                modifier = Modifier.clickable {
-                    if (abRepeatB != C.TIME_UNSET) {
-                        val minB = if (abRepeatA != C.TIME_UNSET) abRepeatA + 1000L else 0L
-                        val newB = (abRepeatB - 1000L).coerceAtLeast(minB)
-                        controller.setAbRepeatB(newB)
-                        onStateChanged(abRepeatA, newB)
-                        player.seekTo(newB)
-                    }
-                }.padding(4.dp)
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(80.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.15f))
-                    .clickable {
-                        val currentPos = player.currentPosition
-                        if (abRepeatA != C.TIME_UNSET && currentPos <= abRepeatA) {
-                            Toast.makeText(context, "Point B must be after Point A", Toast.LENGTH_SHORT).show()
-                        } else {
-                            controller.setAbRepeatB(currentPos)
-                            onStateChanged(abRepeatA, currentPos)
-                        }
-                    }
-                    .padding(vertical = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (abRepeatB == C.TIME_UNSET) "B" else abRepeatB.milliseconds.formatted(),
-                    color = if (abRepeatB == C.TIME_UNSET) Color.Gray else Color.Yellow,
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-
-            Text(
-                "+", color = Color.White, fontSize = 20.sp,
-                modifier = Modifier.clickable {
-                    if (abRepeatB != C.TIME_UNSET) {
-                        val newB = (abRepeatB + 1000L).coerceAtMost(player.duration)
-                        controller.setAbRepeatB(newB)
-                        onStateChanged(abRepeatA, newB)
-                        player.seekTo(newB)
-                    }
-                }.padding(4.dp)
-            )
 
             if (abRepeatA != C.TIME_UNSET || abRepeatB != C.TIME_UNSET) {
+                Box(modifier = Modifier
+                    .width(1.dp)
+                    .height(48.dp)
+                    .background(Color.White.copy(0.2f)))
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier

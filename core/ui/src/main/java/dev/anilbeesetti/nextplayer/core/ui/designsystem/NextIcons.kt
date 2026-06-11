@@ -7,6 +7,7 @@ import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
 import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AddCircleOutline
 import androidx.compose.material.icons.rounded.AppSettingsAlt
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
@@ -68,6 +69,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material.icons.rounded.PriorityHigh
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material.icons.rounded.ResetTv
 import androidx.compose.material.icons.rounded.ScreenRotationAlt
@@ -193,4 +195,6 @@ object NextIcons {
     val CloudSync = Icons.Rounded.CloudSync
     val Downloading = Icons.Rounded.Downloading
     val Snooze = Icons.Rounded.Snooze
+    val AddCircleOutline = Icons.Rounded.AddCircleOutline
+    val RemoveCircleOutline = Icons.Rounded.RemoveCircleOutline
 }

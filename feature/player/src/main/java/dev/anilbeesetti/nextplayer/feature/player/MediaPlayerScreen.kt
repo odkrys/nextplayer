@@ -709,6 +709,7 @@ fun MediaPlayerScreen(
                                                 showBuffer = playerPreferences.showBuffer,
                                                 abRepeatA = abRepeatA,
                                                 abRepeatB = abRepeatB,
+                                                showAbRepeatPanel = showAbRepeatPanel,
                                                 onAbRepeatOnClick = {
                                                     showAbRepeatPanel = !showAbRepeatPanel
                                                     if (showAbRepeatPanel) {

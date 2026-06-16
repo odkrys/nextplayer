@@ -63,8 +63,8 @@ class DynamicRangeCompressor(
         val dp = dynamicsProcessing ?: run {
             return
         }
-        try {
-            for (ch in 0 until channelCount) {
+        for (ch in 0 until channelCount) {
+            try {
                 val band = dp.getMbcBandByChannelIndex(ch, 0).apply {
                     this.attackTime = this@DynamicRangeCompressor.attackTime
                     this.releaseTime = this@DynamicRangeCompressor.releaseTime
@@ -74,12 +74,15 @@ class DynamicRangeCompressor(
                     this.postGain = this@DynamicRangeCompressor.postGain
                 }
                 dp.setMbcBandByChannelIndex(ch, 0, band)
+            } catch (e: Exception) {
+                // ignore
             }
+        }
+
+        try {
             dp.enabled = false
             dp.enabled = enabled
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) {}
     }
 
     @RequiresApi(Build.VERSION_CODES.P)
@@ -99,18 +102,22 @@ class DynamicRangeCompressor(
 
             dynamicsProcessing = DynamicsProcessing(0, audioSessionId, config).apply {
                 for (ch in 0 until channelCount) {
-                    val band = getMbcBandByChannelIndex(ch, 0).apply {
-                        this.attackTime = this@DynamicRangeCompressor.attackTime
-                        this.releaseTime = this@DynamicRangeCompressor.releaseTime
-                        this.ratio = this@DynamicRangeCompressor.ratio
-                        this.threshold = this@DynamicRangeCompressor.threshold
-                        this.kneeWidth = this@DynamicRangeCompressor.kneeWidth
-                        this.noiseGateThreshold = -80f
-                        this.expanderRatio = 1f
-                        this.preGain = 0f
-                        this.postGain = this@DynamicRangeCompressor.postGain
+                    try {
+                        val band = getMbcBandByChannelIndex(ch, 0).apply {
+                            this.attackTime = this@DynamicRangeCompressor.attackTime
+                            this.releaseTime = this@DynamicRangeCompressor.releaseTime
+                            this.ratio = this@DynamicRangeCompressor.ratio
+                            this.threshold = this@DynamicRangeCompressor.threshold
+                            this.kneeWidth = this@DynamicRangeCompressor.kneeWidth
+                            this.noiseGateThreshold = -80f
+                            this.expanderRatio = 1f
+                            this.preGain = 0f
+                            this.postGain = this@DynamicRangeCompressor.postGain
+                        }
+                        setMbcBandByChannelIndex(ch, 0, band)
+                    } catch (e: Exception) {
+                        // ignore
                     }
-                    setMbcBandByChannelIndex(ch, 0, band)
                 }
             }
         } catch (e: Exception) {

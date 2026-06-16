@@ -811,6 +811,8 @@ fun MediaPlayerScreen(
                 overlayView = overlayView,
                 playerPreferences = playerPreferences,
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
+                isSkipSilenceEnabled = playerPreferences.enableSkipSilence,
+                onSkipSilenceToggle = { enabled -> viewModel.setSkipSilence(enabled) },
                 isDrcEnabled = playerPreferences.enableDrc,
                 onDrcToggle = { viewModel.toggleDrc() },
                 drcPreset = playerPreferences.drcPreset,

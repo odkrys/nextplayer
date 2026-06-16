@@ -310,6 +310,14 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun setSkipSilence(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { currentPrefs ->
+                currentPrefs.copy(enableSkipSilence = enabled)
+            }
+        }
+    }
+
     fun toggleDrc() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { currentPrefs ->

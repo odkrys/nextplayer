@@ -749,9 +749,11 @@ class PlayerService : MediaSessionService() {
                 CustomCommands.SET_SKIP_SILENCE_ENABLED -> {
                     val enabled = args.getBoolean(CustomCommands.SKIP_SILENCE_ENABLED_KEY)
                     mediaSession?.player?.playerSpecificSkipSilenceEnabled = enabled
+/*
                     mediaSession?.sessionExtras = Bundle().apply {
                         putBoolean(CustomCommands.SKIP_SILENCE_ENABLED_KEY, enabled)
                     }
+ */
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
@@ -1169,6 +1171,7 @@ class PlayerService : MediaSessionService() {
                     LoopMode.ALL -> Player.REPEAT_MODE_ALL
                 }
                 it.shuffleModeEnabled = playerPreferences.shuffleMode
+                it.skipSilenceEnabled = playerPreferences.enableSkipSilence
             }
 
         try {

@@ -22,6 +22,8 @@ fun BoxScope.OverlayShowView(
     overlayView: OverlayView?,
     playerPreferences: PlayerPreferences,
     videoContentScale: VideoContentScale,
+    isSkipSilenceEnabled: Boolean = false,
+    onSkipSilenceToggle: (Boolean) -> Unit,
     isDrcEnabled: Boolean = false,
     onDrcToggle: (Boolean) -> Unit = {},
     drcPreset: DrcPreset = DrcPreset.LIGHT,
@@ -53,6 +55,8 @@ fun BoxScope.OverlayShowView(
     AudioTrackSelectorView(
         show = overlayView == OverlayView.AUDIO_SELECTOR,
         player = player,
+        isSkipSilenceEnabled = isSkipSilenceEnabled,
+        onSkipSilenceToggle = onSkipSilenceToggle,
         isDrcEnabled = isDrcEnabled,
         onDrcToggle = onDrcToggle,
         drcPreset = drcPreset,

@@ -325,6 +325,20 @@ class PlayerViewModel @Inject constructor(
             }
         }
     }
+
+    fun toggleCenterBoost() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { currentPrefs ->
+                currentPrefs.copy(enableCenterBoost = !currentPrefs.enableCenterBoost)
+            }
+        }
+    }
+
+    fun updateCenterBoostDb(value: Int) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { it.copy(centerBoostDb = value) }
+        }
+    }
 }
 
 @Stable

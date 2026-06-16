@@ -26,6 +26,8 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.CommandButton
@@ -62,6 +64,7 @@ import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.feature.player.PlayerActivity
 import dev.anilbeesetti.nextplayer.feature.player.R
+import dev.anilbeesetti.nextplayer.feature.player.extensions.CenterBoostAudioProcessor
 import dev.anilbeesetti.nextplayer.feature.player.extensions.DynamicRangeCompressor
 import dev.anilbeesetti.nextplayer.feature.player.extensions.addAdditionalSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.audioTrackIndex
@@ -85,6 +88,7 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlin.collections.emptyList
+import kotlin.math.pow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -145,6 +149,7 @@ class PlayerService : MediaSessionService() {
     private var currentVolumeGain: Int = 0
 
     private var dynamicRangeCompressor: DynamicRangeCompressor? = null
+    private val centerBoostProcessor = CenterBoostAudioProcessor()
 
     private var pendingSkipIntroMs: Long = 0L
 
@@ -809,6 +814,23 @@ class PlayerService : MediaSessionService() {
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
                 }
 
+                CustomCommands.SET_CENTER_BOOST_DB -> {
+                    val targetDb = args.getInt(CustomCommands.CENTER_BOOST_DB_KEY, 0)
+                    val linearGain = 10f.pow(targetDb / 20f)
+                    centerBoostProcessor.centerBoostGain = linearGain
+                    return@future SessionResult(SessionResult.RESULT_SUCCESS)
+                }
+
+                CustomCommands.GET_ACTIVE_OUTPUT_CHANNELS -> {
+                    val actualChannels = centerBoostProcessor.decoderOutputChannels
+                    return@future SessionResult(
+                        SessionResult.RESULT_SUCCESS,
+                        Bundle().apply {
+                            putInt(CustomCommands.OUTPUT_CHANNELS_KEY, actualChannels)
+                        }
+                    )
+                }
+
                 CustomCommands.GET_SUBTITLE_DELAY -> {
                     val subtitleDelay = mediaSession?.player?.playerSpecificSubtitleDelayMilliseconds ?: 0
                     return@future SessionResult(
@@ -981,6 +1003,13 @@ class PlayerService : MediaSessionService() {
         super.onCreate()
         instance = this
 
+        val initialPrefs = preferencesRepository.playerPreferences.value
+        if (initialPrefs.enableCenterBoost) {
+            centerBoostProcessor.centerBoostGain = 10f.pow(initialPrefs.centerBoostDb / 20f)
+        } else {
+            centerBoostProcessor.centerBoostGain = 1.0f
+        }
+
         serviceScope.launch(Dispatchers.IO) {
             try {
                 webdavServerRepository.getAllServers().collectLatest { servers ->
@@ -995,7 +1024,7 @@ class PlayerService : MediaSessionService() {
                 e.printStackTrace()
             }
         }
-
+/*
         val renderersFactory = NextRenderersFactory(applicationContext)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(
@@ -1005,6 +1034,29 @@ class PlayerService : MediaSessionService() {
                     DecoderPriority.PREFER_APP -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
                 },
             )
+*/
+        val renderersFactory = object : NextRenderersFactory(applicationContext) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean,
+            ): AudioSink {
+                return DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setAudioProcessors(arrayOf(centerBoostProcessor))
+                    .build()
+            }
+
+        }.apply {
+            setEnableDecoderFallback(true)
+            setExtensionRendererMode(
+                when (playerPreferences.decoderPriority) {
+                    DecoderPriority.DEVICE_ONLY -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF
+                    DecoderPriority.PREFER_DEVICE -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+                    DecoderPriority.PREFER_APP -> DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+                }
+            )
+        }
 
         val trackSelector = DefaultTrackSelector(applicationContext).apply {
             setParameters(

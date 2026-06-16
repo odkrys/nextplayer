@@ -35,6 +35,8 @@ enum class CustomCommands(val customAction: String) {
     CANCEL_SLEEP_TIMER(customAction = "CANCEL_SLEEP_TIMER"),
     GET_SLEEP_TIMER_REMAINING(customAction = "GET_SLEEP_TIMER_REMAINING"),
     SET_PAUSE_AT_END_ONCE(customAction = "SET_PAUSE_AT_END_ONCE"),
+    SET_CENTER_BOOST_DB(customAction = "SET_CENTER_BOOST_DB"),
+    GET_ACTIVE_OUTPUT_CHANNELS(customAction = "GET_ACTIVE_OUTPUT_CHANNELS"),
     ;
 
     val sessionCommand = SessionCommand(customAction, Bundle.EMPTY)
@@ -65,6 +67,8 @@ enum class CustomCommands(val customAction: String) {
         const val SLEEP_TIMER_DURATION_KEY = "sleep_timer_duration_ms"
         const val SLEEP_TIMER_REMAINING_KEY = "sleep_timer_remaining_ms"
         const val PAUSE_AT_END_ONCE_KEY = "pause_at_end_once"
+        const val CENTER_BOOST_DB_KEY = "center_boost_db"
+        const val OUTPUT_CHANNELS_KEY = "output_channels"
     }
 }
 
@@ -233,4 +237,16 @@ fun MediaController.setPauseAtEndOnce(enabled: Boolean) {
         CustomCommands.SET_PAUSE_AT_END_ONCE.sessionCommand,
         Bundle().apply { putBoolean(CustomCommands.PAUSE_AT_END_ONCE_KEY, enabled) }
     )
+}
+
+fun MediaController.setCenterBoostDb(db: Int) {
+    val args = Bundle().apply {
+        putInt(CustomCommands.CENTER_BOOST_DB_KEY, db)
+    }
+    sendCustomCommand(CustomCommands.SET_CENTER_BOOST_DB.sessionCommand, args)
+}
+
+suspend fun MediaController.getActiveOutputChannels(): Int {
+    val result = sendCustomCommand(CustomCommands.GET_ACTIVE_OUTPUT_CHANNELS.sessionCommand, Bundle.EMPTY)
+    return result.await().extras.getInt(CustomCommands.OUTPUT_CHANNELS_KEY, 2)
 }

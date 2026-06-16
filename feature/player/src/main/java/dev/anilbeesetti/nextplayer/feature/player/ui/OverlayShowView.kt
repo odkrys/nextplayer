@@ -26,6 +26,10 @@ fun BoxScope.OverlayShowView(
     onDrcToggle: (Boolean) -> Unit = {},
     drcPreset: DrcPreset = DrcPreset.LIGHT,
     onDrcPresetChange: (DrcPreset) -> Unit = {},
+    isCenterBoostEnabled: Boolean = false,
+    onCenterBoostToggle: (Boolean) -> Unit = {},
+    centerBoostDb: Int = 0,
+    onCenterBoostDbChange: (Int) -> Unit = {},
     sleepTimerState: SleepTimerState,
     subtitleTextSize: Int = 20,
     initialPosition: Float = 0.08f,
@@ -53,6 +57,10 @@ fun BoxScope.OverlayShowView(
         onDrcToggle = onDrcToggle,
         drcPreset = drcPreset,
         onDrcPresetChange = onDrcPresetChange,
+        isCenterBoostEnabled = isCenterBoostEnabled,
+        onCenterBoostToggle = onCenterBoostToggle,
+        centerBoostDb = centerBoostDb,
+        onCenterBoostDbChange = onCenterBoostDbChange,
         onDismiss = onDismiss,
     )
 

@@ -55,6 +55,8 @@ data class PlayerPreferences(
     val enableVolumeBoost: Boolean = false,
     val enableDrc: Boolean = false,
     val drcPreset: DrcPreset = DrcPreset.LIGHT,
+    val enableCenterBoost: Boolean = false,
+    val centerBoostDb: Int = 0,
 
     // Subtitle Preferences
     val useSystemCaptionStyle: Boolean = false,

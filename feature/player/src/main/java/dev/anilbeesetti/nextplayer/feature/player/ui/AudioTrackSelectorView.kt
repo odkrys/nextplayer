@@ -18,10 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,11 +44,15 @@ import dev.anilbeesetti.nextplayer.core.model.DrcPreset
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSwitch
 import dev.anilbeesetti.nextplayer.feature.player.extensions.getName
+import dev.anilbeesetti.nextplayer.feature.player.service.getActiveOutputChannels
 import dev.anilbeesetti.nextplayer.feature.player.service.getIsDrcSupported
+import dev.anilbeesetti.nextplayer.feature.player.service.setCenterBoostDb
 import dev.anilbeesetti.nextplayer.feature.player.service.setDrcEnabled
 import dev.anilbeesetti.nextplayer.feature.player.service.setDrcPreset
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberSkipSilenceState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberTracksState
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -58,16 +64,33 @@ fun BoxScope.AudioTrackSelectorView(
     drcPreset: DrcPreset,
     onDrcToggle: (Boolean) -> Unit,
     onDrcPresetChange: (DrcPreset) -> Unit,
+    isCenterBoostEnabled: Boolean,
+    centerBoostDb: Int = 0,
+    onCenterBoostToggle: (Boolean) -> Unit,
+    onCenterBoostDbChange: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val audioTracksState = rememberTracksState(player, C.TRACK_TYPE_AUDIO)
     val skipSilenceState = rememberSkipSilenceState(player)
     var isDrcSupported by remember { mutableStateOf(false) }
+    var currentBoostDb by remember { mutableIntStateOf(centerBoostDb) }
+    var activeOutputChannels by remember { mutableIntStateOf(-1) }
+    val isCenterBoostSupported = activeOutputChannels > 2
 
-    LaunchedEffect(player) {
-        isDrcSupported = when (player) {
-            is MediaController -> player.getIsDrcSupported()
-            else -> false
+    LaunchedEffect(player, show, centerBoostDb) {
+        if (show && player is MediaController) {
+            isDrcSupported = player.getIsDrcSupported()
+            currentBoostDb = centerBoostDb
+            var channels = player.getActiveOutputChannels()
+            var attempts = 0
+
+            while (channels == -1 && attempts < 15) {
+                delay(200)
+                channels = player.getActiveOutputChannels()
+                attempts++
+            }
+
+            activeOutputChannels = channels
         }
     }
 
@@ -84,6 +107,7 @@ fun BoxScope.AudioTrackSelectorView(
                 .selectableGroup(),
         ) {
             audioTracksState.tracks.forEachIndexed { index, track ->
+/*
                 RadioButtonRow(
                     selected = track.isSelected,
                     text = track.mediaTrackGroup.getName(C.TRACK_TYPE_AUDIO, index),
@@ -92,6 +116,68 @@ fun BoxScope.AudioTrackSelectorView(
                         onDismiss()
                     },
                 )
+*/
+                val sourceChannels = track.takeIf { it.length > 0 }
+                    ?.getTrackFormat(0)
+                    ?.channelCount ?: 2
+
+                val badgeText = if (track.isSelected) {
+                    if (activeOutputChannels == -1) {
+                        ""
+                    } else if (activeOutputChannels == 2 && sourceChannels > 2) {
+                        "2ch (Down)"
+                    } else {
+                        when (activeOutputChannels) {
+                            1 -> "Mono"
+                            2 -> "2ch"
+                            6 -> "5.1ch"
+                            8 -> "7.1ch"
+                            in 3..100 -> "${activeOutputChannels}ch"
+                            else -> ""
+                        }
+                    }
+                } else {
+                    when (sourceChannels) {
+                        1 -> "Mono"
+                        2 -> "2ch"
+                        6 -> "5.1ch"
+                        8 -> "7.1ch"
+                        in 3..100 -> "${sourceChannels}ch"
+                        else -> ""
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        RadioButtonRow(
+                            selected = track.isSelected,
+                            text = track.mediaTrackGroup.getName(C.TRACK_TYPE_AUDIO, index),
+                            onClick = {
+                                audioTracksState.switchTrack(index)
+                                onDismiss()
+                            },
+                        )
+                    }
+
+                    if (badgeText.isNotEmpty()) {
+                        androidx.compose.material3.Surface(
+                            modifier = Modifier.padding(end = 12.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
             RadioButtonRow(
                 selected = audioTracksState.tracks.none { it.isSelected },
@@ -223,6 +309,82 @@ fun BoxScope.AudioTrackSelectorView(
                     }
                 }
                 false -> Unit
+            }
+
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .toggleable(
+                        value = isCenterBoostEnabled,
+                        enabled = isCenterBoostSupported,
+                        onValueChange = { enabled ->
+                            onCenterBoostToggle(enabled)
+                            if (player is MediaController) {
+                                val targetDb = if (enabled) currentBoostDb else 0
+                                player.setCenterBoostDb(targetDb)
+                            }
+                        },
+                    )
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .alpha(if (isCenterBoostSupported) 1f else 0.38f)
+                    .semantics(mergeDescendants = true) {},
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "Center Channel Boost",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                NextSwitch(
+                    checked = isCenterBoostEnabled && isCenterBoostSupported,
+                    onCheckedChange = null,
+                )
+            }
+
+            if (isCenterBoostEnabled) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .alpha(if (isCenterBoostSupported) 1f else 0.38f),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Gain",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = "+$currentBoostDb dB",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Slider(
+                        value = currentBoostDb.toFloat(),
+                        valueRange = 0f..20f,
+                        steps = 19,
+                        enabled = isCenterBoostSupported,
+                        onValueChange = { newDb ->
+                            val roundedDb = newDb.roundToInt()
+                            currentBoostDb = roundedDb
+
+                            if (player is MediaController) {
+                                player.setCenterBoostDb(roundedDb)
+                            }
+                        },
+                        onValueChangeFinished = {
+                            onCenterBoostDbChange(currentBoostDb)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }

@@ -5,11 +5,13 @@ import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RippleConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -71,6 +73,88 @@ fun PlayerButton(
             content = content
         )
     } else {
+        CompositionLocalProvider(
+            LocalContentColor provides Color.White,
+            LocalRippleConfiguration provides RippleConfiguration(
+                color = Color.White,
+                rippleAlpha = RippleAlpha(
+                    pressedAlpha = 0.5f,
+                    focusedAlpha = 0.5f,
+                    draggedAlpha = 0.5f,
+                    hoveredAlpha = 0.5f
+                )
+            )
+        ) {
+            IconButton(
+                onClick = {},
+                enabled = isEnabled,
+                modifier = modifier,
+                interactionSource = interactionSource,
+                colors = IconButtonDefaults.iconButtonColors().copy(containerColor = containerColor),
+                content = content,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun PlayerActiveButton(
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false,
+    isEnabled: Boolean = true,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val viewConfiguration = LocalViewConfiguration.current
+    val hapticFeedback = LocalHapticFeedback.current
+
+    LaunchedEffect(interactionSource) {
+        var isLongPressClicked = false
+        interactionSource.interactions.collectLatest { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> {
+                    isLongPressClicked = false
+                    delay(viewConfiguration.longPressTimeoutMillis)
+                    onLongClick?.let {
+                        isLongPressClicked = true
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        it.invoke()
+                    }
+                }
+
+                is PressInteraction.Release -> {
+                    if (!isLongPressClicked) {
+                        onClick()
+                    }
+                }
+            }
+        }
+    }
+
+    if (LocalUseMaterialYouControls.current) {
+        if (isActive) {
+            FilledIconButton(
+                onClick = {},
+                enabled = isEnabled,
+                modifier = modifier.size(40.dp),
+                interactionSource = interactionSource,
+                content = content
+            )
+        } else {
+            FilledTonalIconButton(
+                onClick = {},
+                enabled = isEnabled,
+                modifier = modifier.size(40.dp),
+                interactionSource = interactionSource,
+                content = content
+            )
+        }
+    } else {
+        val containerColor = if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) else Color.Transparent
+
         CompositionLocalProvider(
             LocalContentColor provides Color.White,
             LocalRippleConfiguration provides RippleConfiguration(

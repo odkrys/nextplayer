@@ -49,6 +49,7 @@ import dev.anilbeesetti.nextplayer.feature.player.service.getIsDrcSupported
 import dev.anilbeesetti.nextplayer.feature.player.service.setCenterBoostDb
 import dev.anilbeesetti.nextplayer.feature.player.service.setDrcEnabled
 import dev.anilbeesetti.nextplayer.feature.player.service.setDrcPreset
+import dev.anilbeesetti.nextplayer.feature.player.service.setSkipSilenceEnabled
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberSkipSilenceState
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberTracksState
 import kotlinx.coroutines.delay
@@ -60,6 +61,8 @@ fun BoxScope.AudioTrackSelectorView(
     modifier: Modifier = Modifier,
     show: Boolean,
     player: Player,
+    isSkipSilenceEnabled: Boolean,
+    onSkipSilenceToggle: (Boolean) -> Unit,
     isDrcEnabled: Boolean,
     drcPreset: DrcPreset,
     onDrcToggle: (Boolean) -> Unit,
@@ -196,8 +199,13 @@ fun BoxScope.AudioTrackSelectorView(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
                     .toggleable(
-                        value = skipSilenceState.skipSilenceEnabled,
-                        onValueChange = { skipSilenceState.setSkipSilence(it) },
+                        //value = skipSilenceState.skipSilenceEnabled,
+                        //onValueChange = { skipSilenceState.setSkipSilence(it) },
+                        value = isSkipSilenceEnabled,
+                        onValueChange = { enabled ->
+                            onSkipSilenceToggle(enabled)
+                            if (player is MediaController) player.setSkipSilenceEnabled(enabled)
+                        },
                     )
                     .fillMaxWidth()
                     .padding(8.dp)
@@ -211,7 +219,8 @@ fun BoxScope.AudioTrackSelectorView(
                     modifier = Modifier.weight(1f),
                 )
                 NextSwitch(
-                    checked = skipSilenceState.skipSilenceEnabled,
+                    //checked = skipSilenceState.skipSilenceEnabled,
+                    checked = isSkipSilenceEnabled,
                     onCheckedChange = null,
                 )
             }

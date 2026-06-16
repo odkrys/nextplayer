@@ -11,6 +11,7 @@ fun DecoderPriority.name(): String {
         DecoderPriority.PREFER_DEVICE -> R.string.prefer_device_decoders
         DecoderPriority.PREFER_APP -> R.string.prefer_app_decoders
         DecoderPriority.DEVICE_ONLY -> R.string.device_decoders_only
+        DecoderPriority.DEVICE_VIDEO_APP_AUDIO -> R.string.device_video_app_audio
     }
 
     return stringResource(id = stringRes)

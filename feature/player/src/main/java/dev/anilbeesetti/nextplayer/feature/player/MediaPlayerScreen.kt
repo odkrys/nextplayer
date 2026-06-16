@@ -249,6 +249,7 @@ fun MediaPlayerScreen(
     var isDlnaMenuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val isCastingActiveRef = rememberUpdatedState(dlnaPlaybackState.isActive)
+    val isAudioEffectActive = playerPreferences.enableSkipSilence || playerPreferences.enableDrc || playerPreferences.enableCenterBoost
 
     DisposableEffect(player) {
         var lastMediaId: String? = player.currentMediaItem?.mediaId
@@ -611,6 +612,7 @@ fun MediaPlayerScreen(
                                     ) {
                                         ControlsTopView(
                                             title = metadataState.title ?: "",
+                                            isAudioEffectActive = isAudioEffectActive,
                                             onTitleClick = {
                                                 controlsVisibilityState.hideControls()
                                                 showVideoInfoDialog = true

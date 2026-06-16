@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
+import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerActiveButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
 
 @OptIn(UnstableApi::class)
@@ -35,6 +36,7 @@ fun ControlsTopView(
     title: String,
     onTitleClick: () -> Unit = {},
     onAudioClick: () -> Unit = {},
+    isAudioEffectActive: Boolean = false,
     onSubtitleClick: () -> Unit = {},
     onPlaybackSpeedClick: () -> Unit = {},
     onPlaylistClick: () -> Unit = {},
@@ -81,7 +83,18 @@ fun ControlsTopView(
                     contentDescription = null,
                 )
             }
+/*
             PlayerButton(onClick = onAudioClick) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_audio_track),
+                    contentDescription = null,
+                )
+            }
+ */
+            PlayerActiveButton(
+                isActive = isAudioEffectActive,
+                onClick = onAudioClick
+            ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_audio_track),
                     contentDescription = null,

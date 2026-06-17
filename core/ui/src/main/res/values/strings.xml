@@ -139,7 +139,7 @@
     <string name="prefer_device_decoders">Prefer device decoders</string>
     <string name="prefer_app_decoders">Prefer app decoders</string>
     <string name="device_decoders_only">Device decoders only</string>
-    <string name="device_video_app_audio">Device decoders for video and app decoders for audio</string>
+    <string name="device_video_app_audio">HW video / SW audio</string>
     <string name="embedded_styles">Embedded styles</string>
     <string name="embedded_styles_desc">Apply the embedded styles that are present in subtitle files, such as ASS and so on</string>
     <string name="controller_timeout">Controller timeout</string>

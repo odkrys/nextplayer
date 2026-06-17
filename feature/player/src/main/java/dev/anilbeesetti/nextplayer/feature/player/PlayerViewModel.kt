@@ -318,10 +318,10 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun toggleDrc() {
+    fun setDrc(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { currentPrefs ->
-                currentPrefs.copy(enableDrc = !currentPrefs.enableDrc)
+                currentPrefs.copy(enableDrc = enabled)
             }
         }
     }
@@ -334,10 +334,10 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun toggleCenterBoost() {
+    fun setCenterBoost(enabled: Boolean) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { currentPrefs ->
-                currentPrefs.copy(enableCenterBoost = !currentPrefs.enableCenterBoost)
+                currentPrefs.copy(enableCenterBoost = enabled)
             }
         }
     }

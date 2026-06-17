@@ -75,7 +75,13 @@ import dev.anilbeesetti.nextplayer.feature.player.buttons.NextButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayPauseButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PlayerButton
 import dev.anilbeesetti.nextplayer.feature.player.buttons.PreviousButton
+import dev.anilbeesetti.nextplayer.feature.player.extensions.applyCenterBoostDb
+import dev.anilbeesetti.nextplayer.feature.player.extensions.applyDrcEnabled
+import dev.anilbeesetti.nextplayer.feature.player.extensions.applyDrcPreset
+import dev.anilbeesetti.nextplayer.feature.player.extensions.applySkipSilenceEnabled
 import dev.anilbeesetti.nextplayer.feature.player.extensions.nameRes
+import dev.anilbeesetti.nextplayer.feature.player.service.getActiveOutputChannels
+import dev.anilbeesetti.nextplayer.feature.player.service.getIsDrcSupported
 import dev.anilbeesetti.nextplayer.feature.player.state.ControlsVisibilityState
 import dev.anilbeesetti.nextplayer.feature.player.state.VerticalGesture
 import dev.anilbeesetti.nextplayer.feature.player.state.rememberBrightnessState
@@ -180,35 +186,6 @@ fun MediaPlayerScreen(
     )
     val errorState = rememberErrorState(player = player)
 
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
-    var currentPositionMs by remember { mutableLongStateOf(0L) }
-
-    val abRepeatA = viewModel.abRepeatA
-    val abRepeatB = viewModel.abRepeatB
-    var showAbRepeatPanel by remember { mutableStateOf(false) }
-    var bottomControlsHeightPx by remember { mutableIntStateOf(0) }
-    val bottomControlsHeightDp = with(LocalDensity.current) { bottomControlsHeightPx.toDp() }
-    val sleepTimerState = rememberSleepTimerState(player = player)
-
-    LaunchedEffect(player) {
-        if (player == null) return@LaunchedEffect
-
-        while (true) {
-            currentPositionMs = player.currentPosition
-
-            val skipIntroMs = playerPreferences.skipIntroTime * 1000L
-            val isInIntro = skipIntroMs > 0 && currentPositionMs < skipIntroMs
-
-            if (controlsVisibilityState.controlsVisible || isInIntro) {
-                delay(500L)
-            } else {
-                delay(2000L)
-            }
-        }
-    }
-
     LaunchedEffect(pictureInPictureState.isInPictureInPictureMode) {
         if (pictureInPictureState.isInPictureInPictureMode) {
             controlsVisibilityState.hideControls()
@@ -234,18 +211,52 @@ fun MediaPlayerScreen(
     }
 
     var overlayView by remember { mutableStateOf<OverlayView?>(null) }
+
+    // mediainfo
     var showMediaInfoDialog by remember { mutableStateOf(false) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // skip intro
+    var currentPositionMs by remember { mutableLongStateOf(0L) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    //a-b repeat
+    val abRepeatA = viewModel.abRepeatA
+    val abRepeatB = viewModel.abRepeatB
+
+    var showAbRepeatPanel by remember { mutableStateOf(false) }
+    var bottomControlsHeightPx by remember { mutableIntStateOf(0) }
+    val bottomControlsHeightDp = with(LocalDensity.current) { bottomControlsHeightPx.toDp() }
+
+    // sleep timer
+    val sleepTimerState = rememberSleepTimerState(player = player)
+
     // dlna
+    var isDlnaMenuExpanded by remember { mutableStateOf(false) }
     val dlnaDevices by viewModel.dlnaDevices.collectAsStateWithLifecycle()
     val isDlnaSearching by viewModel.isDlnaSearching.collectAsStateWithLifecycle()
     val currentUri = player.currentMediaItem?.mediaId
     val dlnaPlaybackState by viewModel.dlnaPlaybackState.collectAsStateWithLifecycle()
-    var isDlnaMenuExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val isCastingActiveRef = rememberUpdatedState(dlnaPlaybackState.isActive)
-    val isAudioEffectActive = playerPreferences.enableSkipSilence || playerPreferences.enableDrc || playerPreferences.enableCenterBoost
+
+    // drc
+    var isDrcSupported by remember { mutableStateOf(false) }
+
+    // center boost
+    var activeOutputChannels by remember { mutableIntStateOf(-1) }
+    val isCenterBoostSupported = activeOutputChannels > 2
+    val isCenterBoostWorking = playerPreferences.enableCenterBoost && isCenterBoostSupported
+    val isAudioEffectActive = playerPreferences.enableSkipSilence || playerPreferences.enableDrc || isCenterBoostWorking
+
+    DisposableEffect(abRepeatA, abRepeatB) {
+        val isSetAOnly = abRepeatA != C.TIME_UNSET && abRepeatB == C.TIME_UNSET
+        if (isSetAOnly) controlsVisibilityState.keepVisible()
+        onDispose {
+            if (isSetAOnly) controlsVisibilityState.releaseKeepVisible()
+        }
+    }
 
     DisposableEffect(player) {
         var lastMediaId: String? = player.currentMediaItem?.mediaId
@@ -280,6 +291,39 @@ fun MediaPlayerScreen(
         onDispose { player.removeListener(listener) }
     }
 
+    LaunchedEffect(player) {
+        if (player == null) return@LaunchedEffect
+
+        while (true) {
+            currentPositionMs = player.currentPosition
+
+            val skipIntroMs = playerPreferences.skipIntroTime * 1000L
+            val isInIntro = skipIntroMs > 0 && currentPositionMs < skipIntroMs
+
+            if (controlsVisibilityState.controlsVisible || isInIntro) {
+                delay(500L)
+            } else {
+                delay(2000L)
+            }
+        }
+    }
+
+    LaunchedEffect(player, player?.currentTracks) {
+        if (player is androidx.media3.session.MediaController) {
+            isDrcSupported = player.getIsDrcSupported()
+
+            delay(500)
+            var channels = player.getActiveOutputChannels()
+            var attempts = 0
+            while (channels == -1 && attempts < 10) {
+                delay(200)
+                channels = player.getActiveOutputChannels()
+                attempts++
+            }
+            activeOutputChannels = channels
+        }
+    }
+
     LaunchedEffect(isDlnaMenuExpanded) {
         if (isDlnaMenuExpanded) {
             controlsVisibilityState.keepVisible()
@@ -309,14 +353,6 @@ fun MediaPlayerScreen(
                     viewModel.stopCasting(context)
                 }
             }
-        }
-    }
-
-    DisposableEffect(abRepeatA, abRepeatB) {
-        val isSetAOnly = abRepeatA != C.TIME_UNSET && abRepeatB == C.TIME_UNSET
-        if (isSetAOnly) controlsVisibilityState.keepVisible()
-        onDispose {
-            if (isSetAOnly) controlsVisibilityState.releaseKeepVisible()
         }
     }
 
@@ -814,15 +850,33 @@ fun MediaPlayerScreen(
                 playerPreferences = playerPreferences,
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
                 isSkipSilenceEnabled = playerPreferences.enableSkipSilence,
-                onSkipSilenceToggle = { enabled -> viewModel.setSkipSilence(enabled) },
+                onSkipSilenceToggle = { enabled ->
+                    viewModel.setSkipSilence(enabled)
+                    player.applySkipSilenceEnabled(enabled)
+                },
+                isDrcSupported = isDrcSupported,
                 isDrcEnabled = playerPreferences.enableDrc,
-                onDrcToggle = { viewModel.toggleDrc() },
+                onDrcToggle = { enabled ->
+                    viewModel.setDrc(enabled)
+                    player.applyDrcEnabled(enabled)
+                },
                 drcPreset = playerPreferences.drcPreset,
-                onDrcPresetChange = { viewModel.setDrcPreset(it) },
+                onDrcPresetChange = { preset ->
+                    viewModel.setDrcPreset(preset)
+                    player.applyDrcPreset(preset)
+                },
+                activeOutputChannels = activeOutputChannels,
                 isCenterBoostEnabled = playerPreferences.enableCenterBoost,
-                onCenterBoostToggle = { viewModel.toggleCenterBoost() },
+                onCenterBoostToggle = { enabled ->
+                    viewModel.setCenterBoost(enabled)
+                    val targetDb = if (enabled) playerPreferences.centerBoostDb else 0
+                    player.applyCenterBoostDb(targetDb)
+                },
                 centerBoostDb = playerPreferences.centerBoostDb,
-                onCenterBoostDbChange = { newDb -> viewModel.updateCenterBoostDb(newDb) },
+                onCenterBoostDbChange = { newDb ->
+                    viewModel.updateCenterBoostDb(newDb)
+                    player.applyCenterBoostDb(newDb)
+                },
                 sleepTimerState = sleepTimerState,
                 onDismiss = { overlayView = null },
                 onSelectSubtitleClick = onSelectSubtitleClick,

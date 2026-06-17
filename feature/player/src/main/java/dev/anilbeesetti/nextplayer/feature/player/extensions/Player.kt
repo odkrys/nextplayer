@@ -9,7 +9,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import dev.anilbeesetti.nextplayer.core.common.Logger
+import dev.anilbeesetti.nextplayer.core.model.DrcPreset
+import dev.anilbeesetti.nextplayer.feature.player.service.setCenterBoostDb
+import dev.anilbeesetti.nextplayer.feature.player.service.setDrcEnabled
+import dev.anilbeesetti.nextplayer.feature.player.service.setDrcPreset
 import dev.anilbeesetti.nextplayer.feature.player.service.setMediaControllerIsScrubbingModeEnabled
+import dev.anilbeesetti.nextplayer.feature.player.service.setSkipSilenceEnabled
 
 /**
  * Switches to selected track.
@@ -111,4 +116,30 @@ fun Player.getPlaybackOrderIndices(): List<Int> {
     }
 
     return orderIndices
+}
+
+@OptIn(UnstableApi::class)
+fun Player.applySkipSilenceEnabled(enabled: Boolean) {
+    when (this) {
+        is MediaController -> this.setSkipSilenceEnabled(enabled)
+        is ExoPlayer -> this.skipSilenceEnabled = enabled
+    }
+}
+
+fun Player.applyDrcEnabled(enabled: Boolean) {
+    if (this is MediaController) {
+        this.setDrcEnabled(enabled)
+    }
+}
+
+fun Player.applyDrcPreset(preset: DrcPreset) {
+    if (this is MediaController) {
+        this.setDrcPreset(preset)
+    }
+}
+
+fun Player.applyCenterBoostDb(db: Int) {
+    if (this is MediaController) {
+        this.setCenterBoostDb(db)
+    }
 }

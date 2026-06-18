@@ -1343,7 +1343,8 @@ class PlayerService : MediaSessionService() {
                         }
                         .map { subFile ->
                             val encodedPath = Uri.encode(subFile.path.trimStart('/'), "/")
-                            val subUrl = "${server.baseUrl.trimEnd('/')}/$encodedPath"
+                            val cacheBuster = System.currentTimeMillis()
+                            val subUrl = "${server.baseUrl.trimEnd('/')}/$encodedPath?t=$cacheBuster"
 
                             uriToSubtitleConfiguration(
                                 uri = Uri.parse(subUrl),

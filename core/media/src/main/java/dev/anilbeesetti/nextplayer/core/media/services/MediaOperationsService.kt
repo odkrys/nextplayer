@@ -2,6 +2,7 @@ package dev.anilbeesetti.nextplayer.core.media.services
 
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import androidx.activity.ComponentActivity
 
 interface MediaOperationsService {
@@ -12,7 +13,12 @@ interface MediaOperationsService {
 
     companion object {
         fun willSystemAsksForDeleteConfirmation(): Boolean {
-            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+            //return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                !Environment.isExternalStorageManager()
+            } else {
+                false
+            }
         }
     }
 }

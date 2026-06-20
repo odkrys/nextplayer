@@ -118,6 +118,15 @@ private fun MediaLibraryPreferencesContent(
                     //isLastItem = true,
                     isLastItem = false,
                 )
+                PreferenceSwitch(
+                    title = stringResource(id = R.string.hide_excluded_media_in_playlists),
+                    description = stringResource(id = R.string.hide_excluded_media_in_playlists_desc),
+                    icon = NextIcons.VisibilityOff,
+                    isChecked = preferences.hideExcludedMediaInPlaylists,
+                    onClick = { onEvent(MediaLibraryPreferencesUiEvent.ToggleHideExcludedMediaInPlaylists) },
+                    isFirstItem = false,
+                    isLastItem = Build.VERSION.SDK_INT < Build.VERSION_CODES.R,
+                )
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     ClickablePreferenceItem(
                         title = stringResource(id = R.string.manage_external_storage),

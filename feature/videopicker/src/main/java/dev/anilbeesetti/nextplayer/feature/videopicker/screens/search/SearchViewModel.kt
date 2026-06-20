@@ -49,6 +49,9 @@ class SearchViewModel @Inject constructor(
 
     private val searchQuery = MutableStateFlow("")
 
+    private val eventsInternal = Channel<SearchEvent>()
+    val events = eventsInternal.receiveAsFlow()
+
     init {
         collectSearchHistory()
         collectPopularFolders()
@@ -117,11 +120,13 @@ class SearchViewModel @Inject constructor(
             is SearchUiEvent.OnHistoryItemClick -> onHistoryItemClick(event.query)
             is SearchUiEvent.OnRemoveHistoryItem -> removeHistoryItem(event.query)
             is SearchUiEvent.OnClearHistory -> clearHistory()
-            is SearchUiEvent.DeleteSelectedItems -> deleteSelectedItems(event.selectionItems)
-            is SearchUiEvent.ShareSelectedItems -> shareSelectedItems(event.selectionItems)
-            is SearchUiEvent.ShowMediaInfo -> showMediaInfo(event.video)
+            is SearchUiEvent.PlaySelectedItems -> playSelectedItems(event.selectionItems)
             is SearchUiEvent.RenameVideo -> renameVideo(event.uri, event.to)
+            is SearchUiEvent.ShareSelectedItems -> shareSelectedItems(event.selectionItems)
+            is SearchUiEvent.AddToPlaylist -> addToPlaylist(event.selectionItems)
+            is SearchUiEvent.ShowMediaInfo -> showMediaInfo(event.video)
             is SearchUiEvent.ClearPlaybackHistory -> clearPlaybackHistory(event.selectionItems)
+            is SearchUiEvent.DeleteSelectedItems -> deleteSelectedItems(event.selectionItems)
             SearchUiEvent.DismissMediaInfo -> uiStateInternal.update { it.copy(mediaInfo = null) }
         }
     }
@@ -153,6 +158,13 @@ class SearchViewModel @Inject constructor(
     private fun clearHistory() {
         viewModelScope.launch {
             searchHistoryRepository.clearHistory()
+        }
+    }
+
+    private fun playSelectedItems(selectedItems: Set<SelectionItem>) {
+        viewModelScope.launch {
+            val videoUris = selectedItems.toVideoUris()
+            eventsInternal.send(SearchEvent.PlayVideos(videoUris))
         }
     }
 
@@ -204,6 +216,13 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    private fun addToPlaylist(selectedItems: Set<SelectionItem>) {
+        viewModelScope.launch {
+            val uris = selectedItems.toVideoUris().map { it.toString() }
+            eventsInternal.send(SearchEvent.NavigateToPlaylist(uris))
+        }
+    }
+
     private fun clearPlaybackHistory(selectionItems: Set<SelectionItem>) {
         viewModelScope.launch {
             try {
@@ -229,7 +248,7 @@ data class SearchUiState(
     val isSearching: Boolean = false,
     val preferences: ApplicationPreferences = ApplicationPreferences(),
     val mediaInfo: dev.anilbeesetti.nextplayer.core.model.MediaInfo? = null,
-    )
+)
 
 sealed interface SearchUiEvent {
     data class OnQueryChange(val query: String) : SearchUiEvent
@@ -237,10 +256,17 @@ sealed interface SearchUiEvent {
     data class OnHistoryItemClick(val query: String) : SearchUiEvent
     data class OnRemoveHistoryItem(val query: String) : SearchUiEvent
     data object OnClearHistory : SearchUiEvent
-    data class ShareSelectedItems(val selectionItems: Set<SelectionItem>)  : SearchUiEvent
-    data class DeleteSelectedItems(val selectionItems: Set<SelectionItem>) : SearchUiEvent
     data class RenameVideo(val uri: Uri, val to: String) : SearchUiEvent
+    data class PlaySelectedItems(val selectionItems: Set<SelectionItem>) : SearchUiEvent
+    data class DeleteSelectedItems(val selectionItems: Set<SelectionItem>) : SearchUiEvent
+    data class ShareSelectedItems(val selectionItems: Set<SelectionItem>)  : SearchUiEvent
+    data class AddToPlaylist(val selectionItems: Set<SelectionItem>) : SearchUiEvent
     data class ShowMediaInfo(val video: Video): SearchUiEvent
     data class ClearPlaybackHistory(val selectionItems: Set<SelectionItem>) : SearchUiEvent
     data object DismissMediaInfo : SearchUiEvent
+}
+
+sealed interface SearchEvent {
+    data class PlayVideos(val uris: List<Uri>) : SearchEvent
+    data class NavigateToPlaylist(val uris: List<String>) : SearchEvent
 }

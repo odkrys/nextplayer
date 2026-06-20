@@ -83,6 +83,7 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.composables.FolderItem
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.MediaView
 import dev.anilbeesetti.nextplayer.feature.videopicker.composables.RenameDialog
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.DeleteConfirmationDialog
+import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.ObserveAsEvents
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.mediapicker.SelectionActionsSheet
 import dev.anilbeesetti.nextplayer.feature.videopicker.state.SelectionManager
 import dev.anilbeesetti.nextplayer.feature.videopicker.state.rememberSelectionManager
@@ -99,14 +100,19 @@ fun SearchRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle(minActiveState = Lifecycle.State.RESUMED)
 
+    ObserveAsEvents(flow = viewModel.events) { event ->
+        when (event) {
+            is SearchEvent.PlayVideos -> onPlayVideos(event.uris)
+            is SearchEvent.NavigateToPlaylist -> onAddToPlaylistClick(event.uris)
+        }
+    }
+
     SearchScreen(
         uiState = uiState,
         onNavigateUp = onNavigateUp,
         onFolderClick = onFolderClick,
         //onVideoClick = onPlayVideo,
         onVideoClick = { index -> onPlayVideo(uiState.searchResults.videos, index) },
-        onPlayVideos = onPlayVideos,
-        onAddToPlaylistClick = onAddToPlaylistClick,
         onEvent = viewModel::onEvent,
     )
 }
@@ -119,8 +125,6 @@ internal fun SearchScreen(
     onFolderClick: (String) -> Unit = {},
     //onVideoClick: (Uri) -> Unit = {},
     onVideoClick: (Int) -> Unit = {},
-    onPlayVideos: (List<Uri>) -> Unit = {},
-    onAddToPlaylistClick: (List<String>) -> Unit = {},
     onEvent: (SearchUiEvent) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -314,8 +318,7 @@ internal fun SearchScreen(
                     showRenameAction = selectionManager.isSingleVideoSelected,
                     showInfoAction = selectionManager.isSingleVideoSelected,
                     onPlayAction = {
-                        val videoUris = selectionManager.allSelectedVideos.map { Uri.parse(it.uriString) }
-                        onPlayVideos(videoUris)
+                        onEvent(SearchUiEvent.PlaySelectedItems(selectionManager.selectionItems))
                         selectionManager.exitSelectionMode()
                     },
                     onRenameAction = {
@@ -333,8 +336,7 @@ internal fun SearchScreen(
                         onEvent(SearchUiEvent.ShareSelectedItems(selectionManager.selectionItems))
                     },
                     onAddToPlaylistAction = {
-                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
-                        onAddToPlaylistClick(uris)
+                        onEvent(SearchUiEvent.AddToPlaylist(selectionManager.selectionItems))
                         selectionManager.exitSelectionMode()
                     },
                     onClearHistoryAction = {

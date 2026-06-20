@@ -141,6 +141,7 @@ fun MediaPickerRoute(
     ObserveAsEvents(flow = viewModel.events) { event ->
         when (event) {
             is MediaPickerEvent.PlayVideos -> onPlayVideos(event.uris)
+            is MediaPickerEvent.NavigateToPlaylist -> onAddToPlaylistClick(event.uris)
         }
     }
 
@@ -493,8 +494,7 @@ internal fun MediaPickerScreen(
                         onAction(MediaPickerAction.ShareSelectedItems(selectionManager.selectionItems))
                     },
                     onAddToPlaylistAction = {
-                        val uris = selectionManager.allSelectedVideos.map { it.uriString }
-                        onAddToPlaylistClick(uris)
+                        onAction(MediaPickerAction.AddToPlaylist(selectionManager.selectionItems))
                         selectionManager.exitSelectionMode()
                     },
                     onClearHistoryAction = {

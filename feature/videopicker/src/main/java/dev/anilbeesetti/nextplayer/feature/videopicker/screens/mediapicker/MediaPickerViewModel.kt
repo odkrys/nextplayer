@@ -78,6 +78,7 @@ class MediaPickerViewModel @Inject constructor(
             is MediaPickerAction.PlaySelectedItems -> playSelectedItems(action.selectionItems)
             is MediaPickerAction.DeleteSelectedItems -> deleteSelectedItems(action.selectionItems)
             is MediaPickerAction.ShareSelectedItems -> shareSelectedItems(action.selectionItems)
+            is MediaPickerAction.AddToPlaylist -> addToPlaylist(action.selectionItems)
             is MediaPickerAction.ShowMediaInfo -> showMediaInfo(action.video)
             is MediaPickerAction.ClearPlaybackHistory -> clearPlaybackHistory(action.selectionItems)
             MediaPickerAction.DismissMediaInfo -> uiStateInternal.update { it.copy(mediaInfo = null) }
@@ -186,6 +187,13 @@ class MediaPickerViewModel @Inject constructor(
         }
     }
 
+    private fun addToPlaylist(selectionItems: Set<SelectionItem>) {
+        viewModelScope.launch {
+            val uris = selectionItems.toVideoUris().map { it.toString() }
+            eventsInternal.send(MediaPickerEvent.NavigateToPlaylist(uris))
+        }
+    }
+
     private fun clearPlaybackHistory(selectionItems: Set<SelectionItem>) {
         viewModelScope.launch {
             try {
@@ -217,6 +225,7 @@ sealed interface MediaPickerAction {
     data class PlaySelectedItems(val selectionItems: Set<SelectionItem>) : MediaPickerAction
     data class DeleteSelectedItems(val selectionItems: Set<SelectionItem>) : MediaPickerAction
     data class ShareSelectedItems(val selectionItems: Set<SelectionItem>) : MediaPickerAction
+    data class AddToPlaylist(val selectionItems: Set<SelectionItem>) : MediaPickerAction
     data class ShowMediaInfo(val video: Video): MediaPickerAction
     data class ClearPlaybackHistory(val selectionItems: Set<SelectionItem>) : MediaPickerAction
     data object DismissMediaInfo : MediaPickerAction
@@ -224,4 +233,5 @@ sealed interface MediaPickerAction {
 
 sealed interface MediaPickerEvent {
     data class PlayVideos(val uris: List<Uri>) : MediaPickerEvent
+    data class NavigateToPlaylist(val uris: List<String>) : MediaPickerEvent
 }

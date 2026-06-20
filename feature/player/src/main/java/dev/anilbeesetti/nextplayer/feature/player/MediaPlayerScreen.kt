@@ -50,10 +50,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import dev.anilbeesetti.nextplayer.core.model.ControlButtonsPosition
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
+import dev.anilbeesetti.nextplayer.core.ui.composables.MediaInfoDialog
 import dev.anilbeesetti.nextplayer.core.ui.R as coreUiR
 import dev.anilbeesetti.nextplayer.core.ui.extensions.copy
 import dev.anilbeesetti.nextplayer.feature.player.buttons.NextButton
@@ -104,6 +106,7 @@ fun MediaPlayerScreen(
         showVolumePanelIfHeadsetIsOn = playerPreferences.showSystemVolumePanel,
     )
     player ?: return
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val metadataState = rememberMetadataState(player)
     val mediaPresentationState = rememberMediaPresentationState(player)
     val controlsVisibilityState = rememberControlsVisibilityState(
@@ -181,6 +184,7 @@ fun MediaPlayerScreen(
     }
 
     var overlayView by remember { mutableStateOf<OverlayView?>(null) }
+    var showMediaInfoDialog by remember { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalControlsVisibilityState provides controlsVisibilityState) {
         Box {
@@ -281,6 +285,13 @@ fun MediaPlayerScreen(
                             ) {
                                 ControlsTopView(
                                     title = metadataState.title ?: "",
+                                    onTitleClick = {
+                                        controlsVisibilityState.hideControls()
+                                        player.currentMediaItem?.localConfiguration?.uri?.toString()?.let { uri ->
+                                            viewModel.showMediaInfo(uri)
+                                        }
+                                        showMediaInfoDialog = true
+                                    },
                                     onAudioClick = {
                                         controlsVisibilityState.hideControls()
                                         overlayView = OverlayView.AUDIO_SELECTOR
@@ -410,6 +421,15 @@ fun MediaPlayerScreen(
                 initialPosition = playerPreferences.subtitlePosition,
                 onVideoContentScaleChanged = { videoZoomAndContentScaleState.onVideoContentScaleChanged(it) },
             )
+
+            if (showMediaInfoDialog) {
+                uiState.mediaInfo?.let { info ->
+                    MediaInfoDialog(
+                        mediaInfo = info,
+                        onDismiss = { showMediaInfoDialog = false }
+                    )
+                }
+            }
         }
     }
 

@@ -9,6 +9,7 @@ import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.GetSortedPlaylistUseCase
 import dev.anilbeesetti.nextplayer.core.model.LoopMode
+import dev.anilbeesetti.nextplayer.core.model.MediaInfo
 import dev.anilbeesetti.nextplayer.core.model.PlayerPreferences
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.model.VideoContentScale
@@ -120,11 +121,25 @@ class PlayerViewModel @Inject constructor(
             preferencesRepository.updatePlayerPreferences { it.copy(subtitlePosition = value) }
         }
     }
+
+    fun showMediaInfo(uri: String) {
+        viewModelScope.launch {
+            val mediaInfo = mediaRepository.getMediaInfo(uri)
+            if (mediaInfo != null) {
+                internalUiState.update { it.copy(mediaInfo = mediaInfo) }
+            }
+        }
+    }
+
+    fun dismissMediaInfo() {
+        internalUiState.update { it.copy(mediaInfo = null) }
+    }
 }
 
 @Stable
 data class PlayerUiState(
     val playerPreferences: PlayerPreferences? = null,
+    val mediaInfo: MediaInfo? = null,
 )
 
 sealed interface PlayerEvent

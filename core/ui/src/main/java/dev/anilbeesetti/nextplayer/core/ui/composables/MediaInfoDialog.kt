@@ -1,4 +1,4 @@
-package dev.anilbeesetti.nextplayer.feature.videopicker.composables
+package dev.anilbeesetti.nextplayer.core.ui.composables
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

@@ -36,9 +36,6 @@ class PlayerViewModel @Inject constructor(
     )
     val uiState = internalUiState.asStateFlow()
 
-    private val _currentVideo = MutableStateFlow<Video?>(null)
-    val currentVideo = _currentVideo.asStateFlow()
-
     init {
         viewModelScope.launch {
             preferencesRepository.playerPreferences.collect { prefs ->
@@ -121,14 +118,6 @@ class PlayerViewModel @Inject constructor(
     private fun updateSubtitlePosition(value: Float) {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences { it.copy(subtitlePosition = value) }
-        }
-    }
-
-    fun loadVideoInfo(uriString: String?) {
-        if (uriString == null) return
-        viewModelScope.launch {
-            val video = mediaRepository.getVideoByUri(uriString)
-            _currentVideo.value = video
         }
     }
 }

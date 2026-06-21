@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
 import kotlinx.coroutines.flow.Flow
@@ -35,4 +36,11 @@ interface WebdavServerDao {
 
     @Query("UPDATE webdav_servers SET position = :position WHERE id = :id")
     suspend fun updatePosition(id: Long, position: Int)
+
+    @Transaction
+    suspend fun updatePositionsInTransaction(ids: List<Long>) {
+        ids.forEachIndexed { index, id ->
+            updatePosition(id, index)
+        }
+    }
 }

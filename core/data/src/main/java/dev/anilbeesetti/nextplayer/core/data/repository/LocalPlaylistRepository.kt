@@ -131,9 +131,7 @@ class LocalPlaylistRepository @Inject constructor(
     }
 
     override suspend fun reorderPlaylists(ids: List<Long>) {
-        ids.forEachIndexed { index, id ->
-            playlistDao.updatePosition(id, index)
-        }
+        playlistDao.updatePositionsInTransaction(ids)
     }
 
     override suspend fun removeMediaByPrefix(prefix: String) {

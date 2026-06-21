@@ -75,6 +75,13 @@ interface PlaylistDao {
     @Query("UPDATE playlists SET position = :position WHERE id = :id")
     suspend fun updatePosition(id: Long, position: Int)
 
+    @Transaction
+    suspend fun updatePositionsInTransaction(ids: List<Long>) {
+        ids.forEachIndexed { index, id ->
+            updatePosition(id, index)
+        }
+    }
+
     @Query("DELETE FROM playlist_medium_cross_entity WHERE medium_uri LIKE :prefix || '%'")
     suspend fun removeMediaByPrefix(prefix: String)
 

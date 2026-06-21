@@ -31,9 +31,7 @@ class WebdavServerRepository @Inject constructor(
         dao.getServerById(id)?.toDomain()
 
     suspend fun reorderServers(ids: List<Long>) {
-        ids.forEachIndexed { index, id ->
-            dao.updatePosition(id, index)
-        }
+        dao.updatePositionsInTransaction(ids)
     }
 
     private fun WebdavServerEntity.toDomain() = WebdavServer(

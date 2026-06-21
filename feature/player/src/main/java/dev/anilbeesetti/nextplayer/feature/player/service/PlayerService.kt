@@ -103,7 +103,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.isActive
@@ -1000,10 +999,18 @@ class PlayerService : MediaSessionService() {
         private var sleepTimerInitialDurationMs: Long = 0L
 
         private val webdavCredentials = mutableMapOf<String, String>()
+        private val webdavCredentialsLock = Any()
 
         fun setWebdavCredentials(host: String, auth: String) {
-            webdavCredentials[host] = auth
+            synchronized(webdavCredentialsLock) {
+                webdavCredentials[host] = auth
+            }
         }
+
+        fun getWebdavAuth(host: String): String? =
+            synchronized(webdavCredentialsLock) {
+                webdavCredentials[host]
+            }
     }
 
     override fun onCreate() {
@@ -1019,12 +1026,14 @@ class PlayerService : MediaSessionService() {
 
         serviceScope.launch(Dispatchers.IO) {
             try {
-                webdavServerRepository.getAllServers().collectLatest { servers ->
-                    servers.forEach { server ->
-                        if (server.username.isNotEmpty()) {
-                            val auth = okhttp3.Credentials.basic(server.username, server.password)
-                            webdavCredentials[server.host] = auth
-                        }
+                webdavServerRepository.getAllServers().collect { servers ->
+                    val newCredentials = servers
+                        .filter { it.username.isNotEmpty() }
+                        .associate { it.host to okhttp3.Credentials.basic(it.username, it.password) }
+
+                    synchronized(webdavCredentialsLock) {
+                        webdavCredentials.keys.retainAll(newCredentials.keys)
+                        webdavCredentials.putAll(newCredentials)
                     }
                 }
             } catch (e: Exception) {
@@ -1122,7 +1131,7 @@ class PlayerService : MediaSessionService() {
             .addInterceptor { chain ->
                 val request = chain.request()
                 val host = request.url.host
-                val auth = webdavCredentials[host]
+                val auth = getWebdavAuth(host)
 
                 if (auth != null) {
                     chain.proceed(

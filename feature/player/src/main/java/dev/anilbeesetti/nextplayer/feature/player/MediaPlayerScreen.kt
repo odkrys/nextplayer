@@ -80,6 +80,7 @@ import dev.anilbeesetti.nextplayer.feature.player.extensions.applyDrcEnabled
 import dev.anilbeesetti.nextplayer.feature.player.extensions.applyDrcPreset
 import dev.anilbeesetti.nextplayer.feature.player.extensions.applySkipSilenceEnabled
 import dev.anilbeesetti.nextplayer.feature.player.extensions.nameRes
+import dev.anilbeesetti.nextplayer.feature.player.extensions.remoteVideoInfo
 import dev.anilbeesetti.nextplayer.feature.player.service.getActiveOutputChannels
 import dev.anilbeesetti.nextplayer.feature.player.service.getIsDrcSupported
 import dev.anilbeesetti.nextplayer.feature.player.state.ControlsVisibilityState
@@ -265,6 +266,8 @@ fun MediaPlayerScreen(
                 val uri = mediaItem?.mediaId ?: return
 
                 if (uri != lastMediaId) {
+                    viewModel.updateCurrentMedia(uri)
+
                     viewModel.abRepeatA = C.TIME_UNSET
                     viewModel.abRepeatB = C.TIME_UNSET
                     showAbRepeatPanel = false
@@ -285,6 +288,15 @@ fun MediaPlayerScreen(
                 reason: Int
             ) {
                 currentPositionMs = newPosition.positionMs
+            }
+
+            override fun onTracksChanged(tracks: Tracks) {
+                super.onTracksChanged(tracks)
+                val currentVideo = viewModel.currentVideo.value?.takeIf { it.uriString == currentUri }
+                if (currentVideo != null && currentVideo.id != 0L) return
+
+                val updatedVideo = player.remoteVideoInfo(currentVideo)
+                viewModel.updateCurrentVideoInfo(updatedVideo)
             }
         }
         player.addListener(listener)

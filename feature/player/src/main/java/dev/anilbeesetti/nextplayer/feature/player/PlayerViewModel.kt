@@ -56,6 +56,9 @@ class PlayerViewModel @Inject constructor(
     )
     val uiState = internalUiState.asStateFlow()
 
+    private val _currentVideo = MutableStateFlow<Video?>(null)
+    val currentVideo = _currentVideo.asStateFlow()
+
     private val _dlnaDevices = MutableStateFlow<List<DlnaManager.DlnaDevice>>(emptyList())
     val dlnaDevices = _dlnaDevices.asStateFlow()
 
@@ -221,9 +224,53 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun updateCurrentMedia(uriString: String?) {
+        if (uriString == null) return
+
+        if (_currentVideo.value?.uriString != uriString) {
+            _currentVideo.value = null
+            internalUiState.update { it.copy(mediaInfo = null) }
+        }
+
+        viewModelScope.launch {
+            val dbVideo = mediaRepository.getVideoByUri(uriString)
+            if (dbVideo != null) {
+                _currentVideo.value = dbVideo
+            }
+        }
+    }
+
+    fun updateCurrentVideoInfo(updatedVideo: Video?) {
+        _currentVideo.value = updatedVideo
+
+        if (updatedVideo != null) {
+            val newMediaInfo = MediaInfo(
+                video = updatedVideo,
+                videoStream = updatedVideo.videoStream,
+                audioStreams = updatedVideo.audioStreams,
+                subtitleStreams = updatedVideo.subtitleStreams
+            )
+            internalUiState.update { it.copy(mediaInfo = newMediaInfo) }
+        }
+    }
+
     fun showMediaInfo(uri: String) {
         viewModelScope.launch {
-            val mediaInfo = mediaRepository.getMediaInfo(uri)
+            var mediaInfo = mediaRepository.getMediaInfo(uri)
+
+            if (mediaInfo == null) {
+                val currentPlaying = _currentVideo.value
+
+                if (currentPlaying != null && currentPlaying.uriString == uri) {
+                    mediaInfo = MediaInfo(
+                        video = currentPlaying,
+                        videoStream = currentPlaying.videoStream,
+                        audioStreams = currentPlaying.audioStreams,
+                        subtitleStreams = currentPlaying.subtitleStreams
+                    )
+                }
+            }
+
             if (mediaInfo != null) {
                 internalUiState.update { it.copy(mediaInfo = mediaInfo) }
             }

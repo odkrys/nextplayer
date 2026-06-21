@@ -29,6 +29,8 @@ import java.nio.charset.StandardCharsets
 import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.mozilla.universalchardet.UniversalDetector
 import kotlin.system.exitProcess
 
@@ -229,6 +231,7 @@ suspend fun Context.scanStorage(
     }
 }
 
+/*
 suspend fun Context.convertToUTF8(uri: Uri, charset: Charset? = null): Uri = withContext(Dispatchers.IO) {
     try {
         when {
@@ -256,6 +259,80 @@ suspend fun Context.convertToUTF8(uri: Uri, charset: Charset? = null): Uri = wit
         uri
     }
 }
+*/
+suspend fun Context.convertToUTF8(
+    uri: Uri,
+    charset: Charset? = null,
+    okHttpClient: OkHttpClient? = null,
+): Uri = withContext(Dispatchers.IO) {
+    try {
+        when {
+            uri.scheme?.let { it in listOf("http", "https") } == true -> {
+                val client = okHttpClient ?: OkHttpClient()
+                val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "subtitle.srt"
+                val cacheFile = File(subtitleCacheDir, fileName)
+
+                val bytes = fetchBytesOkHttp(uri, client) ?: return@withContext uri
+
+                val detectedCharset = charset ?: detectCharsetFromBytes(bytes)
+
+                if (detectedCharset == StandardCharsets.UTF_8) {
+                    cacheFile.writeBytes(bytes)
+                } else {
+                    val content = bytes.toString(detectedCharset)
+                    cacheFile.writeText(content, StandardCharsets.UTF_8)
+                }
+
+                Uri.fromFile(cacheFile)
+            }
+
+            uri.scheme == "ftp" -> {
+                val url = URL(uri.toString())
+                val bytes = url.openStream().use { it.readBytes() }
+                val detectedCharset = charset ?: detectCharsetFromBytes(bytes)
+                if (detectedCharset == StandardCharsets.UTF_8) return@withContext uri
+
+                val fileName = url.path.substringAfterLast('/')
+                val file = File(subtitleCacheDir, fileName)
+                file.writeText(bytes.toString(detectedCharset), StandardCharsets.UTF_8)
+                Uri.fromFile(file)
+            }
+
+            else -> {
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: return@withContext uri
+                val detectedCharset = charset ?: detectCharsetFromBytes(bytes)
+                if (detectedCharset == StandardCharsets.UTF_8) return@withContext uri
+
+                val fileName = getFilenameFromUri(uri)
+                val file = File(subtitleCacheDir, fileName)
+                file.writeText(bytes.toString(detectedCharset), StandardCharsets.UTF_8)
+                Uri.fromFile(file)
+            }
+        }
+    } catch (exception: Exception) {
+        exception.printStackTrace()
+        uri
+    }
+}
+
+private fun fetchBytesOkHttp(uri: Uri, client: OkHttpClient): ByteArray? {
+    val request = Request.Builder().url(uri.toString()).build()
+    return client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) return null
+        response.body?.bytes()
+    }
+}
+
+private fun detectCharsetFromBytes(bytes: ByteArray): Charset {
+    val maxBytes = minOf(bytes.size, 1024 * 100)
+    return UniversalDetector(null).run {
+        handleData(bytes, 0, maxBytes)
+        dataEnd()
+        Charset.forName(detectedCharset ?: StandardCharsets.UTF_8.name())
+    }
+}
+
 
 private fun detectCharset(uri: Uri, context: Context): Charset {
     return context.contentResolver.openInputStream(uri)?.use { inputStream ->

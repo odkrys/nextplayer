@@ -683,6 +683,7 @@ class PlayerService : MediaSessionService() {
                     val newSubConfiguration = uriToSubtitleConfiguration(
                         uri = subtitleUri,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                        okHttpClient = okHttpClient,
                     )
                     mediaSession?.player?.let { player ->
                         val currentMediaItem = player.currentMediaItem ?: return@let
@@ -1358,6 +1359,7 @@ class PlayerService : MediaSessionService() {
                             uriToSubtitleConfiguration(
                                 uri = Uri.parse(subUrl),
                                 subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                                okHttpClient = okHttpClient,
                             )
                         }
                     } else {
@@ -1367,6 +1369,7 @@ class PlayerService : MediaSessionService() {
                             uriToSubtitleConfiguration(
                                 uri = subUri,
                                 subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                                okHttpClient = okHttpClient,
                             )
                         }
                     }
@@ -1378,6 +1381,7 @@ class PlayerService : MediaSessionService() {
                     uriToSubtitleConfiguration(
                         uri = subtitleUri,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                        okHttpClient = okHttpClient,
                     )
                 } + remoteSubConfigurations
 

@@ -11,6 +11,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import dev.anilbeesetti.nextplayer.core.common.extensions.convertToUTF8
 import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
+import okhttp3.OkHttpClient
 import java.net.URLDecoder
 import java.nio.charset.Charset
 
@@ -42,6 +43,7 @@ suspend fun Context.uriToSubtitleConfiguration(
     subtitleEncoding: String = "",
     //isSelected: Boolean = false,
     isSelected: Boolean = true,
+    okHttpClient: OkHttpClient? = null,
 ): MediaItem.SubtitleConfiguration {
     val charset = if (subtitleEncoding.isNotEmpty() && Charset.isSupported(subtitleEncoding)) {
         Charset.forName(subtitleEncoding)
@@ -52,11 +54,11 @@ suspend fun Context.uriToSubtitleConfiguration(
     val label = URLDecoder.decode(getFilenameFromUri(uri), "UTF-8")
     val mimeType = uri.getSubtitleMime()
     //val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
-    val utf8ConvertedUri = if (uri.scheme == "http" || uri.scheme == "https") {
-        uri
-    } else {
-        convertToUTF8(uri = uri, charset = charset)
-    }
+    val utf8ConvertedUri = convertToUTF8(
+        uri = uri,
+        charset = charset,
+        okHttpClient = okHttpClient,
+    )
     return MediaItem.SubtitleConfiguration.Builder(utf8ConvertedUri).apply {
         setId(uri.toString())
         setMimeType(mimeType)

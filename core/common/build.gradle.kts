@@ -33,6 +33,9 @@ dependencies {
 
     implementation(libs.github.albfernandez.juniversalchardet)
 
+    // Webdav
+    implementation(libs.okhttp)
+
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

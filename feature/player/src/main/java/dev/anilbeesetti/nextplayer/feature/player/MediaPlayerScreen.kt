@@ -892,8 +892,6 @@ fun MediaPlayerScreen(
                         mediaInfo = info,
                         onDismiss = { showMediaInfoDialog = false }
                     )
-                } ?: run {
-                    showMediaInfoDialog = false
                 }
             }
         }

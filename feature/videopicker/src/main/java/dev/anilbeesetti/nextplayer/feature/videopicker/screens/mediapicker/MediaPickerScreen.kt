@@ -561,6 +561,7 @@ internal fun MediaPickerScreen(
                                 recentlyPlayedVideo = uiState.recentlyPlayedVideo,
                                 recentlyPlayedFolder = uiState.recentlyPlayedFolder,
                                 mediaHolder = mediaHolder,
+                                modifier = Modifier.nestedScroll(nestedScrollConnection),
                                 preferences = uiState.preferences,
                                 onFolderClick = onFolderClick,
                                 onVideoClick = { onPlayVideo(it) },

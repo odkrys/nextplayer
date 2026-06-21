@@ -90,6 +90,7 @@ fun NavGraphBuilder.mediaNavGraph(
         )
 
         playlistScreen(
+            navController = navController,
             onPlaylistClick = { playlistId, _ ->
                 navController.navigateToPlaylistDetail(playlistId)
             },

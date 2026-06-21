@@ -108,7 +108,10 @@ import dev.anilbeesetti.nextplayer.feature.player.ui.SubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.ui.VerticalProgressView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsBottomView
 import dev.anilbeesetti.nextplayer.feature.player.ui.controls.ControlsTopView
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 val LocalControlsVisibilityState = compositionLocalOf<ControlsVisibilityState?> { null }
@@ -320,19 +323,48 @@ fun MediaPlayerScreen(
         }
     }
 
-    LaunchedEffect(player, player?.currentTracks) {
-        if (player is androidx.media3.session.MediaController) {
-            isDrcSupported = player.getIsDrcSupported()
+    LaunchedEffect(player) {
+        if (player !is androidx.media3.session.MediaController) return@LaunchedEffect
 
-            delay(500)
-            var channels = player.getActiveOutputChannels()
-            var attempts = 0
-            while (channels == -1 && attempts < 10) {
-                delay(200)
-                channels = player.getActiveOutputChannels()
-                attempts++
+        isDrcSupported = player.getIsDrcSupported()
+
+        var refreshJob: Job? = null
+
+        fun refreshActiveOutputChannels() {
+            refreshJob?.cancel()
+            refreshJob = launch {
+                delay(500)
+                var channels = player.getActiveOutputChannels()
+                var attempts = 0
+                while (channels == -1 && attempts < 10) {
+                    delay(200)
+                    channels = player.getActiveOutputChannels()
+                    attempts++
+                }
+                activeOutputChannels = channels
             }
-            activeOutputChannels = channels
+        }
+
+        refreshActiveOutputChannels()
+
+        val listener = object : Player.Listener {
+            override fun onEvents(eventPlayer: Player, events: Player.Events) {
+                if (events.containsAny(
+                        Player.EVENT_TRACKS_CHANGED,
+                        Player.EVENT_MEDIA_ITEM_TRANSITION
+                    )
+                ) {
+                    refreshActiveOutputChannels()
+                }
+            }
+        }
+
+        player.addListener(listener)
+
+        try {
+            awaitCancellation()
+        } finally {
+            player.removeListener(listener)
         }
     }
 

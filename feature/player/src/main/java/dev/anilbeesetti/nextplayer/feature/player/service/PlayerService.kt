@@ -1499,10 +1499,11 @@ class PlayerService : MediaSessionService() {
 
     private suspend fun resolveMediaSourceFromPlayer(): CastMediaSource? {
         val uriString = mediaSession?.player?.currentMediaItem?.mediaId ?: return null
+        val host = android.net.Uri.parse(uriString).host ?: ""
 
         return resolveMediaSource(
             uri = uriString,
-            authHeaders = webdavCredentials,
+            authHeaders = getWebdavAuth(host)?.let { mapOf(host to it) } ?: emptyMap(),
             okHttpClient = okHttpClient,
             getVideoPath = {
                 mediaRepository.getVideoByUri(it)?.path
@@ -1512,9 +1513,11 @@ class PlayerService : MediaSessionService() {
     }
 
     suspend fun resolveMediaSourceForUri(uri: String): CastMediaSource? {
+        val host = android.net.Uri.parse(uri).host ?: ""
+
         return resolveMediaSource(
             uri = uri,
-            authHeaders = webdavCredentials,
+            authHeaders = getWebdavAuth(host)?.let { mapOf(host to it) } ?: emptyMap(),
             okHttpClient = okHttpClient,
             getVideoPath = {
                 mediaRepository.getVideoByUri(it)?.path
@@ -1567,7 +1570,7 @@ class PlayerService : MediaSessionService() {
         val uri = android.net.Uri.parse(uriString)
 
         val isHttp = uri.scheme == "http" || uri.scheme == "https"
-        val isWebdavHost = uri.host?.let { webdavCredentials.containsKey(it) } == true
+        val isWebdavHost = uri.host?.let { getWebdavAuth(it) != null } == true
         val isRemote = isHttp && isWebdavHost
 
         return when (playerPreferences.resume) {

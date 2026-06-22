@@ -10,14 +10,16 @@ class AddMediumToPlaylistUseCase @Inject constructor(
         playlistId: Long,
         mediumUri: String,
         position: Int = 0,
+        size: Long = 0L,
     ) {
-        playlistRepository.addMediumToPlaylist(playlistId, mediumUri, position)
+        playlistRepository.addMediumToPlaylist(playlistId, mediumUri, position, size)
     }
 
     suspend operator fun invoke(
         playlistId: Long,
         mediumUris: List<String>,
+        sizes: List<Long> = emptyList(),
     ) {
-        playlistRepository.addMediaToPlaylist(playlistId, mediumUris)
+        playlistRepository.addMediaToPlaylist(playlistId, mediumUris, sizes)
     }
 }

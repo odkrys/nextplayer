@@ -66,7 +66,7 @@ interface PlaylistDao {
     @Query("UPDATE playlists SET last_played_uri = :uri, updated_at = :updatedAt WHERE id = :playlistId")
     suspend fun updateLastPlayedUri(playlistId: Long, uri: String, updatedAt: Long = System.currentTimeMillis())
 
-    @Query("""SELECT medium_uri, is_remote, display_name FROM playlist_medium_cross_entity WHERE playlist_id = :playlistId ORDER BY position ASC""")
+    @Query("""SELECT medium_uri, is_remote, display_name, file_size FROM playlist_medium_cross_entity WHERE playlist_id = :playlistId ORDER BY position ASC""")
     fun getOrderedEntriesForPlaylist(playlistId: Long): Flow<List<PlaylistEntry>>
 
     @Query("UPDATE playlists SET sort_option = :sortOption WHERE id = :playlistId")

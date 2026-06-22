@@ -50,7 +50,7 @@ class WebdavBrowserViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WebdavBrowserUiState())
     val uiState: StateFlow<WebdavBrowserUiState> = _uiState.asStateFlow()
 
-    private val _navigationEvent = Channel<List<String>>()
+    private val _navigationEvent = Channel<List<Pair<String, Long>>>()
     val navigationEvent = _navigationEvent.receiveAsFlow()
 
     private var fileLoadingJob: Job? = null
@@ -386,13 +386,13 @@ class WebdavBrowserViewModel @Inject constructor(
                     files = selectedFiles,
                 )
 
-                val urls = collectedFiles.map { file ->
+                val mediaPairs = collectedFiles.map { file ->
                     currentCoroutineContext().ensureActive()
-                    buildFileUrl(server, file)
+                    Pair(buildFileUrl(server, file), file.size)
                 }
 
                 currentCoroutineContext().ensureActive()
-                _navigationEvent.send(urls)
+                _navigationEvent.send(mediaPairs)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

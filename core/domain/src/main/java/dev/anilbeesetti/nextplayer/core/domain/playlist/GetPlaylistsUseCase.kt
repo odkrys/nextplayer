@@ -25,11 +25,11 @@ class GetPlaylistsUseCase @Inject constructor(
             val shouldFilter = prefs.hideExcludedMediaInPlaylists && excludedFolders.isNotEmpty()
 
             playlists.map { playlist ->
-                val filteredUris = playlist.mediaUris.filter { uri ->
-                    if (uri.startsWith("http")) {
+                val filteredMedia = playlist.media.filter { mediaItem ->
+                    if (mediaItem.uri.startsWith("http")) {
                         true
                     } else {
-                        val video = videoMap[uri]
+                        val video = videoMap[mediaItem.uri]
                         if (video == null) {
                             false
                         } else if (!shouldFilter) {
@@ -44,8 +44,8 @@ class GetPlaylistsUseCase @Inject constructor(
                     }
                 }
 
-                if (filteredUris.size != playlist.mediaUris.size) {
-                    playlist.copy(mediaUris = filteredUris)
+                if (filteredMedia.size != playlist.media.size) {
+                    playlist.copy(media = filteredMedia)
                 } else {
                     playlist
                 }

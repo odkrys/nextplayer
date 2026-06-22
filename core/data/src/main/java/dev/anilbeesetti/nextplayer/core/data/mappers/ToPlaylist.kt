@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.core.data.mappers
 import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistEntity
 import dev.anilbeesetti.nextplayer.core.database.relations.PlaylistWithMedia
 import dev.anilbeesetti.nextplayer.core.model.Playlist
+import dev.anilbeesetti.nextplayer.core.model.PlaylistMedia
 import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
 
 fun PlaylistEntity.toPlaylist() = Playlist(
@@ -23,6 +24,12 @@ fun PlaylistWithMedia.toPlaylist() = Playlist(
     createdAt = playlist.createdAt,
     updatedAt = playlist.updatedAt,
     lastPlayedUri = playlist.lastPlayedUri,
-    mediaUris = crossRefs.sortedBy { it.position }.map { it.mediumUri },
     position = playlist.position,
+    media = crossRefs.sortedBy { it.position }.map { entry ->
+        PlaylistMedia(
+            uri = entry.mediumUri,
+            displayName = entry.displayName,
+            fileSize = entry.fileSize,
+        )
+    },
 )

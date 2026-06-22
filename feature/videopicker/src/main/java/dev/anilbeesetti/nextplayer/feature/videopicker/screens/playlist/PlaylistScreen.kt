@@ -71,6 +71,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 fun PlaylistRoute(
     selectedUris: List<String> = emptyList(),
+    selectedSizes: LongArray = LongArray(0),
     viewModel: PlaylistViewModel,
     onPlaylistClick: (Long, List<String>) -> Unit,
     onBackClick: () -> Unit,
@@ -90,6 +91,7 @@ fun PlaylistRoute(
     PlaylistScreen(
         uiState = uiState,
         selectedUris = selectedUris,
+        selectedSizes = selectedSizes,
         onPlaylistClick = onPlaylistClick,
         onBackClick = onBackClick,
         onEvent = viewModel::onEvent,
@@ -101,6 +103,7 @@ fun PlaylistRoute(
 fun PlaylistScreen(
     uiState: PlaylistUiState,
     selectedUris: List<String> = emptyList(),
+    selectedSizes: LongArray = LongArray(0),
     onPlaylistClick: (Long, List<String>) -> Unit,
     onBackClick: () -> Unit,
     onEvent: (PlaylistUiEvent) -> Unit,
@@ -175,7 +178,7 @@ fun PlaylistScreen(
                             paddingValues = paddingValues,
                             onPlaylistClick = { playlistId ->
                                 if (selectedUris.isNotEmpty()) {
-                                    onEvent(PlaylistUiEvent.AddMediaToPlaylist(playlistId, selectedUris))
+                                    onEvent(PlaylistUiEvent.AddMediaToPlaylist(playlistId, selectedUris, selectedSizes.toList()))
                                 } else {
                                     onPlaylistClick(playlistId, emptyList<String>())
                                 }
@@ -380,7 +383,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                     .padding(horizontal = 6.dp)
             ) {
                 Text(
-                    text = playlist.mediaUris.size.toString(),
+                    text = playlist.media.size.toString(),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )

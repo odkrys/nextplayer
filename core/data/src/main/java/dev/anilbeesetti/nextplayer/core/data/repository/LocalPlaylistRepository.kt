@@ -7,6 +7,7 @@ import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistEntity
 import dev.anilbeesetti.nextplayer.core.database.entities.PlaylistMediumCrossEntity
 import dev.anilbeesetti.nextplayer.core.database.relations.PlaylistWithMedia
 import dev.anilbeesetti.nextplayer.core.model.Playlist
+import dev.anilbeesetti.nextplayer.core.model.PlaylistMedia
 import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +35,13 @@ class LocalPlaylistRepository @Inject constructor(
                 createdAt = playlistEntity.createdAt,
                 updatedAt = playlistEntity.updatedAt,
                 lastPlayedUri = playlistEntity.lastPlayedUri,
-                mediaUris = entries.map { it.mediumUri },
+                media = entries.map { entry ->
+                    PlaylistMedia(
+                        uri = entry.mediumUri,
+                        displayName = entry.displayName,
+                        fileSize = entry.fileSize
+                    )
+                },
                 sortOption = runCatching {
                     PlaylistSortOption.valueOf(playlistEntity.sortOption)
                 }.getOrDefault(PlaylistSortOption.ADDED_ASC),
@@ -67,7 +74,7 @@ class LocalPlaylistRepository @Inject constructor(
         playlistDao.delete(playlistId)
     }
 
-    override suspend fun addMediumToPlaylist(playlistId: Long, mediumUri: String, position: Int) {
+    override suspend fun addMediumToPlaylist(playlistId: Long, mediumUri: String, position: Int, size: Long) {
         playlistDao.addMedium(
             PlaylistMediumCrossEntity(
                 playlistId = playlistId,
@@ -76,11 +83,12 @@ class LocalPlaylistRepository @Inject constructor(
                 addedAt = System.currentTimeMillis(),
                 isRemote = mediumUri.startsWith("http"),
                 displayName = if (mediumUri.startsWith("http")) Uri.parse(mediumUri).lastPathSegment ?: "" else "",
+                fileSize = size,
             ),
         )
     }
 
-    override suspend fun addMediaToPlaylist(playlistId: Long, mediumUris: List<String>) {
+    override suspend fun addMediaToPlaylist(playlistId: Long, mediumUris: List<String>, sizes: List<Long>) {
         val currentMaxPosition = playlistDao.getMaxPosition(playlistId) ?: -1
 
         val crossRefs = mediumUris.mapIndexed { index, uri ->
@@ -98,6 +106,7 @@ class LocalPlaylistRepository @Inject constructor(
                 addedAt = System.currentTimeMillis(),
                 isRemote = isRemote,
                 displayName = displayName,
+                fileSize = sizes.getOrElse(index) { 0L },
             )
         }
         playlistDao.addMedia(crossRefs)

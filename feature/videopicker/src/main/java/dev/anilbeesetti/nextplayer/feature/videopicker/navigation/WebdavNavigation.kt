@@ -86,7 +86,9 @@ fun NavGraphBuilder.webdavNavGraph(
             viewModel = viewModel,
             onNavigateUp = { navController.navigateUp() },
             onPlayFile = onPlayFile,
-            onAddToPlaylistClick = { uris -> navController.navigateToPlaylist(uris) },
+            onAddToPlaylistClick = { uris, sizes: LongArray ->
+                navController.navigateToPlaylist(uris, sizes)
+            },
         )
     }
 }

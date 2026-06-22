@@ -69,7 +69,7 @@ fun WebdavBrowserScreen(
     viewModel: WebdavBrowserViewModel,
     onNavigateUp: () -> Unit,
     onPlayFile: (urls: List<String>, index: Int, server: WebdavServer) -> Unit,
-    onAddToPlaylistClick: (List<String>) -> Unit,
+    onAddToPlaylistClick: (List<String>, LongArray) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -172,7 +172,7 @@ private fun WebdavBrowserContent(
     snackbarHostState: SnackbarHostState,
     onNavigateUp: () -> Unit,
     onPlayFile: (urls: List<String>, index: Int, server: WebdavServer) -> Unit,
-    onAddToPlaylistClick: (List<String>) -> Unit,
+    onAddToPlaylistClick: (List<String>, LongArray) -> Unit,
     viewModel: WebdavBrowserViewModel,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -199,8 +199,12 @@ private fun WebdavBrowserContent(
     }
 
     LaunchedEffect(viewModel) {
-        viewModel.navigationEvent.collect { authUrls ->
-            onAddToPlaylistClick(authUrls)
+        viewModel.navigationEvent.collect { mediaPairs ->
+            val uris = mediaPairs.map { it.first }
+            val sizes = mediaPairs.map { it.second }.toLongArray()
+
+            onAddToPlaylistClick(uris, sizes)
+
             isSelectionMode = false
             selectedHrefs = emptySet()
         }

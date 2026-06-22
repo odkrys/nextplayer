@@ -59,7 +59,7 @@ class PlaylistViewModel @Inject constructor(
             is PlaylistUiEvent.CreatePlaylist -> createPlaylist(event.name)
             is PlaylistUiEvent.RenamePlaylist -> renamePlaylist(event.playlistId, event.name)
             is PlaylistUiEvent.DeletePlaylist -> deletePlaylist(event.playlistId)
-            is PlaylistUiEvent.AddMediaToPlaylist -> addMediaToPlaylist(event.playlistId, event.uris)
+            is PlaylistUiEvent.AddMediaToPlaylist -> addMediaToPlaylist(event.playlistId, event.uris, event.sizes)
             is PlaylistUiEvent.ReorderPlaylists -> reorderPlaylists(event.ids)
         }
     }
@@ -75,21 +75,25 @@ class PlaylistViewModel @Inject constructor(
         }
     }
 
-    private fun addMediaToPlaylist(playlistId: Long, uris: List<String>) {
+    private fun addMediaToPlaylist(playlistId: Long, uris: List<String>, sizes: List<Long>) {
         viewModelScope.launch {
             val targetPlaylist = (uiState.value.dataState as? DataState.Success)
                 ?.value
                 ?.find { it.id == playlistId }
 
-            val currentUris = targetPlaylist?.mediaUris?.toSet() ?: emptySet()
+            val currentUris = targetPlaylist?.media?.map { it.uri }?.toSet() ?: emptySet()
             val targetPlaylistName = targetPlaylist?.name ?: "playlist"
 
-            val newUris = uris.filter { uri ->
+            val safeSizes = if (sizes.isEmpty()) List(uris.size) { 0L } else sizes
+            val newItems = uris.zip(safeSizes).filter { (uri, _) ->
                 val cleanUri = Uri.parse(uri).buildUpon().fragment(null).build().toString()
                 cleanUri !in currentUris
             }
 
-            addMediumToPlaylistUseCase(playlistId, newUris)
+            val newUris = newItems.map { it.first }
+            val newSizes = newItems.map { it.second }
+
+            addMediumToPlaylistUseCase(playlistId, newUris, newSizes)
 
             val message = when {
                 newUris.isEmpty() -> "All videos already in playlist '$targetPlaylistName'"
@@ -130,6 +134,6 @@ sealed interface PlaylistUiEvent {
     data class CreatePlaylist(val name: String) : PlaylistUiEvent
     data class RenamePlaylist(val playlistId: Long, val name: String) : PlaylistUiEvent
     data class DeletePlaylist(val playlistId: Long) : PlaylistUiEvent
-    data class AddMediaToPlaylist(val playlistId: Long, val uris: List<String>) : PlaylistUiEvent
+    data class AddMediaToPlaylist(val playlistId: Long, val uris: List<String>, val sizes: List<Long> = emptyList()) : PlaylistUiEvent
     data class ReorderPlaylists(val ids: List<Long>) : PlaylistUiEvent
 }

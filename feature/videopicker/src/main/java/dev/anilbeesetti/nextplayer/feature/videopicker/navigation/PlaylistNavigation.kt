@@ -13,11 +13,16 @@ import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.Playlist
 import dev.anilbeesetti.nextplayer.feature.videopicker.screens.playlist.PlaylistViewModel
 
 const val SELECTED_URIS_ARG = "selectedUris"
+const val SELECTED_SIZES_ARG = "selectedSizes"
 const val PLAYLIST_ROUTE = "playlist"
 const val PLAYLIST_DETAIL_ROUTE = "playlist/{${PLAYLIST_ID_ARG}}"
 
-fun NavController.navigateToPlaylist(selectedUris: List<String> = emptyList()) {
+fun NavController.navigateToPlaylist(
+    selectedUris: List<String> = emptyList(),
+    selectedSizes: LongArray = LongArray(0)
+) {
     currentBackStackEntry?.savedStateHandle?.set(SELECTED_URIS_ARG, selectedUris)
+    currentBackStackEntry?.savedStateHandle?.set(SELECTED_SIZES_ARG, selectedSizes)
     navigate(PLAYLIST_ROUTE)
 }
 
@@ -38,19 +43,27 @@ fun NavGraphBuilder.playlistScreen(
         val previousEntry = navController.previousBackStackEntry
         if (previousEntry?.savedStateHandle?.contains(SELECTED_URIS_ARG) == true) {
             val uris = previousEntry.savedStateHandle.get<List<String>>(SELECTED_URIS_ARG)
+            val sizes = previousEntry.savedStateHandle.get<LongArray>(SELECTED_SIZES_ARG) ?: LongArray(0)
+
             previousEntry.savedStateHandle.remove<List<String>>(SELECTED_URIS_ARG)
+            previousEntry.savedStateHandle.remove<LongArray>(SELECTED_SIZES_ARG)
+
             backStackEntry.savedStateHandle.set(SELECTED_URIS_ARG, uris)
+            backStackEntry.savedStateHandle.set(SELECTED_SIZES_ARG, sizes)
         }
 
         val selectedUris = backStackEntry.savedStateHandle.get<List<String>>(SELECTED_URIS_ARG) ?: emptyList()
+        val selectedSizes = backStackEntry.savedStateHandle.get<LongArray>(SELECTED_SIZES_ARG) ?: LongArray(0)
 
         PlaylistRoute(
             selectedUris = selectedUris,
+            selectedSizes = selectedSizes,
             viewModel = viewModel,
             onPlaylistClick = { playlistId, uris ->
                 if (uris.isNotEmpty()) {
-                    viewModel.onEvent(PlaylistUiEvent.AddMediaToPlaylist(playlistId, uris))
+                    viewModel.onEvent(PlaylistUiEvent.AddMediaToPlaylist(playlistId, uris, selectedSizes.toList()))
                     backStackEntry.savedStateHandle.remove<List<String>>(SELECTED_URIS_ARG)
+                    backStackEntry.savedStateHandle.remove<LongArray>(SELECTED_SIZES_ARG)
                     onBackClick()
                 } else {
                     onPlaylistClick(playlistId, uris)
@@ -58,6 +71,7 @@ fun NavGraphBuilder.playlistScreen(
             },
             onBackClick = {
                 backStackEntry.savedStateHandle.remove<List<String>>(SELECTED_URIS_ARG)
+                backStackEntry.savedStateHandle.remove<LongArray>(SELECTED_SIZES_ARG)
                 onBackClick()
             },
         )

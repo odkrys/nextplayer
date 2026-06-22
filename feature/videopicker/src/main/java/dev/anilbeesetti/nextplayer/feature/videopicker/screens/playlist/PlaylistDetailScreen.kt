@@ -309,7 +309,7 @@ fun PlaylistDetailScreen(
 
                 is DataState.Success -> {
                     val playlistData = state.value
-                    if (playlistData == null || playlistData.mediaUris.isEmpty()) {
+                    if (playlistData == null || playlistData.media.isEmpty()) {
                         Text(
                             text = "Playlist is empty",
                             style = MaterialTheme.typography.bodyLarge,

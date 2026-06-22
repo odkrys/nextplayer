@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.anilbeesetti.nextplayer.core.common.Utils
 import dev.anilbeesetti.nextplayer.core.data.remote.WebdavClient
 import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PlaylistRepository
@@ -86,24 +87,26 @@ class PlaylistDetailViewModel @Inject constructor(
                 preferencesRepository.applicationPreferences
             ) { playlist, allLocalVideos, prefs ->
                 val videoMap = allLocalVideos.associateBy { it.uriString }
-                val orderedUris = playlist?.mediaUris ?: emptyList()
+                val mediaItems = playlist?.media ?: emptyList()
 
-                val orderedVideos = orderedUris.mapNotNull { uri ->
+                val orderedVideos = mediaItems.mapNotNull { mediaItem ->
+                    val uri = mediaItem.uri
                     val localVideo = videoMap[uri]
 
                     if (localVideo != null) {
                         localVideo
                     } else if (uri.startsWith("http")) {
-                        val extractedName = Uri.parse(uri).lastPathSegment ?: "Unknown"
-
                         Video(
                             id = 0L,
                             path = uri,
                             parentPath = "",
                             duration = 0L,
                             uriString = uri,
-                            nameWithExtension = extractedName,
-                            width = 0, height = 0, size = 0L,
+                            nameWithExtension = mediaItem.displayName,
+                            width = 0,
+                            height = 0,
+                            size = mediaItem.fileSize,
+                            formattedFileSize = Utils.formatFileSize(mediaItem.fileSize),
                         )
                     } else {
                         null

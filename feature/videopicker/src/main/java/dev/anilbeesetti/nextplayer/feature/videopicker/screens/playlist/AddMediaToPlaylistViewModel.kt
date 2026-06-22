@@ -38,7 +38,7 @@ class AddMediaToPlaylistViewModel @Inject constructor(
                 getSortedVideosUseCase(),
                 getPlaylistWithMediaUseCase(currentPlaylistId),
             ) { videos, playlist ->
-                val alreadyAddedUris = playlist?.mediaUris?.toSet() ?: emptySet()
+                val alreadyAddedUris = playlist?.media?.map { it.uri }?.toSet() ?: emptySet()
 
                 val allVideos = videos ?: emptyList()
 
@@ -83,9 +83,17 @@ class AddMediaToPlaylistViewModel @Inject constructor(
         if (currentPlaylistId == -1L) return
 
         viewModelScope.launch {
-            val uris = uiStateInternal.value.selectedUris.toList()
-            if (uris.isEmpty()) return@launch
-            addMediumToPlaylistUseCase(currentPlaylistId, uris)
+            val selectedUris = uiStateInternal.value.selectedUris.toList()
+            if (selectedUris.isEmpty()) return@launch
+
+            val allVideos = (uiStateInternal.value.dataState as? DataState.Success)?.value ?: emptyList()
+
+            val sizes = selectedUris.map { uri ->
+                allVideos.find { it.uriString == uri }?.size ?: 0L
+            }
+
+            addMediumToPlaylistUseCase(currentPlaylistId, selectedUris, sizes)
+
             uiStateInternal.update { it.copy(selectedUris = emptySet(), isDone = true) }
         }
     }

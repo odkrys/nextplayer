@@ -30,4 +30,7 @@ data class PlaylistMediumCrossEntity(
 
     @ColumnInfo(name = "display_name")
     val displayName: String = "",
+
+    @ColumnInfo(name = "file_size")
+    val fileSize: Long = 0L,
 )

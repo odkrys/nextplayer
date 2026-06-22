@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 10,
-    "identityHash": "d491b4fff6c7afaa0563ef25b6e35b17",
+    "identityHash": "326e4fed21d7c2e3ceea1b3045052de7",
     "entities": [
       {
         "tableName": "media_state",
@@ -238,7 +238,7 @@
       },
       {
         "tableName": "playlist_medium_cross_entity",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`playlist_id` INTEGER NOT NULL, `medium_uri` TEXT NOT NULL, `position` INTEGER NOT NULL, `added_at` INTEGER NOT NULL, `is_remote` INTEGER NOT NULL, `display_name` TEXT NOT NULL, PRIMARY KEY(`playlist_id`, `medium_uri`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`playlist_id` INTEGER NOT NULL, `medium_uri` TEXT NOT NULL, `position` INTEGER NOT NULL, `added_at` INTEGER NOT NULL, `is_remote` INTEGER NOT NULL, `display_name` TEXT NOT NULL, `file_size` INTEGER NOT NULL, PRIMARY KEY(`playlist_id`, `medium_uri`))",
         "fields": [
           {
             "fieldPath": "playlistId",
@@ -275,6 +275,12 @@
             "columnName": "display_name",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "fileSize",
+            "columnName": "file_size",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -308,7 +314,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd491b4fff6c7afaa0563ef25b6e35b17')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '326e4fed21d7c2e3ceea1b3045052de7')"
     ]
   }
 }

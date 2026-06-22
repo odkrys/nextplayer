@@ -184,16 +184,6 @@ abstract class MediaDatabase : RoomDatabase() {
 
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("DROP TABLE IF EXISTS `directories`")
-                db.execSQL("DROP TABLE IF EXISTS `media`")
-                db.execSQL("DROP TABLE IF EXISTS `audio_stream_info`")
-                db.execSQL("DROP TABLE IF EXISTS `video_stream_info`")
-                db.execSQL("DROP TABLE IF EXISTS `subtitle_stream_info`")
-            }
-        }
-
-        val MIGRATION_5_6 = object : Migration(5, 6) {
-            override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `webdav_servers` (
@@ -214,7 +204,7 @@ abstract class MediaDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATION_6_7 = object : Migration(6, 7) {
+        val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE `media_state` ADD COLUMN `duration_ms` INTEGER"
@@ -222,7 +212,7 @@ abstract class MediaDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATION_7_8 = object : Migration(7, 8) {
+        val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
@@ -252,6 +242,7 @@ abstract class MediaDatabase : RoomDatabase() {
                 `added_at` INTEGER NOT NULL,
                 PRIMARY KEY(`playlist_id`, `medium_uri`),
                 FOREIGN KEY(`playlist_id`) REFERENCES `playlists`(`id`) ON DELETE CASCADE,
+                FOREIGN KEY(`medium_uri`) REFERENCES `media`(`uri`) ON DELETE CASCADE
             )
             """.trimIndent()
                 )
@@ -272,7 +263,7 @@ abstract class MediaDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATION_8_9 = object : Migration(8, 9) {
+        val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
@@ -358,7 +349,7 @@ abstract class MediaDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATION_9_10 = object : Migration(9, 10) {
+        val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
             CREATE TABLE IF NOT EXISTS `playlist_medium_cross_entity_new` (
@@ -393,6 +384,49 @@ abstract class MediaDatabase : RoomDatabase() {
             CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_medium_uri`
             ON `playlist_medium_cross_entity` (`medium_uri`)
         """.trimIndent())
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `directories`")
+                db.execSQL("DROP TABLE IF EXISTS `media`")
+                db.execSQL("DROP TABLE IF EXISTS `audio_stream_info`")
+                db.execSQL("DROP TABLE IF EXISTS `video_stream_info`")
+                db.execSQL("DROP TABLE IF EXISTS `subtitle_stream_info`")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `playlist_medium_cross_entity_new` (
+                        `playlist_id` INTEGER NOT NULL,
+                        `medium_uri` TEXT NOT NULL,
+                        `position` INTEGER NOT NULL,
+                        `added_at` INTEGER NOT NULL,
+                        `is_remote` INTEGER NOT NULL DEFAULT 0,
+                        `display_name` TEXT NOT NULL DEFAULT '',
+                        `file_size` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`playlist_id`, `medium_uri`)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    INSERT INTO `playlist_medium_cross_entity_new`
+                    (`playlist_id`, `medium_uri`, `position`, `added_at`, `is_remote`, `display_name`, `file_size`)
+                    SELECT `playlist_id`, `medium_uri`, `position`, `added_at`, `is_remote`, `display_name`, 0
+                    FROM `playlist_medium_cross_entity`
+                """.trimIndent())
+
+                db.execSQL("DROP TABLE `playlist_medium_cross_entity`")
+                db.execSQL("ALTER TABLE `playlist_medium_cross_entity_new` RENAME TO `playlist_medium_cross_entity`")
+
+                db.execSQL("""
+                    CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_playlist_id`
+                    ON `playlist_medium_cross_entity` (`playlist_id`)
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_medium_uri`
+                    ON `playlist_medium_cross_entity` (`medium_uri`)
+                """.trimIndent())
             }
         }
     }

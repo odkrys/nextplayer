@@ -201,7 +201,7 @@ suspend fun Context.scanPaths(paths: List<String>): Boolean = suspendCoroutine {
             paths.toTypedArray(),
             arrayOf("video/*"),
         ) { path, uri ->
-            Log.d("ScanPath", "scanPaths: path=$path, uri=$uri")
+            //Log.d("ScanPath", "scanPaths: path=$path, uri=$uri")
             continuation.resumeWith(Result.success(true))
         }
     } catch (e: Exception) {

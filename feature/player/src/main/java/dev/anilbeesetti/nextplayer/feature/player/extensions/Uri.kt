@@ -11,7 +11,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import dev.anilbeesetti.nextplayer.core.common.extensions.convertToUTF8
 import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
-import okhttp3.OkHttpClient
 import java.net.URLDecoder
 import java.nio.charset.Charset
 
@@ -43,7 +42,6 @@ suspend fun Context.uriToSubtitleConfiguration(
     subtitleEncoding: String = "",
     //isSelected: Boolean = false,
     isSelected: Boolean = true,
-    okHttpClient: OkHttpClient? = null,
 ): MediaItem.SubtitleConfiguration {
     val charset = if (subtitleEncoding.isNotEmpty() && Charset.isSupported(subtitleEncoding)) {
         Charset.forName(subtitleEncoding)
@@ -53,13 +51,18 @@ suspend fun Context.uriToSubtitleConfiguration(
     //val label = getFilenameFromUri(uri)
     val label = URLDecoder.decode(getFilenameFromUri(uri), "UTF-8")
     val mimeType = uri.getSubtitleMime()
-    //val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
-    val utf8ConvertedUri = convertToUTF8(
-        uri = uri,
-        charset = charset,
-        okHttpClient = okHttpClient,
-    )
-    return MediaItem.SubtitleConfiguration.Builder(utf8ConvertedUri).apply {
+    val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
+
+    val originalScheme = uri.scheme ?: "file"
+    val proxyUriBuilder = uri.buildUpon().scheme("nextsub-$originalScheme")
+
+    if (charset != null) {
+        proxyUriBuilder.appendQueryParameter("nextsub_charset", charset.name())
+    }
+
+    val proxyUri = proxyUriBuilder.build()
+    //return MediaItem.SubtitleConfiguration.Builder(utf8ConvertedUri).apply {
+    return MediaItem.SubtitleConfiguration.Builder(proxyUri).apply {
         setId(uri.toString())
         setMimeType(mimeType)
         setLabel(label)

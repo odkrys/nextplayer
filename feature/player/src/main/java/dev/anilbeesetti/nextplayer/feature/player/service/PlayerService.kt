@@ -22,6 +22,7 @@ import androidx.media3.common.Player.DISCONTINUITY_REASON_SEEK
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -86,6 +87,7 @@ import dev.anilbeesetti.nextplayer.feature.player.extensions.subtitleTrackIndex
 import dev.anilbeesetti.nextplayer.feature.player.extensions.switchTrack
 import dev.anilbeesetti.nextplayer.feature.player.extensions.uriToSubtitleConfiguration
 import dev.anilbeesetti.nextplayer.feature.player.extensions.videoZoom
+import dev.anilbeesetti.nextplayer.feature.player.datasource.SubtitleDataSource
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
@@ -683,7 +685,6 @@ class PlayerService : MediaSessionService() {
                     val newSubConfiguration = uriToSubtitleConfiguration(
                         uri = subtitleUri,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                        okHttpClient = okHttpClient,
                     )
                     mediaSession?.player?.let { player ->
                         val currentMediaItem = player.currentMediaItem ?: return@let
@@ -1159,10 +1160,14 @@ class PlayerService : MediaSessionService() {
             DefaultDataSource.Factory(applicationContext, okHttpDataSourceFactory)
         }
 
+        val subtitleInterceptingFactory = DataSource.Factory {
+            SubtitleDataSource(applicationContext, defaultDataSourceFactory.createDataSource(), okHttpClient)
+        }
+
         val player = ExoPlayer.Builder(applicationContext)
             .setRenderersFactory(renderersFactory)
             .setTrackSelector(trackSelector)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(applicationContext).setDataSourceFactory(defaultDataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(applicationContext).setDataSourceFactory(subtitleInterceptingFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -1359,7 +1364,6 @@ class PlayerService : MediaSessionService() {
                             uriToSubtitleConfiguration(
                                 uri = Uri.parse(subUrl),
                                 subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                                okHttpClient = okHttpClient,
                             )
                         }
                     } else {
@@ -1369,7 +1373,6 @@ class PlayerService : MediaSessionService() {
                             uriToSubtitleConfiguration(
                                 uri = subUri,
                                 subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                                okHttpClient = okHttpClient,
                             )
                         }
                     }
@@ -1381,7 +1384,6 @@ class PlayerService : MediaSessionService() {
                     uriToSubtitleConfiguration(
                         uri = subtitleUri,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                        okHttpClient = okHttpClient,
                     )
                 } + remoteSubConfigurations
 

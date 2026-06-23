@@ -168,6 +168,10 @@ fun MediaView(
                     },
                 )
             }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Spacer(modifier = Modifier.size(48.dp))
+            }
         }
     }
 }

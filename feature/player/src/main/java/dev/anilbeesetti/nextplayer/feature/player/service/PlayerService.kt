@@ -168,6 +168,8 @@ class PlayerService : MediaSessionService() {
     private var sleepTimerJob: Job? = null
     private var pauseAtEndOnce: Boolean = false
 
+    private var dlnaCastUpdateJob: Job? = null
+
     private val playbackStateListener = object : Player.Listener {
         override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
             super.onTimelineChanged(timeline, reason)
@@ -293,6 +295,14 @@ class PlayerService : MediaSessionService() {
                     mediaSession?.player?.switchTrack(C.TRACK_TYPE_TEXT, subtitleTrackIndex)
                 } else {
                     applySubtitleFallback(tracks)
+                }
+            }
+
+            if (DlnaManager.currentDevice != null) {
+                dlnaCastUpdateJob?.cancel()
+                dlnaCastUpdateJob = serviceScope.launch {
+                    delay(400)
+                    updateCastingToCurrentItem(applicationContext)
                 }
             }
         }
@@ -1252,6 +1262,8 @@ class PlayerService : MediaSessionService() {
         super.onDestroy()
         sleepTimerJob?.cancel()
         sleepTimerJob = null
+        dlnaCastUpdateJob?.cancel()
+        dlnaCastUpdateJob = null
         instance = null
         stopAbRepeatLoop()
         artworkLoadJob?.cancel()
@@ -1504,10 +1516,14 @@ class PlayerService : MediaSessionService() {
         .build()
 
     private suspend fun resolveMediaSourceFromPlayer(): CastMediaSource? {
+        val player = mediaSession?.player ?: return null
         val uriString = mediaSession?.player?.currentMediaItem?.mediaId ?: return null
         val host = android.net.Uri.parse(uriString).host ?: ""
 
-        return resolveMediaSource(
+        val activeSubtitleUri = getPlayerActiveSubtitleUri(player)
+        val cachedSubFile = prepareDlnaSubtitle(applicationContext, activeSubtitleUri, uriString)
+
+        val baseSource = resolveMediaSource(
             uri = uriString,
             authHeaders = getWebdavAuth(host)?.let { mapOf(host to it) } ?: emptyMap(),
             okHttpClient = okHttpClient,
@@ -1515,13 +1531,29 @@ class PlayerService : MediaSessionService() {
                 mediaRepository.getVideoByUri(it)?.path
                     ?: applicationContext.getPath(it.toUri())
             }
-        )
+        ) ?: return null
+
+        return when (baseSource) {
+            is CastMediaSource.LocalFile -> baseSource.copy(subtitleFile = cachedSubFile)
+            is CastMediaSource.RemoteUrl -> baseSource.copy(subtitleFile = cachedSubFile)
+        }
     }
 
     suspend fun resolveMediaSourceForUri(uri: String): CastMediaSource? {
+        val player = mediaSession?.player
         val host = android.net.Uri.parse(uri).host ?: ""
+        val currentPlayingId = player?.currentMediaItem?.mediaId
+        val isCurrentPlaying = currentPlayingId == uri
 
-        return resolveMediaSource(
+        val activeSubtitleUri = if (currentPlayingId == uri) {
+            getPlayerActiveSubtitleUri(player)
+        } else {
+            mediaRepository.getVideoState(uri)?.externalSubs?.firstOrNull()
+        }
+
+        val cachedSubFile = prepareDlnaSubtitle(applicationContext, activeSubtitleUri, uri)
+
+        val baseSource = resolveMediaSource(
             uri = uri,
             authHeaders = getWebdavAuth(host)?.let { mapOf(host to it) } ?: emptyMap(),
             okHttpClient = okHttpClient,
@@ -1529,7 +1561,44 @@ class PlayerService : MediaSessionService() {
                 mediaRepository.getVideoByUri(it)?.path
                     ?: applicationContext.getPath(it.toUri())
             }
-        )
+        ) ?: return null
+
+        val finalSubFile = if (isCurrentPlaying) {
+            cachedSubFile
+        } else {
+            cachedSubFile ?: baseSource.subtitleFile
+        }
+
+        return when (baseSource) {
+            is CastMediaSource.LocalFile -> baseSource.copy(subtitleFile = finalSubFile)
+            is CastMediaSource.RemoteUrl -> baseSource.copy(subtitleFile = finalSubFile)
+        }
+    }
+
+    private fun getPlayerActiveSubtitleUri(player: Player): Uri? {
+        val currentTracks = player.currentTracks
+        val selectedGroup = currentTracks.groups
+            .firstOrNull { it.type == C.TRACK_TYPE_TEXT && it.isSelected } ?: return null
+        val selectedIndex = (0 until selectedGroup.length)
+            .firstOrNull { selectedGroup.isTrackSelected(it) } ?: 0
+
+        val format = selectedGroup.getTrackFormat(selectedIndex)
+        val trackId = format.id
+
+        if (trackId.isNullOrBlank()) return null
+
+        val cleanTrackId = trackId.replaceFirst(Regex("^\\d+:"), "")
+
+        if (cleanTrackId.startsWith("http", ignoreCase = true) ||
+            cleanTrackId.startsWith("file", ignoreCase = true) ||
+            cleanTrackId.startsWith("content", ignoreCase = true) ||
+            cleanTrackId.startsWith("/")) {
+
+            val uri = Uri.parse(cleanTrackId)
+            return uri
+        }
+
+        return null
     }
 
     private suspend fun updateCastingToCurrentItem(context: Context) {
@@ -1545,12 +1614,11 @@ class PlayerService : MediaSessionService() {
         player.seekToNext()
         player.pause()
 
-        serviceScope.launch {
-            delay(100)
-            if (DlnaManager.currentDevice != null) {
+        if (DlnaManager.currentDevice != null) {
+            serviceScope.launch {
+                delay(100)
                 DlnaManager.ensureCastingLocks(context)
             }
-            updateCastingToCurrentItem(context)
         }
     }
 
@@ -1561,9 +1629,11 @@ class PlayerService : MediaSessionService() {
         player.seekToPrevious()
         player.pause()
 
-        serviceScope.launch {
-            delay(100)
-            updateCastingToCurrentItem(context)
+        if (DlnaManager.currentDevice != null) {
+            serviceScope.launch {
+                delay(100)
+                DlnaManager.ensureCastingLocks(context)
+            }
         }
     }
 

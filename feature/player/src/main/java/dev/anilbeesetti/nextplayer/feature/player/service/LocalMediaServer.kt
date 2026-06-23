@@ -28,7 +28,9 @@ class LocalMediaServer(
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri
-        if (uri == "/subtitle") return serveSubtitle(session)
+        if (uri.startsWith("/subtitle") || uri.endsWith(".srt", ignoreCase = true) || uri.endsWith(".vtt", ignoreCase = true)) {
+            return serveSubtitle(session)
+        }
 
         val method = session.method
         val rangeHeader = session.headers["range"]
@@ -196,6 +198,25 @@ class LocalMediaServer(
     }
 
     private fun serveSubtitle(session: IHTTPSession): Response {
+        val sub = subtitleFile
+
+        if (sub != null && sub.exists()) {
+            val baseMime = when (sub.extension.lowercase()) {
+                "srt" -> "text/srt"
+                "vtt" -> "text/vtt"
+                "ass", "ssa" -> "text/x-ssa"
+                else -> "text/plain"
+            }
+            val mimeType = "$baseMime; charset=utf-8"
+
+            return newFixedLengthResponse(
+                Response.Status.OK, mimeType, FileInputStream(sub), sub.length()
+            ).apply {
+                addHeader("Accept-Ranges", "bytes")
+                addHeader("Access-Control-Allow-Origin", "*")
+            }
+        }
+
         val remoteSource = source as? CastMediaSource.RemoteUrl
         val remoteSubUrl = remoteSource?.subtitleUrl
 
@@ -231,24 +252,7 @@ class LocalMediaServer(
             }
         }
 
-        val sub = subtitleFile
-        if (sub == null || !sub.exists()) {
-            return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Subtitle not found")
-        }
-
-        val mimeType = when (sub.extension.lowercase()) {
-            "srt" -> "text/srt"
-            "vtt" -> "text/vtt"
-            "ass", "ssa" -> "text/x-ssa"
-            else -> "text/plain"
-        }
-
-        return newFixedLengthResponse(
-            Response.Status.OK, mimeType, FileInputStream(sub), sub.length()
-        ).apply {
-            addHeader("Accept-Ranges", "bytes")
-            addHeader("Access-Control-Allow-Origin", "*")
-        }
+        return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Subtitle not found")
     }
 
     private fun parseRange(rangeHeader: String, fileLength: Long): HttpRange? {

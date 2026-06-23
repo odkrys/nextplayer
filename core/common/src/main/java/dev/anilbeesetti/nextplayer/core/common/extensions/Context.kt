@@ -32,6 +32,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.mozilla.universalchardet.UniversalDetector
+import java.net.URLDecoder
 import kotlin.system.exitProcess
 
 val VIDEO_COLLECTION_URI: Uri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
@@ -266,14 +267,18 @@ suspend fun Context.convertToUTF8(
     okHttpClient: OkHttpClient? = null,
 ): Uri = withContext(Dispatchers.IO) {
     try {
+        val filePrefix = uri.toString().hashCode()
+
         when {
             uri.scheme?.let { it in listOf("http", "https") } == true -> {
                 val client = okHttpClient ?: OkHttpClient()
-                val fileName = uri.lastPathSegment?.substringAfterLast('/') ?: "subtitle.srt"
+                val rawName = uri.lastPathSegment?.substringAfterLast('/') ?: "subtitle.srt"
+                val decodedName = runCatching { java.net.URLDecoder.decode(rawName, "UTF-8") }.getOrDefault(rawName)
+
+                val fileName = "${filePrefix}_$decodedName"
                 val cacheFile = File(subtitleCacheDir, fileName)
 
                 val bytes = fetchBytesOkHttp(uri, client) ?: return@withContext uri
-
                 val detectedCharset = charset ?: detectCharsetFromBytes(bytes)
 
                 if (detectedCharset == StandardCharsets.UTF_8) {
@@ -282,7 +287,6 @@ suspend fun Context.convertToUTF8(
                     val content = bytes.toString(detectedCharset)
                     cacheFile.writeText(content, StandardCharsets.UTF_8)
                 }
-
                 Uri.fromFile(cacheFile)
             }
 
@@ -292,8 +296,11 @@ suspend fun Context.convertToUTF8(
                 val detectedCharset = charset ?: detectCharsetFromBytes(bytes)
                 if (detectedCharset == StandardCharsets.UTF_8) return@withContext uri
 
-                val fileName = url.path.substringAfterLast('/')
+                val rawName = url.path.substringAfterLast('/')
+                val decodedName = runCatching { java.net.URLDecoder.decode(rawName, "UTF-8") }.getOrDefault(rawName)
+                val fileName = "${filePrefix}_$decodedName"
                 val file = File(subtitleCacheDir, fileName)
+
                 file.writeText(bytes.toString(detectedCharset), StandardCharsets.UTF_8)
                 Uri.fromFile(file)
             }
@@ -304,8 +311,11 @@ suspend fun Context.convertToUTF8(
                 val detectedCharset = charset ?: detectCharsetFromBytes(bytes)
                 if (detectedCharset == StandardCharsets.UTF_8) return@withContext uri
 
-                val fileName = getFilenameFromUri(uri)
+                val rawName = getFilenameFromUri(uri)
+                val decodedName = runCatching { java.net.URLDecoder.decode(rawName, "UTF-8") }.getOrDefault(rawName)
+                val fileName = "${filePrefix}_$decodedName"
                 val file = File(subtitleCacheDir, fileName)
+
                 file.writeText(bytes.toString(detectedCharset), StandardCharsets.UTF_8)
                 Uri.fromFile(file)
             }

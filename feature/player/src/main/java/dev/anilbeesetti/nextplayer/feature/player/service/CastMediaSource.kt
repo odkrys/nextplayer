@@ -1,9 +1,15 @@
 package dev.anilbeesetti.nextplayer.feature.player.service
 
+import android.content.Context
 import android.net.Uri
+import dev.anilbeesetti.nextplayer.core.common.extensions.getFilenameFromUri
+import dev.anilbeesetti.nextplayer.core.common.extensions.subtitleCacheDir
 import dev.anilbeesetti.nextplayer.feature.player.extensions.buildSubtitleUrisFromStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.io.File
+import java.net.URLDecoder
 
 sealed class CastMediaSource {
     abstract val subtitleFile: File?
@@ -57,8 +63,13 @@ fun CastMediaSource.toMimeType(): String {
 }
 
 fun CastMediaSource.toSubtitleUrl(ip: String, port: Int): String? = when {
-    subtitleFile != null -> "http://$ip:$port/subtitle"
-    subtitleUrl != null -> "http://$ip:$port/subtitle"
+    subtitleFile != null -> {
+        "http://$ip:$port/subtitle/${Uri.encode(subtitleFile!!.name)}"
+    }
+    subtitleUrl != null -> {
+        val ext = subtitleUrl!!.substringAfterLast(".", "srt").takeIf { it.length <= 4 } ?: "srt"
+        "http://$ip:$port/subtitle.$ext"
+    }
     else -> null
 }
 
@@ -101,4 +112,77 @@ private fun extractSubtitleUrlFromFragment(uri: Uri): String? {
     }.toMap()
 
     return priority.firstNotNullOfOrNull { ext -> subMap[ext] }
+}
+
+suspend fun prepareDlnaSubtitle(context: Context, subtitleUri: Uri?, videoUriString: String?): File? = withContext(Dispatchers.IO) {
+    if (subtitleUri == null) return@withContext null
+
+    val scheme = subtitleUri.scheme?.lowercase()
+
+    val decodedName = when (scheme) {
+        "http", "https" -> subtitleUri.lastPathSegment ?: "subtitle.srt"
+        "ftp" -> java.net.URL(subtitleUri.toString()).path.substringAfterLast('/')
+        else -> context.getFilenameFromUri(subtitleUri)
+    }
+
+    val pureFileName = runCatching {
+        if (decodedName.contains("%")) {
+            URLDecoder.decode(decodedName, "UTF-8")
+        } else {
+            decodedName
+        }
+    }.getOrDefault(decodedName)
+
+    if (pureFileName.isBlank()) return@withContext null
+
+    val videoHash = videoUriString?.hashCode() ?: 0
+    val subtitleHash = subtitleUri.toString().hashCode()
+
+    val dlnaCacheFile = File(context.subtitleCacheDir, "cast_${videoHash}_${subtitleHash}_$pureFileName")
+    val convertedCacheFile = File(context.subtitleCacheDir, "${subtitleHash}_$pureFileName")
+
+    var sourceFile: File? = null
+    var isConvertedUtf8 = false
+
+    if (convertedCacheFile.exists()) {
+        sourceFile = convertedCacheFile
+        isConvertedUtf8 = true
+    } else if (scheme == "file") {
+        val originalFile = File(subtitleUri.path ?: "")
+        if (originalFile.exists()) {
+            sourceFile = originalFile
+            isConvertedUtf8 = false
+        }
+    }
+
+    return@withContext try {
+        val utf8Bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
+
+        when {
+            sourceFile != null -> {
+                sourceFile.inputStream().use { inputStream ->
+                    dlnaCacheFile.outputStream().use { outputStream ->
+                        if (isConvertedUtf8) {
+                            outputStream.write(utf8Bom)
+                        }
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                dlnaCacheFile
+            }
+
+            scheme == "content" -> {
+                context.contentResolver.openInputStream(subtitleUri)?.use { inputStream ->
+                    dlnaCacheFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                dlnaCacheFile
+            }
+
+            else -> null
+        }
+    } catch (e: Exception) {
+        null
+    }
 }

@@ -975,15 +975,28 @@ fun MediaPlayerScreen(
             },
         )
     }
-
+/*
     BackHandler {
         if (overlayView != null) {
             overlayView = null
         } else {
-            if (dlnaPlaybackState.isActive) {
+            onBackClick()
+        }
+    }
+*/
+    BackHandler {
+        when {
+            overlayView != null -> {
+                overlayView = null
+            }
+
+            isCastingActiveRef.value -> {
                 viewModel.stopCasting(context)
             }
-            onBackClick()
+
+            else -> {
+                onBackClick()
+            }
         }
     }
 }

@@ -44,6 +44,7 @@ enum class StopReason { NONE, DEVICE_UNREACHABLE }
 data class DlnaPlaybackState(
     val isActive: Boolean = false,
     val mediaId: String = "",
+    val dbUri: String = "",
     val transportState: DlnaTransportState = DlnaTransportState.UNKNOWN,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
@@ -77,6 +78,9 @@ object DlnaManager {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
+
+    @Volatile private var pendingSeekMs: Long = 0L
+    @Volatile private var lastSeekCommandTime: Long = 0L
 
     data class DlnaDevice(
         val name: String,
@@ -264,9 +268,9 @@ object DlnaManager {
         }
     }
 
-    private fun startPolling(device: DlnaDevice, initialPath: String) {
+    private fun startPolling(device: DlnaDevice, initialPath: String, dbUri: String) {
         pollingJob?.cancel()
-        _playbackState.value = DlnaPlaybackState(isActive = true, currentDevice = device, mediaId = initialPath)
+        _playbackState.value = DlnaPlaybackState(isActive = true, currentDevice = device, mediaId = initialPath, dbUri = dbUri)
 
         pollingJob = scope.launch {
             var errorCount = 0
@@ -292,10 +296,31 @@ object DlnaManager {
                     var duration = _playbackState.value.durationMs
 
                     if (transportState == DlnaTransportState.PLAYING) {
-                        pollPositionInfo(device)?.let { (pos, dur) ->
-                            position = pos
-                            duration = dur
+                        if (pendingSeekMs > 0L) {
+                            val targetMs = pendingSeekMs
+
+                            pendingSeekMs = 0L
+
+                            seekTo(device, targetMs)
+
+                            delay(1000)
+                            val actualPos = pollPositionInfo(device)?.first ?: 0L
+                            if (actualPos < targetMs - 3000) {
+                                pendingSeekMs = targetMs
+                            }
+
+                            continue
                         }
+
+                        val isRecentlySeeked = (System.currentTimeMillis() - lastSeekCommandTime) < 3000L
+
+                        if (!isRecentlySeeked) {
+                            pollPositionInfo(device)?.let { (pos, dur) ->
+                                position = pos
+                                duration = dur
+                            }
+                        }
+
                         _playbackState.update {
                             it.copy(
                                 transportState = transportState,
@@ -341,6 +366,8 @@ object DlnaManager {
         source: CastMediaSource,
         device: DlnaDevice,
         okHttpClient: OkHttpClient,
+        startPositionMs: Long = 0L,
+        dbUri: String,
         onSuccess: () -> Unit,
         onError: (String) -> Unit,
     ) {
@@ -380,7 +407,8 @@ object DlnaManager {
         if (success) {
             currentDevice = device
             currentCastingPath = mediaId
-            startPolling(device, mediaId)
+            pendingSeekMs = startPositionMs
+            startPolling(device, mediaId, dbUri)
             onSuccess()
         } else {
             onError("Failed to cast to device")
@@ -391,6 +419,8 @@ object DlnaManager {
         context: Context,
         source: CastMediaSource,
         device: DlnaDevice,
+        startPositionMs: Long = 0L,
+        dbUri: String,
     ) = withContext(Dispatchers.IO) {
         val mediaId = source.toMediaId()
 
@@ -403,11 +433,13 @@ object DlnaManager {
                 transportState = DlnaTransportState.TRANSITIONING,
                 mediaId = mediaId,
                 isManualTransition = true,
+                dbUri = dbUri,
             )
         }
 
         currentCastingPath = mediaId
         server?.updateSource(source)
+        pendingSeekMs = startPositionMs
 
         val ip = getLocalIp(context) ?: return@withContext
         sendDlnaPlay(
@@ -419,7 +451,10 @@ object DlnaManager {
         )
     }
 
-    suspend fun stopCasting(context: Context) = withContext(Dispatchers.IO) {
+    suspend fun stopCasting(context: Context): Pair<Long, String> = withContext(Dispatchers.IO) {
+        val lastPosition = _playbackState.value.positionMs
+        val lastDbUri = _playbackState.value.dbUri
+
         currentDevice?.let { device ->
             try {
                 val avTransportUrl = getAvTransportUrl(device.location)
@@ -437,6 +472,8 @@ object DlnaManager {
             }
         }
         stopCastingInternal()
+
+        return@withContext Pair(lastPosition, lastDbUri)
     }
 
     private suspend fun getAvTransportUrl(locationUrl: String): String? = withContext(Dispatchers.IO) {
@@ -724,6 +761,9 @@ object DlnaManager {
   </s:Body>
 </s:Envelope>"""
             soapPost(avTransportUrl, "urn:schemas-upnp-org:service:AVTransport:1#Seek", body)
+
+            lastSeekCommandTime = System.currentTimeMillis()
+            _playbackState.update { it.copy(positionMs = positionMs) }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to seek: ${e.message}")
         }

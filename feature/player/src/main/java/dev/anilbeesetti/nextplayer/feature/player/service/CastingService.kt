@@ -60,6 +60,12 @@ class CastingService : Service() {
         when (intent?.action) {
             ACTION_START -> {}
             ACTION_STOP -> {
+                val lastPosition = DlnaManager.playbackState.value.positionMs
+
+                if (lastPosition > 0L) {
+                    PlayerService.instance?.seekToAndSave(lastPosition)
+                }
+
                 serviceScope.launch {
                     DlnaManager.stopCasting(this@CastingService)
                     stopSelf()

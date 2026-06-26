@@ -169,6 +169,10 @@ class PlayerService : MediaSessionService() {
     private var pauseAtEndOnce: Boolean = false
 
     private var dlnaCastUpdateJob: Job? = null
+    private var dlnaPendingResumeMs: Long = 0L
+
+    val currentPosition: Long
+        get() = mediaSession?.player?.currentPosition ?: 0L
 
     private val playbackStateListener = object : Player.Listener {
         override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
@@ -211,9 +215,12 @@ class PlayerService : MediaSessionService() {
                 //    mediaSession?.player?.seekTo(it)
                 //}
                 val resumePosition = metadata.positionMs?.takeIf { shouldResume(mediaItem?.mediaId) }
+
                 if (resumePosition != null && resumePosition > 0L) {
                     mediaSession?.player?.seekTo(resumePosition)
+                    dlnaPendingResumeMs = resumePosition
                 } else {
+                    dlnaPendingResumeMs = 0L
                     if (playerPreferences.enableSkipIntro) {
                         pendingSkipIntroMs = playerPreferences.skipIntroTime * 1000L
                     }
@@ -251,6 +258,8 @@ class PlayerService : MediaSessionService() {
                         oldMediaItem.copy(positionMs = updatedPosition),
                     )
                     serviceScope.launch {
+                        if (DlnaManager.playbackState.value.isActive) return@launch
+
                         mediaRepository.updateMediumPosition(
                             uri = oldMediaItem.mediaId,
                             position = updatedPosition,
@@ -260,6 +269,8 @@ class PlayerService : MediaSessionService() {
 
                 DISCONTINUITY_REASON_REMOVE -> {
                     serviceScope.launch {
+                        if (DlnaManager.playbackState.value.isActive) return@launch
+
                         val durationMs = oldMediaItem.mediaMetadata.durationMs
                         val isAtEnd = durationMs != null && oldPosition.positionMs >= durationMs - 1000
                         mediaRepository.updateMediumPosition(
@@ -299,10 +310,13 @@ class PlayerService : MediaSessionService() {
             }
 
             if (DlnaManager.currentDevice != null) {
-                dlnaCastUpdateJob?.cancel()
-                dlnaCastUpdateJob = serviceScope.launch {
-                    delay(400)
-                    updateCastingToCurrentItem(applicationContext)
+                val uri = mediaSession?.player?.currentMediaItem?.mediaId
+                if (uri != null) {
+                    dlnaCastUpdateJob?.cancel()
+                    dlnaCastUpdateJob = serviceScope.launch {
+                        delay(400)
+                        updateCastingToCurrentItem(uri, applicationContext)
+                    }
                 }
             }
         }
@@ -410,10 +424,12 @@ class PlayerService : MediaSessionService() {
                             lastPlayedTime = System.currentTimeMillis(),
                         )
 
-                        mediaRepository.updateMediumPosition(
-                            uri = mediaId,
-                            position = player.currentPosition,
-                        )
+                        if (!DlnaManager.playbackState.value.isActive) {
+                            mediaRepository.updateMediumPosition(
+                                uri = mediaId,
+                                position = player.currentPosition,
+                            )
+                        }
 
                         if (isRemote && duration > 0 && duration != C.TIME_UNSET) {
                             mediaRepository.updateMediumDuration(
@@ -515,10 +531,12 @@ class PlayerService : MediaSessionService() {
 
                 serviceScope.launch {
                     try {
-                        mediaRepository.updateMediumPosition(
-                            uri = player.currentMediaItem?.mediaId ?: return@launch,
-                            position = player.currentPosition,
-                        )
+                        if (!DlnaManager.playbackState.value.isActive) {
+                            mediaRepository.updateMediumPosition(
+                                uri = mediaId,
+                                position = player.currentPosition,
+                            )
+                        }
 
                         if (isRemote && duration > 0 && duration != C.TIME_UNSET) {
                             mediaRepository.updateMediumDuration(
@@ -979,6 +997,8 @@ class PlayerService : MediaSessionService() {
                 CustomCommands.STOP_PLAYER_SESSION -> {
                     mediaSession?.run {
                         serviceScope.launch {
+                            if (DlnaManager.playbackState.value.isActive) return@launch
+
                             mediaRepository.updateMediumPosition(
                                 uri = player.currentMediaItem?.mediaId ?: return@launch,
                                 position = player.currentPosition,
@@ -1050,6 +1070,49 @@ class PlayerService : MediaSessionService() {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+
+        serviceScope.launch(Dispatchers.IO) {
+            var lastSavedPosition = 0L
+            var lastSavedMediaId: String? = null
+
+            DlnaManager.playbackState.collect { state ->
+                val currentMediaId = state.dbUri
+
+                if (state.isActive && state.positionMs > 0L && currentMediaId.isNotBlank()) {
+                    if (currentMediaId != lastSavedMediaId) {
+                        if (lastSavedMediaId != null && lastSavedPosition > 0L) {
+                            try {
+                                mediaRepository.updateMediumPosition(uri = lastSavedMediaId!!, position = lastSavedPosition)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+
+                        lastSavedPosition = 0L
+                        lastSavedMediaId = currentMediaId
+                    }
+
+                    if (kotlin.math.abs(state.positionMs - lastSavedPosition) >= 5000L) {
+                        try {
+                            mediaRepository.updateMediumPosition(uri = currentMediaId, position = state.positionMs)
+                            lastSavedPosition = state.positionMs
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                } else if (!state.isActive) {
+                    if (lastSavedMediaId != null && lastSavedPosition > 0L) {
+                        try {
+                            mediaRepository.updateMediumPosition(uri = lastSavedMediaId!!, position = lastSavedPosition)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    lastSavedPosition = 0L
+                    lastSavedMediaId = null
+                }
             }
         }
 /*
@@ -1271,6 +1334,9 @@ class PlayerService : MediaSessionService() {
         loudnessEnhancer = null
         dynamicRangeCompressor?.release()
         dynamicRangeCompressor = null
+
+        val isDlnaActive = DlnaManager.playbackState.value.isActive
+
         mediaSession?.run {
             player.clearMediaItems()
             player.stop()
@@ -1282,7 +1348,10 @@ class PlayerService : MediaSessionService() {
         //subtitleCacheDir.deleteFiles()
         //serviceScope.cancel()
         serviceScope.launch {
-            DlnaManager.stopCasting(applicationContext)
+            val (lastPosition, lastDbUri) = DlnaManager.stopCasting(applicationContext)
+            if (isDlnaActive && lastPosition > 0L && lastDbUri.isNotBlank()) {
+                mediaRepository.updateMediumPosition(uri = lastDbUri, position = lastPosition)
+            }
         }.invokeOnCompletion {
             DlnaManager.release()
             subtitleCacheDir.deleteFiles()
@@ -1601,10 +1670,13 @@ class PlayerService : MediaSessionService() {
         return null
     }
 
-    private suspend fun updateCastingToCurrentItem(context: Context) {
+    private suspend fun updateCastingToCurrentItem(uri: String, context: Context) {
         val device = DlnaManager.currentDevice ?: return
         val source = resolveMediaSourceFromPlayer() ?: return
-        DlnaManager.updateCastingSource(context, source, device)
+
+        val resumePosition  = dlnaPendingResumeMs
+
+        DlnaManager.updateCastingSource(context, source, device, startPositionMs = resumePosition, dbUri = uri)
     }
 
     fun playNext(context: Context) {
@@ -1639,6 +1711,21 @@ class PlayerService : MediaSessionService() {
 
     fun hasNext(): Boolean {
         return mediaSession?.player?.hasNextMediaItem() ?: false
+    }
+
+    fun seekToAndSave(positionMs: Long) {
+        serviceScope.launch {
+            val mediaId = mediaSession?.player?.currentMediaItem?.mediaId ?: run {
+                return@launch
+            }
+
+            mediaRepository.updateMediumPosition(
+                uri = mediaId,
+                position = positionMs,
+            )
+
+            mediaSession?.player?.seekTo(positionMs)
+        }
     }
 
     private fun shouldResume(mediaId: String?): Boolean {

@@ -289,12 +289,15 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val service = PlayerService.instance ?: return@launch
             val source = service.resolveMediaSourceForUri(uri) ?: return@launch
+            val currentPosition = service.currentPosition
 
             DlnaManager.startCasting(
                 context = context,
                 source = source,
                 device = device,
                 okHttpClient = service.okHttpClient,
+                startPositionMs = currentPosition,
+                dbUri = uri,
                 onSuccess = { Log.d("DLNA", "Started casting to ${device.name}") },
                 onError = { Log.e("DLNA", it) }
             )
@@ -318,7 +321,8 @@ class PlayerViewModel @Inject constructor(
 
             if (mediaId == DlnaManager.currentCastingPath) return@launch
 
-            DlnaManager.updateCastingSource(context, source, device)
+            val currentPosition = service.currentPosition
+            DlnaManager.updateCastingSource(context, source, device, startPositionMs = currentPosition, dbUri = uri)
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
+import dev.anilbeesetti.nextplayer.core.model.WebdavThumbnailMode
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,7 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         when (event) {
             MediaLibraryPreferencesUiEvent.ToggleMarkLastPlayedMedia -> toggleMarkLastPlayedMedia()
             MediaLibraryPreferencesUiEvent.ToggleHideExcludedMediaInPlaylists -> toggleHideExcludedMediaInPlaylists()
+            is MediaLibraryPreferencesUiEvent.UpdateWebdavThumbnailMode -> updateWebdavThumbnailMode(event.mode)
             is MediaLibraryPreferencesUiEvent.UpdateMediaCacheSize -> updateMediaCacheSize(event.sizeMb)
         }
     }
@@ -54,6 +56,14 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun updateWebdavThumbnailMode(mode: WebdavThumbnailMode) {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(webdavThumbnailMode = mode)
+            }
+        }
+    }
+
     private fun updateMediaCacheSize(sizeMb: Int) {
         viewModelScope.launch {
             preferencesRepository.updateApplicationPreferences {
@@ -70,5 +80,6 @@ data class MediaLibraryPreferencesUiState(
 sealed interface MediaLibraryPreferencesUiEvent {
     data object ToggleMarkLastPlayedMedia : MediaLibraryPreferencesUiEvent
     data object ToggleHideExcludedMediaInPlaylists : MediaLibraryPreferencesUiEvent
+    data class UpdateWebdavThumbnailMode(val mode: WebdavThumbnailMode) : MediaLibraryPreferencesUiEvent
     data class UpdateMediaCacheSize(val sizeMb: Int) : MediaLibraryPreferencesUiEvent
 }

@@ -43,6 +43,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.anilbeesetti.nextplayer.core.common.extensions.restartApplication
 import dev.anilbeesetti.nextplayer.core.model.ThumbnailGenerationStrategy
+import dev.anilbeesetti.nextplayer.core.model.WebdavThumbnailMode
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
@@ -84,6 +85,7 @@ private fun MediaLibraryPreferencesContent(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    var showWebdavThumbnailDialog by remember { mutableStateOf(false) }
     var showCacheDialog by remember { mutableStateOf(false) }
     var showRestartDialog by remember { mutableStateOf(false) }
     val currentCacheSize = preferences.diskCacheSizeMb
@@ -183,6 +185,19 @@ private fun MediaLibraryPreferencesContent(
                     icon = NextIcons.Image,
                     onClick = onThumbnailSettingClick,
                     isFirstItem = true,
+                    //isLastItem = true,
+                    isLastItem = false,
+                )
+                ClickablePreferenceItem(
+                    title = "WebDAV Thumbnails",
+                    description = when (preferences.webdavThumbnailMode) {
+                        WebdavThumbnailMode.OFF -> "Off"
+                        WebdavThumbnailMode.WIFI_ONLY -> "Wi-Fi only"
+                        WebdavThumbnailMode.WIFI_AND_CELLULAR -> "Wi-Fi + Cellular"
+                    },
+                    icon = NextIcons.Image,
+                    onClick = { showWebdavThumbnailDialog = true },
+                    isFirstItem = false,
                     isLastItem = true,
                 )
             }
@@ -209,6 +224,48 @@ private fun MediaLibraryPreferencesContent(
 
     var showCustomCacheInput by remember { mutableStateOf(false) }
     var customCacheInput by remember { mutableStateOf("") }
+
+    if (showWebdavThumbnailDialog) {
+        AlertDialog(
+            onDismissRequest = { showWebdavThumbnailDialog = false },
+            title = { Text("WebDAV Thumbnails") },
+            text = {
+                Column {
+                    listOf(
+                        WebdavThumbnailMode.OFF to "Off",
+                        WebdavThumbnailMode.WIFI_ONLY to "Wi-Fi only",
+                        WebdavThumbnailMode.WIFI_AND_CELLULAR to "Wi-Fi + Cellular",
+                    ).forEach { (mode, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onEvent(MediaLibraryPreferencesUiEvent.UpdateWebdavThumbnailMode(mode))
+                                    showWebdavThumbnailDialog = false
+                                }
+                                .padding(vertical = 12.dp)
+                        ) {
+                            RadioButton(
+                                selected = preferences.webdavThumbnailMode == mode,
+                                onClick = null,
+                            )
+                            Text(
+                                text = label,
+                                modifier = Modifier.padding(start = 12.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showWebdavThumbnailDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 
     if (showCacheDialog) {
         AlertDialog(

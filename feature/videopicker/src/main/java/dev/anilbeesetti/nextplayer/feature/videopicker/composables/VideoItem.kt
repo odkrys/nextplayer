@@ -39,11 +39,13 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.MediaLayoutMode
 import dev.anilbeesetti.nextplayer.core.model.Video
+import dev.anilbeesetti.nextplayer.core.model.WebdavVideoRequest
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSegmentedListItem
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
@@ -279,9 +281,26 @@ private fun ThumbnailView(
                 .fillMaxSize(0.5f),
         )
         if (preferences.showThumbnailField) {
+            val isWebdav = video.uriString.startsWith("http")
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(video.uriString)
+                    //.data(video.uriString)
+                    .data(
+                        if (isWebdav) WebdavVideoRequest(
+                            url = video.uriString,
+                            username = "",
+                            password = "",
+                            allowSelfSigned = false,
+                        ) else video.uriString
+                    )
+                    .diskCacheKey(video.uriString)
+                    .memoryCacheKey(video.uriString)
+                    .apply {
+                        if (isWebdav) {
+                            networkCachePolicy(CachePolicy.DISABLED)
+                            diskCachePolicy(CachePolicy.READ_ONLY)
+                        }
+                    }
                     .size(512, 512)
                     .crossfade(true)
                     .build(),

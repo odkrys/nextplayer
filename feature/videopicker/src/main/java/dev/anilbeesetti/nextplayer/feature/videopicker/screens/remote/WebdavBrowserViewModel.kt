@@ -10,6 +10,7 @@ import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServerByIdUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.ListWebdavFilesUseCase
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
+import dev.anilbeesetti.nextplayer.core.model.WebdavThumbnailMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
@@ -37,6 +38,7 @@ data class WebdavBrowserUiState(
     val hasPlaybackHistory: Boolean = false,
     val markLastPlayedMedia: Boolean = true,
     val isPreparingPlaylist: Boolean = false,
+    val webdavThumbnailMode: WebdavThumbnailMode = WebdavThumbnailMode.OFF,
 )
 
 @HiltViewModel
@@ -59,7 +61,12 @@ class WebdavBrowserViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             preferencesRepository.applicationPreferences.collect { prefs ->
-                _uiState.update { it.copy(markLastPlayedMedia = prefs.markLastPlayedMedia) }
+                _uiState.update {
+                    it.copy(
+                        markLastPlayedMedia = prefs.markLastPlayedMedia,
+                        webdavThumbnailMode = prefs.webdavThumbnailMode,
+                    )
+                }
             }
         }
     }

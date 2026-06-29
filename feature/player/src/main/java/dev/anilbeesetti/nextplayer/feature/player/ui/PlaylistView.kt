@@ -48,9 +48,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import dev.anilbeesetti.nextplayer.core.common.Utils
+import dev.anilbeesetti.nextplayer.core.model.WebdavVideoRequest
 import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.NextSegmentedListItem
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
@@ -325,9 +327,26 @@ private fun ThumbnailView(
         )
 
         // Thumbnail image
+        val isWebdav = mediaItem.mediaId.startsWith("http")
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(mediaItem.mediaId)
+                //.data(mediaItem.mediaId)
+                .data(
+                    if (isWebdav) WebdavVideoRequest(
+                        url = mediaItem.mediaId,
+                        username = "",
+                        password = "",
+                        allowSelfSigned = false,
+                    ) else mediaItem.mediaId
+                )
+                .diskCacheKey(mediaItem.mediaId)
+                .memoryCacheKey(mediaItem.mediaId)
+                .apply {
+                    if (isWebdav) {
+                        networkCachePolicy(CachePolicy.DISABLED)
+                        diskCachePolicy(CachePolicy.READ_ONLY)
+                    }
+                }
                 .size(512, 512)
                 .crossfade(true)
                 .build(),

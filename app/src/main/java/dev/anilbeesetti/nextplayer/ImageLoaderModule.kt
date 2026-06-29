@@ -28,6 +28,7 @@ object ImageLoaderModule {
     ): ImageLoader {
         return ImageLoader.Builder(context)
             .components {
+                add(WebdavVideoFetcher.Factory())
                 add(
                     VideoThumbnailDecoder.Factory(
                         thumbnailStrategy = {

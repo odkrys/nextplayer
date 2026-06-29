@@ -32,6 +32,13 @@ import coil3.util.component1
 import coil3.util.component2
 import kotlin.math.roundToInt
 
+class WebdavMetadata(
+    val url: String,
+    val username: String = "",
+    val password: String = "",
+    val allowSelfSigned: Boolean = false,
+) : ImageSource.Metadata()
+
 class VideoThumbnailDecoder(
     private val source: ImageSource,
     private val options: Options,
@@ -44,6 +51,7 @@ class VideoThumbnailDecoder(
             val metadata = source.metadata
             when {
                 metadata is ContentMetadata -> metadata.uri.toAndroidUri().toString()
+                metadata is WebdavMetadata -> metadata.url
                 source.fileSystem === FileSystem.SYSTEM -> source.file().toFile().path
                 else -> error("Not supported")
             }
@@ -92,7 +100,7 @@ class VideoThumbnailDecoder(
                 )
             }
         }
-
+/*
         // Cache miss OR cache insufficient: decode fresh thumbnail
         val rawBitmap = MediaMetadataRetriever().use { nativeRetriever ->
             MediaThumbnailRetriever().use { ffmpegRetriever ->
@@ -131,6 +139,100 @@ class VideoThumbnailDecoder(
                         }
                     }
                 } ?: throw IllegalStateException("Failed to get video thumbnail.")
+            }
+        }
+*/
+        val isWebdav = source.metadata is WebdavMetadata
+
+        if (isWebdav && !options.networkCachePolicy.readEnabled) {
+            error("Network disabled by policy.")
+        }
+
+        val rawBitmap = if (isWebdav) {
+            MediaThumbnailRetriever().use { ffmpegRetriever ->
+                ffmpegRetriever.setDataSource(source)
+
+                val embeddedPicture = ffmpegRetriever.getEmbeddedPicture()
+                val embeddedPictureBitmap = embeddedPicture?.let {
+                    BitmapFactory.decodeByteArray(it, 0, it.size)
+                }
+                if (embeddedPictureBitmap != null) return@use embeddedPictureBitmap
+
+                val targetWidth = options.size.width.pxOrElse { 0 }
+                val targetHeight = options.size.height.pxOrElse { 0 }
+                val targetMax = maxOf(targetWidth, targetHeight)
+
+                val safeReqWidth = if (targetMax > 0) (targetMax * 2.5).toInt() else 0
+
+                when (strategy) {
+                    is ThumbnailStrategy.FirstFrame ->
+                        ffmpegRetriever.getFrameAtTimeReq(0, safeReqWidth, 0)
+
+                    is ThumbnailStrategy.FrameAtPercentage -> {
+                        val durationUs = ffmpegRetriever.getDurationUs()
+                        val timeUs = (durationUs * strategy.percentage).toLong()
+                        var bmp = ffmpegRetriever.getFrameAtTimeReq(timeUs, safeReqWidth, 0)
+
+                        if (bmp == null) {
+                            bmp = ffmpegRetriever.getFrameAtTimeReq(0, safeReqWidth, 0)
+                        }
+
+                        bmp
+                    }
+
+                    is ThumbnailStrategy.Hybrid -> {
+                        val firstFrame = ffmpegRetriever.getFrameAtTimeReq(0, safeReqWidth, 0)
+                        if (firstFrame == null || isSolidColor(firstFrame)) {
+                            val durationUs = ffmpegRetriever.getDurationUs()
+                            val timeUs = (durationUs * strategy.percentage).toLong()
+                            ffmpegRetriever.getFrameAtTimeReq(timeUs, safeReqWidth, 0) ?: firstFrame
+                        } else {
+                            firstFrame
+                        }
+                    }
+                } ?: throw IllegalStateException("Failed to get video thumbnail.")
+            }
+        } else {
+            // Cache miss OR cache insufficient: decode fresh thumbnail
+            //val rawBitmap = MediaMetadataRetriever().use { nativeRetriever ->
+            MediaMetadataRetriever().use { nativeRetriever ->
+                MediaThumbnailRetriever().use { ffmpegRetriever ->
+                    nativeRetriever.setDataSource(source)
+                    ffmpegRetriever.setDataSource(source)
+
+                    // First, try to get embedded picture (album art/metadata thumbnail)
+                    val embeddedPicture = nativeRetriever.embeddedPicture ?: ffmpegRetriever.getEmbeddedPicture()
+                    val embeddedPictureBitmap = embeddedPicture?.let { pictureBytes ->
+                        BitmapFactory.decodeByteArray(pictureBytes, 0, pictureBytes.size)
+                    }
+
+                    if (embeddedPictureBitmap != null) return@use embeddedPictureBitmap
+
+                    val videoDuration = nativeRetriever
+                        .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                        ?.toLongOrNull() ?: 0L
+
+                    return@use when (strategy) {
+                        is ThumbnailStrategy.FirstFrame -> {
+                            nativeRetriever.getFrameAtTime(0) ?: ffmpegRetriever.getFrameAtTime(0)
+                        }
+
+                        is ThumbnailStrategy.FrameAtPercentage -> {
+                            val timeUs = (videoDuration * strategy.percentage * 1000).toLong()
+                            nativeRetriever.getFrameAtTime(timeUs) ?: ffmpegRetriever.getFrameAtTime(timeUs)
+                        }
+
+                        is ThumbnailStrategy.Hybrid -> {
+                            val firstFrame = nativeRetriever.getFrameAtTime(0)
+                            if (firstFrame == null || isSolidColor(firstFrame)) {
+                                val timeUs = (videoDuration * strategy.percentage * 1000).toLong()
+                                nativeRetriever.getFrameAtTime(timeUs) ?: ffmpegRetriever.getFrameAtTime(timeUs)
+                            } else {
+                                firstFrame
+                            }
+                        }
+                    } ?: throw IllegalStateException("Failed to get video thumbnail.")
+                }
             }
         }
 
@@ -177,6 +279,14 @@ class VideoThumbnailDecoder(
     private fun MediaThumbnailRetriever.setDataSource(source: ImageSource) {
         val metadata = source.metadata
         when {
+            metadata is WebdavMetadata -> {
+                val headers = if (metadata.username.isNotEmpty()) {
+                    val credential = okhttp3.Credentials.basic(metadata.username, metadata.password)
+                    mapOf("Authorization" to credential)
+                } else emptyMap()
+                setDataSource(metadata.url, headers)
+            }
+
             metadata is ContentMetadata -> {
                 setDataSource(options.context, metadata.uri.toAndroidUri())
             }

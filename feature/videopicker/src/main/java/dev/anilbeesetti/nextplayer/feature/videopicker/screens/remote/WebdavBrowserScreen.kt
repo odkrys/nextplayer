@@ -1,5 +1,8 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -58,8 +64,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.size.Precision
+import coil3.size.Scale
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
+import dev.anilbeesetti.nextplayer.core.model.WebdavThumbnailMode
+import dev.anilbeesetti.nextplayer.core.model.WebdavVideoRequest
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -408,7 +422,8 @@ private fun WebdavBrowserContent(
                             },
                             playbackProgress = uiState.playbackProgress,
                             markLastPlayedMedia = uiState.markLastPlayedMedia,
-                            serverBaseUrl = server.baseUrl,
+                            webdavThumbnailMode = uiState.webdavThumbnailMode,
+                            server = server,
                             lastPlayedUrl = uiState.lastPlayedUrl,
                             hasPlaybackHistory = uiState.hasPlaybackHistory,
                             onDirectoryClick = viewModel::navigateTo,
@@ -481,7 +496,6 @@ private fun WebdavBrowserContent(
     }
 }
 
-
 @Composable
 private fun FileList(
     files: List<WebdavFile>,
@@ -490,7 +504,8 @@ private fun FileList(
     onToggleSelection: (WebdavFile) -> Unit,
     playbackProgress: Map<String, Float>,
     markLastPlayedMedia: Boolean,
-    serverBaseUrl: String,
+    webdavThumbnailMode: WebdavThumbnailMode,
+    server: WebdavServer,
     lastPlayedUrl: String?,
     hasPlaybackHistory: Boolean,
     onDirectoryClick: (WebdavFile) -> Unit,
@@ -516,13 +531,16 @@ private fun FileList(
 
             FileListItem(
                 file = file,
+                fileUrl = fileUrl,
                 playable = playable,
                 isSelected = isSelected,
                 isSelectionMode = isSelectionMode,
                 onToggleSelection = { if (playable || file.isDirectory) onToggleSelection(file) },
                 progress = progress,
                 markLastPlayedMedia = markLastPlayedMedia,
+                webdavThumbnailMode = webdavThumbnailMode,
                 isLastPlayed = isLastPlayed,
+                server = server,
                 onClick = {
                     if (file.isDirectory) {
                         onDirectoryClick(file)
@@ -543,16 +561,22 @@ private fun FileList(
 @Composable
 private fun FileListItem(
     file: WebdavFile,
+    fileUrl: String,
     playable: Boolean,
     isSelected: Boolean,
     isSelectionMode: Boolean,
     onToggleSelection: () -> Unit,
     progress: Float?,
     markLastPlayedMedia: Boolean,
+    webdavThumbnailMode: WebdavThumbnailMode,
     isLastPlayed: Boolean,
+    server: WebdavServer,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isWifi = rememberIsWifi()
+    var isError by remember(fileUrl) { mutableStateOf(false) }
+
     Column(modifier = modifier) {
         ListItem(
             colors = ListItemDefaults.colors(
@@ -564,19 +588,66 @@ private fun FileListItem(
                     else onClick()
                 },
                 onLongClick = {
-                    if (playable || file.isDirectory) onToggleSelection()                }
+                    if (playable || file.isDirectory) onToggleSelection()
+                }
             ),
             leadingContent = {
-                Icon(
-                    imageVector = file.icon(),
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                    tint = when {
-                        file.isDirectory -> Color(0xFFFFD97F)
-                        playable -> MaterialTheme.colorScheme.secondary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
+                if (!file.isDirectory && playable && webdavThumbnailMode != WebdavThumbnailMode.OFF) {
+                    if (isError) {
+                        Icon(
+                            imageVector = file.icon(),
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    } else {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(
+                                    WebdavVideoRequest(
+                                        url = fileUrl,
+                                        username = server.username,
+                                        password = server.password,
+                                        allowSelfSigned = server.allowSelfSigned,
+                                    )
+                                )
+                                .memoryCacheKey(fileUrl)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .diskCacheKey(fileUrl)
+                                .diskCachePolicy(
+                                    if (isWifi || webdavThumbnailMode == WebdavThumbnailMode.WIFI_AND_CELLULAR)
+                                        CachePolicy.ENABLED
+                                    else
+                                        CachePolicy.READ_ONLY
+                                )
+                                .networkCachePolicy(
+                                    if (isWifi || webdavThumbnailMode == WebdavThumbnailMode.WIFI_AND_CELLULAR)
+                                        CachePolicy.ENABLED
+                                    else
+                                        CachePolicy.DISABLED
+                                )
+                                .size(512, 512)
+                                .scale(Scale.FILL)
+                                .precision(Precision.INEXACT)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier.size(56.dp),
+                            contentScale = ContentScale.Crop,
+                            onError = { isError = true },
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = file.icon(),
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp),
+                        tint = when {
+                            file.isDirectory -> Color(0xFFFFD97F)
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             },
             headlineContent = {
                 val nameDisplay = if (file.isDirectory) {
@@ -621,34 +692,45 @@ private fun FileListItem(
                 }
 
                 if (infoText.isNotEmpty()) {
-                    Text(
-                        text = infoText,
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Column {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = infoText,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             },
-            trailingContent = {
-                if (playable) {
-                    Icon(
-                        imageVector = if (isSelectionMode && isSelected) NextIcons.CheckBox else NextIcons.Play,
-                        contentDescription = if (isSelected) "Selected" else "Playable",
-                        modifier = Modifier.size(28.dp),
-                        tint = if (isSelectionMode && isSelected)
-                            MaterialTheme.colorScheme.tertiary
-                        else
-                            MaterialTheme.colorScheme.primary,
-                    )
-                } else if (isSelectionMode && isSelected && file.isDirectory) {
-                    Icon(
-                        imageVector = NextIcons.CheckBox,
-                        contentDescription = "Selected",
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.tertiary,
-                    )
+            trailingContent = run {
+                val showPlayIcon = playable && (isError || file.isDirectory || webdavThumbnailMode == WebdavThumbnailMode.OFF)
+                val showCheckBox = isSelectionMode && isSelected && (playable || file.isDirectory)
+
+                when {
+                    showCheckBox -> {
+                        {
+                            Icon(
+                                imageVector = NextIcons.CheckBox,
+                                contentDescription = "Selected",
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.tertiary,
+                            )
+                        }
+                    }
+                    showPlayIcon -> {
+                        {
+                            Icon(
+                                imageVector = NextIcons.Play,
+                                contentDescription = "Playable",
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    else -> null
                 }
-            }
+            },
         )
 
         if (progress != null) {
@@ -708,4 +790,39 @@ private fun WebdavFile.icon(): ImageVector {
 
         else -> NextIcons.Files
     }
+}
+
+@Composable
+fun rememberIsWifi(): Boolean {
+    val context = LocalContext.current
+    val connectivityManager = remember {
+        context.getSystemService(ConnectivityManager::class.java)
+    }
+
+    var isWifi by remember  {
+        mutableStateOf(
+            connectivityManager.activeNetwork
+                ?.let { connectivityManager.getNetworkCapabilities(it) }
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        )
+    }
+
+    DisposableEffect(connectivityManager) {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(
+                network: Network,
+                capabilities: NetworkCapabilities,
+            ) {
+                isWifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+            }
+
+            override fun onLost(network: Network) {
+                isWifi = false
+            }
+        }
+        connectivityManager.registerDefaultNetworkCallback(callback)
+        onDispose { connectivityManager.unregisterNetworkCallback(callback) }
+    }
+
+    return isWifi
 }

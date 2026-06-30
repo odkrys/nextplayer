@@ -192,6 +192,17 @@ class PlayerService : MediaSessionService() {
                 }
                 pendingShuffleStartIndex = C.INDEX_UNSET
             }
+
+            val exoPlayer = mediaSession?.player ?: return
+            val currentItem = exoPlayer.currentMediaItem ?: return
+            val actualDuration = exoPlayer.duration
+
+            if (currentItem.mediaMetadata.durationMs == null && actualDuration > 0 && actualDuration != C.TIME_UNSET) {
+                exoPlayer.replaceMediaItem(
+                    exoPlayer.currentMediaItemIndex,
+                    currentItem.copy(durationMs = actualDuration)
+                )
+            }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {

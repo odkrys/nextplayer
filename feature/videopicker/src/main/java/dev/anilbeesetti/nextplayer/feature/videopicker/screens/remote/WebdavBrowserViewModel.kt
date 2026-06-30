@@ -38,6 +38,7 @@ data class WebdavBrowserUiState(
     val hasPlaybackHistory: Boolean = false,
     val markLastPlayedMedia: Boolean = true,
     val isPreparingPlaylist: Boolean = false,
+    val showOnlyPlayable: Boolean = false,
     val webdavThumbnailMode: WebdavThumbnailMode = WebdavThumbnailMode.OFF,
 )
 
@@ -65,6 +66,7 @@ class WebdavBrowserViewModel @Inject constructor(
                     it.copy(
                         markLastPlayedMedia = prefs.markLastPlayedMedia,
                         webdavThumbnailMode = prefs.webdavThumbnailMode,
+                        showOnlyPlayable = prefs.webdavShowOnlyPlayable,
                     )
                 }
             }
@@ -414,5 +416,15 @@ class WebdavBrowserViewModel @Inject constructor(
         playlistJob?.cancel()
         playlistJob = null
         _uiState.update { it.copy(isPreparingPlaylist = false) }
+    }
+
+    fun toggleShowOnlyPlayable() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences { currentPrefs ->
+                currentPrefs.copy(
+                    webdavShowOnlyPlayable = !currentPrefs.webdavShowOnlyPlayable
+                )
+            }
+        }
     }
 }

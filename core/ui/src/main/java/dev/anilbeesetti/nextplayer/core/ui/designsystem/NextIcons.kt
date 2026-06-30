@@ -42,6 +42,8 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.FileOpen
 import androidx.compose.material.icons.rounded.FilterFrames
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.FilterListOff
 import androidx.compose.material.icons.rounded.FlipToBack
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOff
@@ -197,4 +199,6 @@ object NextIcons {
     val Snooze = Icons.Rounded.Snooze
     val AddCircleOutline = Icons.Rounded.AddCircleOutline
     val RemoveCircleOutline = Icons.Rounded.RemoveCircleOutline
+    val FilterList = Icons.Rounded.FilterList
+    val FilterListOff = Icons.Rounded.FilterListOff
 }

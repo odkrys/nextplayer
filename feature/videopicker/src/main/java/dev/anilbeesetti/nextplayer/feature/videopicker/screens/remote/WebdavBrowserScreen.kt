@@ -29,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -193,6 +194,14 @@ private fun WebdavBrowserContent(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
+    val displayedFiles = remember(uiState.files, uiState.showOnlyPlayable) {
+        if (uiState.showOnlyPlayable) {
+            uiState.files.filter { viewModel.isPlayable(it) || it.isDirectory }
+        } else {
+            uiState.files
+        }
+    }
+
     var showClearDialog by rememberSaveable { mutableStateOf(false) }
     var isSelectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedHrefs by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -244,8 +253,8 @@ private fun WebdavBrowserContent(
         }
     }
 
-    val folderCount = uiState.files.count { it.isDirectory }
-    val fileCount = uiState.files.count { !it.isDirectory }
+    val folderCount = displayedFiles.count { it.isDirectory }
+    val fileCount = displayedFiles.count { !it.isDirectory }
 
     val countText = remember(folderCount, fileCount, uiState.isLoading, uiState.isFetching) {
         buildString {
@@ -365,6 +374,13 @@ private fun WebdavBrowserContent(
                             }
                         },
                         actions = {
+                            IconButton(onClick = viewModel::toggleShowOnlyPlayable) {
+                                Icon(
+                                    imageVector = if (uiState.showOnlyPlayable) NextIcons.FilterListOff else NextIcons.FilterList,
+                                    contentDescription = "Show Playable Files Only",
+                                    tint = if (uiState.showOnlyPlayable) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                                )
+                            }
                             IconButton(onClick = { showClearDialog = true }) {
                                 Icon(NextIcons.History, contentDescription = "Clear Playback History")
                             }
@@ -409,7 +425,7 @@ private fun WebdavBrowserContent(
 
                     else -> {
                         FileList(
-                            files = uiState.files,
+                            files = displayedFiles,
                             selectedFiles = selectedFiles,
                             isSelectionMode = isSelectionMode,
                             onToggleSelection = { file ->

@@ -14,6 +14,7 @@ data class ApplicationPreferences(
     val hideExcludedMediaInPlaylists: Boolean = false,
     val mediaViewMode: MediaViewMode = MediaViewMode.FOLDERS,
     val mediaLayoutMode: MediaLayoutMode = MediaLayoutMode.LIST,
+    val webdavShowOnlyPlayable: Boolean = false,
 
     // Fields
     val showDurationField: Boolean = true,

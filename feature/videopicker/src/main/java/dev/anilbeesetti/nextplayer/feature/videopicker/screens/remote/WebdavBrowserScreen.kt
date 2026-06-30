@@ -48,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -576,8 +577,9 @@ private fun FileListItem(
 ) {
     val isWifi = rememberIsWifi()
     var isError by remember(fileUrl) { mutableStateOf(false) }
+    val itemAlpha = if (isSelectionMode && !playable && !file.isDirectory) 0.4f else 1.0f
 
-    Column(modifier = modifier) {
+    Column(modifier = modifier.alpha(itemAlpha)) {
         ListItem(
             colors = ListItemDefaults.colors(
                 containerColor = if (isSelected) MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f) else Color.Transparent

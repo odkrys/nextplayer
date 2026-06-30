@@ -93,6 +93,8 @@ class PlaylistState(
 
     private val removingMediaIds = mutableSetOf<String>()
 
+    private var lockedItemsAfterRemoval: List<Pair<Int, MediaItem>>? = null
+
     suspend fun observe() {
         syncPlaylist()
         updateCurrentId()
@@ -138,6 +140,10 @@ class PlaylistState(
             }
         }
 
+        if (player.shuffleModeEnabled) {
+            lockedItemsAfterRemoval = displayItems
+        }
+
         removingMediaIds.add(mediaItem.mediaId)
 
         if (isCurrentItem) {
@@ -167,16 +173,18 @@ class PlaylistState(
                 }
                 if (stillExists) return
                 removingMediaIds.clear()
+
+                lockedItemsAfterRemoval?.let {
+                    displayItems = it
+                    lockedItemsAfterRemoval = null
+                    return
+                }
             }
 
             val orderIndices = player.getPlaybackOrderIndices()
 
             if (orderIndices.isEmpty()) {
                 displayItems = emptyList()
-                return
-            }
-
-            if (player.shuffleModeEnabled && orderIndices.size > 2 && orderIndices.indices.all { orderIndices[it] == it }) {
                 return
             }
 

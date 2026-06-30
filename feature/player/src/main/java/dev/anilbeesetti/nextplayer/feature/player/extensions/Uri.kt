@@ -51,7 +51,7 @@ suspend fun Context.uriToSubtitleConfiguration(
     //val label = getFilenameFromUri(uri)
     val label = URLDecoder.decode(getFilenameFromUri(uri), "UTF-8")
     val mimeType = uri.getSubtitleMime()
-    val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
+    //val utf8ConvertedUri = convertToUTF8(uri = uri, charset = charset)
 
     val originalScheme = uri.scheme ?: "file"
     val proxyUriBuilder = uri.buildUpon().scheme("nextsub-$originalScheme")

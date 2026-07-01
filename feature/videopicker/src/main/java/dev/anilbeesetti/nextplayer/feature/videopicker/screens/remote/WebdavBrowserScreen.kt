@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -193,6 +195,8 @@ private fun WebdavBrowserContent(
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val saveableStateHolder = rememberSaveableStateHolder()
+    val currentPath = viewModel.breadcrumb()
 
     val displayedFiles = remember(uiState.files, uiState.showOnlyPlayable) {
         if (uiState.showOnlyPlayable) {
@@ -244,6 +248,8 @@ private fun WebdavBrowserContent(
             selectedHrefs = emptySet()
         } else {
             if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                saveableStateHolder.removeState(currentPath)
+
                 val navigatedUp = viewModel.navigateUp()
                 if (!navigatedUp) {
                     isFabVisible = false
@@ -362,6 +368,8 @@ private fun WebdavBrowserContent(
                             IconButton(
                                 onClick = {
                                     if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                                        saveableStateHolder.removeState(currentPath)
+
                                         val navigatedUp = viewModel.navigateUp()
                                         if (!navigatedUp) {
                                             isFabVisible = false
@@ -424,29 +432,13 @@ private fun WebdavBrowserContent(
                     }
 
                     else -> {
-                        FileList(
-                            files = displayedFiles,
-                            selectedFiles = selectedFiles,
-                            isSelectionMode = isSelectionMode,
-                            onToggleSelection = { file ->
-                                if (!isSelectionMode) isSelectionMode = true
-                                selectedHrefs = if (file.href in selectedHrefs) {
-                                    selectedHrefs - file.href
-                                } else {
-                                    selectedHrefs + file.href
-                                }
-                                if (selectedHrefs.isEmpty()) isSelectionMode = false
-                            },
-                            playbackProgress = uiState.playbackProgress,
-                            markLastPlayedMedia = uiState.markLastPlayedMedia,
-                            webdavThumbnailMode = uiState.webdavThumbnailMode,
-                            server = server,
-                            lastPlayedUrl = uiState.lastPlayedUrl,
-                            hasPlaybackHistory = uiState.hasPlaybackHistory,
-                            onDirectoryClick = viewModel::navigateTo,
-                            onFileClick = { file ->
-                                if (isSelectionMode) {
-                                    if (!viewModel.isPlayable(file) || file.isDirectory) return@FileList
+                        saveableStateHolder.SaveableStateProvider(key = currentPath) {
+                            FileList(
+                                files = displayedFiles,
+                                selectedFiles = selectedFiles,
+                                isSelectionMode = isSelectionMode,
+                                onToggleSelection = { file ->
+                                    if (!isSelectionMode) isSelectionMode = true
                                     selectedHrefs = if (file.href in selectedHrefs) {
                                         selectedHrefs - file.href
                                     } else {
@@ -455,16 +447,36 @@ private fun WebdavBrowserContent(
                                     if (selectedHrefs.isEmpty()) {
                                         isSelectionMode = false
                                     }
-                                } else {
-                                    val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
-                                    val urls = playableFiles.map { viewModel.buildFileUrl(server, it) }
-                                    val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
-                                    onPlayFile(urls, selectedIndex, server)
-                                }
-                            },
-                            isPlayable = viewModel::isPlayable,
-                            buildFileUrl = { viewModel.buildFileUrl(server, it) },
-                        )
+                                },
+                                playbackProgress = uiState.playbackProgress,
+                                markLastPlayedMedia = uiState.markLastPlayedMedia,
+                                webdavThumbnailMode = uiState.webdavThumbnailMode,
+                                server = server,
+                                lastPlayedUrl = uiState.lastPlayedUrl,
+                                hasPlaybackHistory = uiState.hasPlaybackHistory,
+                                onDirectoryClick = viewModel::navigateTo,
+                                onFileClick = { file ->
+                                    if (isSelectionMode) {
+                                        if (!viewModel.isPlayable(file) || file.isDirectory) return@FileList
+                                        selectedHrefs = if (file.href in selectedHrefs) {
+                                            selectedHrefs - file.href
+                                        } else {
+                                            selectedHrefs + file.href
+                                        }
+                                        if (selectedHrefs.isEmpty()) {
+                                            isSelectionMode = false
+                                        }
+                                    } else {
+                                        val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
+                                        val urls = playableFiles.map { viewModel.buildFileUrl(server, it) }
+                                        val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
+                                        onPlayFile(urls, selectedIndex, server)
+                                    }
+                                },
+                                isPlayable = viewModel::isPlayable,
+                                buildFileUrl = { viewModel.buildFileUrl(server, it) },
+                            )
+                        }
                     }
                 }
             }
@@ -531,7 +543,10 @@ private fun FileList(
     buildFileUrl: (WebdavFile) -> String,
     modifier: Modifier = Modifier,
 ) {
+    val listState = rememberLazyListState()
+
     LazyColumn(
+        state = listState,
         modifier = modifier,
         contentPadding = PaddingValues(top = 4.dp, bottom = 88.dp),
         verticalArrangement = Arrangement.spacedBy(1.dp),

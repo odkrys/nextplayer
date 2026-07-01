@@ -147,6 +147,7 @@ fun MediaPickerRoute(
 
     MediaPickerScreen(
         uiState = uiState,
+        currentFolderPath = viewModel.folderPath,
         onPlayVideo = onPlayVideo,
         onNavigateUp = onNavigateUp,
         onFolderClick = onFolderClick,
@@ -161,6 +162,7 @@ fun MediaPickerRoute(
 @Composable
 internal fun MediaPickerScreen(
     uiState: MediaPickerUiState,
+    currentFolderPath: String? = null,
     onNavigateUp: () -> Unit = {},
     onPlayVideo: (Uri) -> Unit = {},
     onFolderClick: (String) -> Unit = {},
@@ -187,6 +189,7 @@ internal fun MediaPickerScreen(
     var isFabExpanded by rememberSaveable { mutableStateOf(false) }
     var showQuickSettingsDialog by rememberSaveable { mutableStateOf(false) }
     var showUrlDialog by rememberSaveable { mutableStateOf(false) }
+    var targetScrollUri by remember { mutableStateOf(MediaPickerViewModel.pendingScrollUri) }
 
     var showRenameActionFor: Video? by rememberSaveable { mutableStateOf(null) }
     var showDeleteVideosConfirmation by rememberSaveable { mutableStateOf(false) }
@@ -570,6 +573,11 @@ internal fun MediaPickerScreen(
                                 contentPadding = updatedScaffoldPadding.copy(
                                     bottom = updatedScaffoldPadding.calculateBottomPadding() + 32.dp
                                 ),
+                                targetScrollUri = targetScrollUri,
+                                onClearTargetScrollUri = {
+                                    targetScrollUri = null
+                                    MediaPickerViewModel.pendingScrollUri = null
+                                },
                             )
                         }
                     }
@@ -646,7 +654,25 @@ internal fun MediaPickerScreen(
                         FloatingActionButtonMenuItem(
                             onClick = {
                                 isFabExpanded = false
-                                onPlayVideo(uiState.recentlyPlayedVideo.uriString.toUri())
+                                val recentVideo = uiState.recentlyPlayedVideo
+                                val recentlyPlayedUri = recentVideo.uriString
+
+                                if (uiState.preferences.scrollToLastPlayedMedia) {
+                                    MediaPickerViewModel.pendingScrollUri = recentlyPlayedUri
+                                    targetScrollUri = recentlyPlayedUri
+
+                                    when (uiState.preferences.mediaViewMode) {
+                                        MediaViewMode.VIDEOS -> {}
+                                        MediaViewMode.FOLDERS, MediaViewMode.FOLDER_TREE -> {
+                                            val targetFolderPath = recentVideo.parentPath
+                                            if (targetFolderPath != currentFolderPath) {
+                                                onFolderClick(targetFolderPath)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                onPlayVideo(recentlyPlayedUri.toUri())
                             },
                             icon = {
                                 Icon(
@@ -698,7 +724,9 @@ internal fun MediaPickerScreen(
 
     LaunchedEffect(uiState.preferences.mediaViewMode, uiState.preferences.mediaLayoutMode) {
         isBottomBarVisible.value = true
-        lazyGridState.scrollToItem(0)
+        if (targetScrollUri == null) {
+            lazyGridState.scrollToItem(0)
+        }
     }
 
     DisposableEffect(Unit) {

@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -66,6 +67,7 @@ fun PlaylistDetailRoute(
     val isVerifying by viewModel.isVerifyingLinks.collectAsStateWithLifecycle()
     val deadLinks by viewModel.deadLinksFound.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var targetScrollUri by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.refreshRemoteProgress()
@@ -87,11 +89,17 @@ fun PlaylistDetailRoute(
         onRemoveDeadLinks = viewModel::removeDeadLinks,
         onClearDeadLinks = viewModel::clearDeadLinksResult,
         onClearHistory = viewModel::clearPlaybackHistory,
+        targetScrollUri = targetScrollUri,
+        onClearTargetScrollUri = { targetScrollUri = null },
         onPlayClick = {
             val uris = uiState.sortedVideos.map { it.uriString }
             if (uris.isEmpty()) return@PlaylistDetailScreen
             val startIndex = viewModel.getRecentVideoIndex()
+            val targetUri = uris[startIndex]
             viewModel.saveLastPlayed(uris[startIndex])
+            if (uiState.preferences.scrollToLastPlayedMedia) {
+                targetScrollUri = targetUri
+            }
             onPlayClick(uris, startIndex)
         },
         onVideoClick = { index ->
@@ -117,6 +125,8 @@ fun PlaylistDetailScreen(
     onRemoveDeadLinks: () -> Unit,
     onClearDeadLinks: () -> Unit,
     onClearHistory: () -> Unit,
+    targetScrollUri: String? = null,
+    onClearTargetScrollUri: () -> Unit = {},
     onPlayClick: () -> Unit,
     onVideoClick: (index: Int) -> Unit,
     onBackClick: () -> Unit,
@@ -145,6 +155,16 @@ fun PlaylistDetailScreen(
     LaunchedEffect(deadLinks) {
         if (deadLinks.isNotEmpty()) {
             showDeadLinksDialog = true
+        }
+    }
+
+    LaunchedEffect(targetScrollUri, uiState.sortedVideos) {
+        if (targetScrollUri != null && uiState.sortedVideos.isNotEmpty()) {
+            val index = uiState.sortedVideos.indexOfFirst { it.uriString == targetScrollUri }
+            if (index != -1) {
+                listState.scrollToItem(index)
+                onClearTargetScrollUri()
+            }
         }
     }
 

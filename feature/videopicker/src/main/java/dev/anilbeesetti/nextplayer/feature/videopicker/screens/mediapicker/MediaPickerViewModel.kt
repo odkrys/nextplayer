@@ -48,6 +48,10 @@ class MediaPickerViewModel @Inject constructor(
     private val mediaSynchronizer: MediaSynchronizer,
 ) : ViewModel() {
 
+    companion object {
+        var pendingScrollUri: String? = null
+    }
+
     private val folderArgs = FolderArgs(savedStateHandle)
     val folderPath = folderArgs.folderId
 

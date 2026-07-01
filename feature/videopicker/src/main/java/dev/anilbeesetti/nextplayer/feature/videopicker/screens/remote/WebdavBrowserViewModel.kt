@@ -37,6 +37,8 @@ data class WebdavBrowserUiState(
     val lastPlayedUrl: String? = null,
     val hasPlaybackHistory: Boolean = false,
     val markLastPlayedMedia: Boolean = true,
+    val scrollToLastPlayedMedia: Boolean = false,
+    val targetScrollUrl: String? = null,
     val isPreparingPlaylist: Boolean = false,
     val showOnlyPlayable: Boolean = false,
     val webdavThumbnailMode: WebdavThumbnailMode = WebdavThumbnailMode.OFF,
@@ -65,6 +67,7 @@ class WebdavBrowserViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         markLastPlayedMedia = prefs.markLastPlayedMedia,
+                        scrollToLastPlayedMedia = prefs.scrollToLastPlayedMedia,
                         webdavThumbnailMode = prefs.webdavThumbnailMode,
                         showOnlyPlayable = prefs.webdavShowOnlyPlayable,
                     )
@@ -242,6 +245,7 @@ class WebdavBrowserViewModel @Inject constructor(
     ) {
         val server = _uiState.value.server ?: return
         val lastUrl = _uiState.value.lastPlayedUrl ?: return
+        val shouldScrollToLastPlayed = _uiState.value.scrollToLastPlayedMedia
 
         viewModelScope.launch {
             val uri = Uri.parse(lastUrl)
@@ -261,6 +265,28 @@ class WebdavBrowserViewModel @Inject constructor(
                 return@launch
             }
 
+            if (shouldScrollToLastPlayed) {
+                val pathSegments = folderPath.split("/").filter { it.isNotEmpty() }
+                val newPathStack = mutableListOf("/")
+                var builtPath = ""
+                for (segment in pathSegments) {
+                    builtPath += "/$segment"
+                    newPathStack.add(builtPath)
+                }
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        currentPath = folderPath,
+                        pathStack = newPathStack,
+                        files = files,
+                        targetScrollUrl = lastUrl,
+                        isLoading = false
+                    )
+                }
+
+                refreshProgress()
+            }
+
             val playableFiles = files
                 .filter { isPlayable(it) }
                 .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
@@ -276,6 +302,10 @@ class WebdavBrowserViewModel @Inject constructor(
 
             onPlay(urls, index)
         }
+    }
+
+    fun clearTargetScrollUrl() {
+        _uiState.update { it.copy(targetScrollUrl = null) }
     }
 
     fun buildFileUrl(server: WebdavServer, file: WebdavFile): String {

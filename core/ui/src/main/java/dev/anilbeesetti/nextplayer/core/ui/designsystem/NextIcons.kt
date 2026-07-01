@@ -63,6 +63,7 @@ import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PanToolAlt
 import androidx.compose.material.icons.rounded.PictureInPictureAlt
@@ -201,4 +202,5 @@ object NextIcons {
     val RemoveCircleOutline = Icons.Rounded.RemoveCircleOutline
     val FilterList = Icons.Rounded.FilterList
     val FilterListOff = Icons.Rounded.FilterListOff
+    val Navigation = Icons.Rounded.Navigation
 }

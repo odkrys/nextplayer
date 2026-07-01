@@ -318,4 +318,6 @@
     <string name="hide_excluded_media_in_playlists_desc">Hide media from excluded folders in your playlists as well</string>
     <string name="show_buffer">Show Buffer</string>
     <string name="show_buffer_desc">Display the buffer next to the playback time and on the seekbar</string>
+    <string name="scroll_to_last_played_media">Move to the last played media location</string>
+    <string name="scroll_to_last_played_media_desc">Automatically scrolls to the file location of the last played media</string>
 </resources>

@@ -668,6 +668,8 @@ private fun SearchResultsContent(
                 },
                 showHeaders = true,
                 contentPadding = contentPadding,
+                targetScrollUri = null,
+                onClearTargetScrollUri = {},
             )
         }
     }

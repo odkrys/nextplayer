@@ -127,6 +127,16 @@ private fun MediaLibraryPreferencesContent(
                     isChecked = preferences.markLastPlayedMedia,
                     onClick = { onEvent(MediaLibraryPreferencesUiEvent.ToggleMarkLastPlayedMedia) },
                     isFirstItem = true,
+                    //isLastItem = true,
+                    isLastItem = false,
+                )
+                PreferenceSwitch(
+                    title = stringResource(id = R.string.scroll_to_last_played_media),
+                    description = stringResource(id = R.string.scroll_to_last_played_media_desc),
+                    icon = NextIcons.Navigation,
+                    isChecked = preferences.scrollToLastPlayedMedia,
+                    onClick = { onEvent(MediaLibraryPreferencesUiEvent.ToggleScrollToLastPlayedMedia) },
+                    isFirstItem = false,
                     isLastItem = true,
                 )
             }

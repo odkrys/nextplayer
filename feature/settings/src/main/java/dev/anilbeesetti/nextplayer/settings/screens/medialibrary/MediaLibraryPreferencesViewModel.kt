@@ -34,6 +34,7 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
     fun onEvent(event: MediaLibraryPreferencesUiEvent) {
         when (event) {
             MediaLibraryPreferencesUiEvent.ToggleMarkLastPlayedMedia -> toggleMarkLastPlayedMedia()
+            MediaLibraryPreferencesUiEvent.ToggleScrollToLastPlayedMedia -> toggleScrollToLastPlayedMedia()
             MediaLibraryPreferencesUiEvent.ToggleHideExcludedMediaInPlaylists -> toggleHideExcludedMediaInPlaylists()
             is MediaLibraryPreferencesUiEvent.UpdateWebdavThumbnailMode -> updateWebdavThumbnailMode(event.mode)
             is MediaLibraryPreferencesUiEvent.UpdateMediaCacheSize -> updateMediaCacheSize(event.sizeMb)
@@ -44,6 +45,14 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updateApplicationPreferences {
                 it.copy(markLastPlayedMedia = !it.markLastPlayedMedia)
+            }
+        }
+    }
+
+    private fun toggleScrollToLastPlayedMedia() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(scrollToLastPlayedMedia = !it.scrollToLastPlayedMedia)
             }
         }
     }
@@ -79,6 +88,7 @@ data class MediaLibraryPreferencesUiState(
 
 sealed interface MediaLibraryPreferencesUiEvent {
     data object ToggleMarkLastPlayedMedia : MediaLibraryPreferencesUiEvent
+    data object ToggleScrollToLastPlayedMedia : MediaLibraryPreferencesUiEvent
     data object ToggleHideExcludedMediaInPlaylists : MediaLibraryPreferencesUiEvent
     data class UpdateWebdavThumbnailMode(val mode: WebdavThumbnailMode) : MediaLibraryPreferencesUiEvent
     data class UpdateMediaCacheSize(val sizeMb: Int) : MediaLibraryPreferencesUiEvent

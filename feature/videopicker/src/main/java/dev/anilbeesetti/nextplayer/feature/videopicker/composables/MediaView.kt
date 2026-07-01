@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -56,11 +57,32 @@ fun MediaView(
     lazyGridState: LazyGridState = rememberLazyGridState(),
     onFolderClick: (String) -> Unit,
     onVideoClick: (Uri) -> Unit,
+    targetScrollUri: String?,
+    onClearTargetScrollUri: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
 
     val folderMinWidth = 90.dp
     val videoMinWidth = 130.dp
+
+    LaunchedEffect(targetScrollUri, mediaHolder.videos.size, preferences) {
+        if (targetScrollUri == null) return@LaunchedEffect
+        if (mediaHolder.videos.isEmpty()) return@LaunchedEffect
+
+        val videoIndex = mediaHolder.videos.indexOfFirst { it.uriString == targetScrollUri }
+        if (videoIndex == -1) return@LaunchedEffect
+
+        var targetGridIndex = 0
+        if (showHeaders && mediaHolder.folders.isNotEmpty()) targetGridIndex += 1
+        targetGridIndex += mediaHolder.folders.size
+        if (preferences.mediaViewMode == MediaViewMode.FOLDER_TREE && mediaHolder.folders.isNotEmpty()) targetGridIndex += 1
+        if (showHeaders && mediaHolder.videos.isNotEmpty()) targetGridIndex += 1
+        targetGridIndex += videoIndex
+
+        lazyGridState.scrollToItem(targetGridIndex)
+        onClearTargetScrollUri()
+    }
+
     BoxWithConstraints {
         val contentHorizontalPadding = when (preferences.mediaLayoutMode) {
             MediaLayoutMode.LIST -> 8.dp

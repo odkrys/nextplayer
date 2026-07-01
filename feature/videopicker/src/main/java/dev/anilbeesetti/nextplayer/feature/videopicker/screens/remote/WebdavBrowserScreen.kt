@@ -238,6 +238,12 @@ private fun WebdavBrowserContent(
         }
     }
 
+    LaunchedEffect(uiState.targetScrollUrl, currentPath) {
+        if (uiState.targetScrollUrl != null) {
+            saveableStateHolder.removeState(currentPath)
+        }
+    }
+
     BackHandler {
         if (uiState.isPreparingPlaylist) {
             viewModel.cancelPreparePlaylist()
@@ -453,6 +459,8 @@ private fun WebdavBrowserContent(
                                 webdavThumbnailMode = uiState.webdavThumbnailMode,
                                 server = server,
                                 lastPlayedUrl = uiState.lastPlayedUrl,
+                                targetScrollUrl = uiState.targetScrollUrl,
+                                onScrollTargetConsumed = viewModel::clearTargetScrollUrl,
                                 hasPlaybackHistory = uiState.hasPlaybackHistory,
                                 onDirectoryClick = viewModel::navigateTo,
                                 onFileClick = { file ->
@@ -536,6 +544,8 @@ private fun FileList(
     webdavThumbnailMode: WebdavThumbnailMode,
     server: WebdavServer,
     lastPlayedUrl: String?,
+    targetScrollUrl: String?,
+    onScrollTargetConsumed: () -> Unit,
     hasPlaybackHistory: Boolean,
     onDirectoryClick: (WebdavFile) -> Unit,
     onFileClick: (WebdavFile) -> Unit,
@@ -544,6 +554,19 @@ private fun FileList(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+
+    LaunchedEffect(targetScrollUrl, files) {
+        if (targetScrollUrl != null && files.isNotEmpty()) {
+            val targetIndex = files.indexOfFirst { file ->
+                buildFileUrl(file) == targetScrollUrl
+            }
+
+            if (targetIndex != -1) {
+                listState.scrollToItem(index = targetIndex)
+                onScrollTargetConsumed()
+            }
+        }
+    }
 
     LazyColumn(
         state = listState,

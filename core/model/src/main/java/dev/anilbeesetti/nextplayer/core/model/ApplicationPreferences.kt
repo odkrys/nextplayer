@@ -27,7 +27,7 @@ data class ApplicationPreferences(
     val showPlayedProgress: Boolean = true,
 
     // Thumbnail generation
-    val thumbnailGenerationStrategy: ThumbnailGenerationStrategy = ThumbnailGenerationStrategy.FRAME_AT_PERCENTAGE,
+    val thumbnailGenerationStrategy: ThumbnailGenerationStrategy = ThumbnailGenerationStrategy.HYBRID,
     val thumbnailFramePosition: Float = DEFAULT_THUMBNAIL_FRAME_POSITION,
     val webdavThumbnailMode: WebdavThumbnailMode = WebdavThumbnailMode.OFF,
 

@@ -2,6 +2,7 @@ package dev.anilbeesetti.nextplayer
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.Paint
 import android.media.MediaMetadataRetriever
 import android.os.Build.VERSION.SDK_INT
@@ -181,24 +182,50 @@ class VideoThumbnailDecoder(
                     }
 
                     is ThumbnailStrategy.Hybrid -> {
-                        val firstFrame = ffmpegRetriever.getFrameAtTimeReq(0, safeReqWidth, 0)
-                        if (firstFrame == null || isSolidColor(firstFrame)) {
-                            val durationUs = ffmpegRetriever.getDurationUs()
-                            val timeUs = (durationUs * strategy.percentage).toLong()
-                            ffmpegRetriever.getFrameAtTimeReq(timeUs, safeReqWidth, 0) ?: firstFrame
-                        } else {
-                            firstFrame
+                        val durationUs = ffmpegRetriever.getDurationUs()
+
+                        val candidatePercentages = listOf(
+                            strategy.percentage,
+                            0.2f,
+                            0.8f,
+                            0f
+                        ).distinct()
+
+                        var fallbackFrame: Bitmap? = null
+
+                        for (percent in candidatePercentages) {
+                            val timeUs = (durationUs * percent).toLong()
+                            val frame = ffmpegRetriever.getFrameAtTimeReq(timeUs, safeReqWidth, 0)
+
+                            if (frame != null) {
+                                if (!isSolidColor(frame)) {
+                                    fallbackFrame?.recycle()
+                                    return@use frame
+                                }
+
+                                if (fallbackFrame == null) {
+                                    fallbackFrame = frame
+                                } else {
+                                    frame.recycle()
+                                }
+                            }
                         }
+
+                        fallbackFrame
                     }
                 } ?: throw IllegalStateException("Failed to get video thumbnail.")
             }
         } else {
             // Cache miss OR cache insufficient: decode fresh thumbnail
-            //val rawBitmap = MediaMetadataRetriever().use { nativeRetriever ->
             MediaMetadataRetriever().use { nativeRetriever ->
                 MediaThumbnailRetriever().use { ffmpegRetriever ->
                     nativeRetriever.setDataSource(source)
                     ffmpegRetriever.setDataSource(source)
+
+                    fun getFrameSafely(timeUs: Long): Bitmap? {
+                        return runCatching { nativeRetriever.getFrameAtTime(timeUs) }.getOrNull()
+                            ?: runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull()
+                    }
 
                     // First, try to get embedded picture (album art/metadata thumbnail)
                     val embeddedPicture = nativeRetriever.embeddedPicture ?: ffmpegRetriever.getEmbeddedPicture()
@@ -212,26 +239,50 @@ class VideoThumbnailDecoder(
                         .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                         ?.toLongOrNull() ?: 0L
 
-                    return@use when (strategy) {
+                    val resultBitmap = when (strategy) {
                         is ThumbnailStrategy.FirstFrame -> {
-                            nativeRetriever.getFrameAtTime(0) ?: ffmpegRetriever.getFrameAtTime(0)
+                            getFrameSafely(0L)
                         }
 
                         is ThumbnailStrategy.FrameAtPercentage -> {
                             val timeUs = (videoDuration * strategy.percentage * 1000).toLong()
-                            nativeRetriever.getFrameAtTime(timeUs) ?: ffmpegRetriever.getFrameAtTime(timeUs)
+                            getFrameSafely(timeUs)
                         }
 
                         is ThumbnailStrategy.Hybrid -> {
-                            val firstFrame = nativeRetriever.getFrameAtTime(0)
-                            if (firstFrame == null || isSolidColor(firstFrame)) {
-                                val timeUs = (videoDuration * strategy.percentage * 1000).toLong()
-                                nativeRetriever.getFrameAtTime(timeUs) ?: ffmpegRetriever.getFrameAtTime(timeUs)
-                            } else {
-                                firstFrame
+                            val candidatePercentages = listOf(
+                                strategy.percentage,
+                                0.2f,
+                                0.8f,
+                                0f
+                            ).distinct()
+
+                            var fallbackFrame: Bitmap? = null
+                            var selectedFrame: Bitmap? = null
+
+                            for (percent in candidatePercentages) {
+                                val timeUs = (videoDuration * percent * 1000).toLong()
+                                val frame = getFrameSafely(timeUs)
+
+                                if (frame != null) {
+                                    if (!isSolidColor(frame)) {
+                                        fallbackFrame?.recycle()
+                                        selectedFrame = frame
+                                        break
+                                    }
+
+                                    if (fallbackFrame == null) {
+                                        fallbackFrame = frame
+                                    } else {
+                                        frame.recycle()
+                                    }
+                                }
                             }
+                            selectedFrame ?: fallbackFrame
                         }
-                    } ?: throw IllegalStateException("Failed to get video thumbnail.")
+                    }
+
+                    return@use resultBitmap ?: throw IllegalStateException("Failed to get video thumbnail.")
                 }
             }
         }
@@ -425,6 +476,7 @@ sealed class ThumbnailStrategy {
  * Uses a scaling approach to sample the center region and compares pixels to the center color.
  * Returns true if [threshold] (default 95%) or more of sampled pixels are similar.
  */
+/*
 private fun isSolidColor(bitmap: Bitmap, threshold: Float = 0.7f): Boolean {
     val width = bitmap.width
     val height = bitmap.height
@@ -475,5 +527,61 @@ private fun isSolidColor(bitmap: Bitmap, threshold: Float = 0.7f): Boolean {
     }
 
     val similarityRatio = similarCount.toFloat() / sampledColors.size
+    return similarityRatio >= threshold
+}
+*/
+private fun isSolidColor(bitmap: Bitmap, threshold: Float = 0.7f): Boolean {
+    val width = bitmap.width
+    val height = bitmap.height
+
+    val marginX = width / 10
+    val marginY = height / 10
+    val sampleAreaRight = width - marginX
+    val sampleAreaBottom = height - marginY
+
+    val gridSize = 20
+    val stepX = (sampleAreaRight - marginX) / gridSize
+    val stepY = (sampleAreaBottom - marginY) / gridSize
+
+    if (stepX <= 0 || stepY <= 0) return false
+
+    val sampledColors = ArrayList<Int>(gridSize * gridSize)
+    val roughColorCounts = HashMap<Int, Int>()
+
+    for (x in 0 until gridSize) {
+        for (y in 0 until gridSize) {
+            val pixelX = marginX + x * stepX
+            val pixelY = marginY + y * stepY
+            if (pixelX < width && pixelY < height) {
+                val color = bitmap[pixelX, pixelY]
+                sampledColors.add(color)
+
+                val r = Color.red(color) and 0xE0
+                val g = Color.green(color) and 0xE0
+                val b = Color.blue(color) and 0xE0
+                val roughKey = Color.rgb(r, g, b)
+
+                roughColorCounts[roughKey] = roughColorCounts.getOrDefault(roughKey, 0) + 1
+            }
+        }
+    }
+
+    if (sampledColors.isEmpty()) return false
+
+    val roughDominantColor = roughColorCounts.maxByOrNull { it.value }?.key ?: sampledColors[0]
+
+    val tolerance = 30
+
+    val dominantR = Color.red(roughDominantColor)
+    val dominantG = Color.green(roughDominantColor)
+    val dominantB = Color.blue(roughDominantColor)
+
+    val closeCount = sampledColors.count { color ->
+        abs(Color.red(color) - dominantR) <= tolerance &&
+                abs(Color.green(color) - dominantG) <= tolerance &&
+                abs(Color.blue(color) - dominantB) <= tolerance
+    }
+
+    val similarityRatio = closeCount.toFloat() / sampledColors.size
     return similarityRatio >= threshold
 }

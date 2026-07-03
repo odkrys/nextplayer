@@ -299,7 +299,8 @@
     <string name="frame_at_position">Frame at position</string>
     <string name="frame_at_position_desc">Use frame at specific position in the video</string>
     <string name="hybrid">Hybrid (smart)</string>
-    <string name="hybrid_desc">Attempts to use the first frame. If it\'s mostly a solid color, uses a frame from at specific position in the video instead</string>
+    <!-- string name="hybrid_desc">Attempts to use the first frame. If it\'s mostly a solid color, uses a frame from at specific position in the video instead</string> -->
+    <string name="hybrid_desc">Attempts to use the frame at the specified position. And if it is mostly a solid color, it falls back in the order of 20%, 80%, and the first frame</string>
     <string name="hybrid_slow">Slower</string>
     <string name="frame_position">Frame position</string>
     <string name="frame_position_value">Frame at %1$.0f%% of the video duration</string>

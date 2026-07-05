@@ -10,7 +10,9 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.PowerManager
+import android.provider.DocumentsContract
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -135,7 +137,11 @@ class PlayerActivity : ComponentActivity() {
                                 val videoUri = mediaController?.currentMediaItem?.localConfiguration?.uri
                                 val initialUri = videoUri?.let { video ->
                                     withContext(Dispatchers.IO) { getInitialDirectoryUri(video) }
-                                }
+                                //}
+                                } ?: DocumentsContract.buildDocumentUri(
+                                    "com.android.externalstorage.documents",
+                                    "primary:${Environment.DIRECTORY_DOWNLOADS}"
+                                )
                                 val uri = subtitleFileSuspendLauncher.launch(
                                     OpenDocumentAtInitialUri.Input(
                                         mimeTypes = arrayOf(

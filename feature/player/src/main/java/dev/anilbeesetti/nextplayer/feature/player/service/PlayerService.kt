@@ -1471,13 +1471,29 @@ class PlayerService : MediaSessionService() {
                 } else {
                     emptyList()
                 }
-
+/*
                 val subConfigurations = (localSubs + externalSubs).map { subtitleUri ->
                     uriToSubtitleConfiguration(
                         uri = subtitleUri,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
                     )
-                } + remoteSubConfigurations
+                }
+*/
+                val localSubConfigs = localSubs.map { subtitleUri ->
+                    uriToSubtitleConfiguration(
+                        uri = subtitleUri,
+                        subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                    )
+                }
+
+                val externalSubConfigs = externalSubs.map { subtitleUri ->
+                    uriToSubtitleConfiguration(
+                        uri = subtitleUri,
+                        subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                    )
+                }
+
+                val subConfigurations = localSubConfigs + remoteSubConfigurations + externalSubConfigs
 
                 // Use placeholder artwork initially - actual artwork will be loaded in background
                 val artworkUri = getDefaultArtworkUri()

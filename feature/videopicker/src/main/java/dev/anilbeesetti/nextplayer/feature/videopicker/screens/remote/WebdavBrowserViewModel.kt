@@ -41,6 +41,7 @@ data class WebdavBrowserUiState(
     val targetScrollUrl: String? = null,
     val isPreparingPlaylist: Boolean = false,
     val showOnlyPlayable: Boolean = false,
+    val scanHiddenFiles: Boolean = false,
     val webdavThumbnailMode: WebdavThumbnailMode = WebdavThumbnailMode.OFF,
 )
 
@@ -68,8 +69,9 @@ class WebdavBrowserViewModel @Inject constructor(
                     it.copy(
                         markLastPlayedMedia = prefs.markLastPlayedMedia,
                         scrollToLastPlayedMedia = prefs.scrollToLastPlayedMedia,
-                        webdavThumbnailMode = prefs.webdavThumbnailMode,
                         showOnlyPlayable = prefs.webdavShowOnlyPlayable,
+                        scanHiddenFiles = prefs.scanHiddenFiles,
+                        webdavThumbnailMode = prefs.webdavThumbnailMode,
                     )
                 }
             }
@@ -121,9 +123,10 @@ class WebdavBrowserViewModel @Inject constructor(
             }
 
             listWebdavFilesUseCase(server, path)
-                .onSuccess { files ->
+                .onSuccess { rawFiles ->
                     spinnerJob.cancel()
 
+                    val files = rawFiles.filterHidden(_uiState.value.scanHiddenFiles)
                     val sortedFiles = files.sortedWith(
                         compareBy<WebdavFile> { !it.isDirectory }
                             .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
@@ -260,10 +263,12 @@ class WebdavBrowserViewModel @Inject constructor(
 
             val folderPath = relativePath.substringBeforeLast("/").ifEmpty { "/" }
 
-            val files = listWebdavFilesUseCase(server, folderPath).getOrNull() ?: run {
+            val rawFiles = listWebdavFilesUseCase(server, folderPath).getOrNull() ?: run {
                 onPlay(listOf(lastUrl), 0)
                 return@launch
             }
+
+            val files = rawFiles.filterHidden(_uiState.value.scanHiddenFiles)
 
             if (shouldScrollToLastPlayed) {
                 val pathSegments = folderPath.split("/").filter { it.isNotEmpty() }
@@ -395,16 +400,20 @@ class WebdavBrowserViewModel @Inject constructor(
     private suspend fun collectPlayableFiles(
         server: WebdavServer,
         files: List<WebdavFile>,
+        scanHidden: Boolean,
     ): List<WebdavFile> {
         val result = mutableListOf<WebdavFile>()
         for (file in files) {
             currentCoroutineContext().ensureActive()
             if (file.isDirectory) {
-                val children = listWebdavFilesUseCase(server, file.path)
+                val rawChildren = listWebdavFilesUseCase(server, file.path)
                     .getOrElse { emptyList() }
+
+                val children = rawChildren
+                    .filterHidden(scanHidden)
                     .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 
-                result += collectPlayableFiles(server, children)
+                result += collectPlayableFiles(server, children, scanHidden)
             } else if (isPlayable(file)) {
                 result += file
             }
@@ -423,6 +432,7 @@ class WebdavBrowserViewModel @Inject constructor(
                 val collectedFiles = collectPlayableFiles(
                     server = server,
                     files = selectedFiles,
+                    scanHidden = _uiState.value.scanHiddenFiles,
                 )
 
                 val mediaPairs = collectedFiles.map { file ->
@@ -456,5 +466,9 @@ class WebdavBrowserViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun List<WebdavFile>.filterHidden(scanHidden: Boolean): List<WebdavFile> {
+        return if (scanHidden) this else this.filter { !it.name.startsWith(".") }
     }
 }

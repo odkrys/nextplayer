@@ -21,10 +21,30 @@ class GetSortedFoldersUseCase @Inject constructor(
     operator fun invoke(folderPath: String? = null): Flow<List<Folder>> {
         return combine(
             mediaRepository.observeFolders(folderPath),
+            mediaRepository.observeVideos(folderPath),
             preferencesRepository.applicationPreferences,
-        ) { folders, preferences ->
+        //) { folders, preferences ->
+        ) { folders, videos, preferences ->
 
+            val updatedFolders = folders.map { folder ->
+                val videosInFolder = videos.filter { it.parentPath == folder.path }
+
+                if (videosInFolder.isNotEmpty()) {
+                    folder.copy(
+                        totalDuration = videosInFolder.sumOf { it.duration },
+                        videosCount = videosInFolder.size,
+                        totalSize = videosInFolder.sumOf { it.size }
+                    )
+                } else {
+                    folder
+                }
+            }
+/*
             val nonExcludedDirectories = folders.filter {
+                it.path !in preferences.excludeFolders
+            }
+*/
+            val nonExcludedDirectories = updatedFolders.filter {
                 it.path !in preferences.excludeFolders
             }
 

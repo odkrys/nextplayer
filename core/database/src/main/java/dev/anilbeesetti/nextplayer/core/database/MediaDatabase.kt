@@ -20,7 +20,7 @@ import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
         PlaylistMediumCrossEntity::class,
     ],
     //version = 5,
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
@@ -427,6 +427,13 @@ abstract class MediaDatabase : RoomDatabase() {
                     CREATE INDEX IF NOT EXISTS `index_playlist_medium_cross_entity_medium_uri`
                     ON `playlist_medium_cross_entity` (`medium_uri`)
                 """.trimIndent())
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase)  {
+                db.execSQL("ALTER TABLE media_state ADD COLUMN width INTEGER")
+                db.execSQL("ALTER TABLE media_state ADD COLUMN height INTEGER")
             }
         }
     }

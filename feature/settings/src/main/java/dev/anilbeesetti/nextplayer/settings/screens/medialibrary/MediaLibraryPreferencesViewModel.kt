@@ -36,6 +36,9 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
             MediaLibraryPreferencesUiEvent.ToggleMarkLastPlayedMedia -> toggleMarkLastPlayedMedia()
             MediaLibraryPreferencesUiEvent.ToggleScrollToLastPlayedMedia -> toggleScrollToLastPlayedMedia()
             MediaLibraryPreferencesUiEvent.ToggleHideExcludedMediaInPlaylists -> toggleHideExcludedMediaInPlaylists()
+            MediaLibraryPreferencesUiEvent.ToggleScanNomediaFolders -> toggleScanNomediaFolders()
+            MediaLibraryPreferencesUiEvent.ToggleScanHiddenFiles -> toggleScanHiddenFiles()
+            MediaLibraryPreferencesUiEvent.TriggerForceScan -> triggerForceScan()
             is MediaLibraryPreferencesUiEvent.UpdateWebdavThumbnailMode -> updateWebdavThumbnailMode(event.mode)
             is MediaLibraryPreferencesUiEvent.UpdateMediaCacheSize -> updateMediaCacheSize(event.sizeMb)
         }
@@ -65,6 +68,30 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun toggleScanNomediaFolders() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(scanNomediaFolders = !it.scanNomediaFolders)
+            }
+        }
+    }
+
+    private fun toggleScanHiddenFiles() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(scanHiddenFiles = !it.scanHiddenFiles)
+            }
+        }
+    }
+
+    private fun triggerForceScan() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences { prefs ->
+                prefs.copy(forceScanTrigger = System.currentTimeMillis())
+            }
+        }
+    }
+
     private fun updateWebdavThumbnailMode(mode: WebdavThumbnailMode) {
         viewModelScope.launch {
             preferencesRepository.updateApplicationPreferences {
@@ -90,6 +117,9 @@ sealed interface MediaLibraryPreferencesUiEvent {
     data object ToggleMarkLastPlayedMedia : MediaLibraryPreferencesUiEvent
     data object ToggleScrollToLastPlayedMedia : MediaLibraryPreferencesUiEvent
     data object ToggleHideExcludedMediaInPlaylists : MediaLibraryPreferencesUiEvent
+    data object ToggleScanNomediaFolders : MediaLibraryPreferencesUiEvent
+    data object ToggleScanHiddenFiles : MediaLibraryPreferencesUiEvent
+    data object TriggerForceScan : MediaLibraryPreferencesUiEvent
     data class UpdateWebdavThumbnailMode(val mode: WebdavThumbnailMode) : MediaLibraryPreferencesUiEvent
     data class UpdateMediaCacheSize(val sizeMb: Int) : MediaLibraryPreferencesUiEvent
 }

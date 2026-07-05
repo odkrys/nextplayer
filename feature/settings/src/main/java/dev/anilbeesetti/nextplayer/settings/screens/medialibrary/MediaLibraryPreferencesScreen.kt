@@ -3,6 +3,7 @@ package dev.anilbeesetti.nextplayer.settings.screens.medialibrary
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,7 +42,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.anilbeesetti.nextplayer.core.common.extensions.restartApplication
 import dev.anilbeesetti.nextplayer.core.model.ThumbnailGenerationStrategy
 import dev.anilbeesetti.nextplayer.core.model.WebdavThumbnailMode
@@ -90,6 +95,31 @@ private fun MediaLibraryPreferencesContent(
     var showRestartDialog by remember { mutableStateOf(false) }
     val currentCacheSize = preferences.diskCacheSizeMb
     var pendingCacheSize by remember { mutableStateOf<Int?>(null) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasAllFilesAccess by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager() else true
+        )
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val currentlyHasAccess = Environment.isExternalStorageManager()
+
+                    if (currentlyHasAccess && !hasAllFilesAccess) {
+                        onEvent(MediaLibraryPreferencesUiEvent.TriggerForceScan)
+                    }
+
+                    hasAllFilesAccess = currentlyHasAccess
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -175,11 +205,40 @@ private fun MediaLibraryPreferencesContent(
                             context.startActivity(intent)
                         },
                         isFirstItem = false,
+                        isLastItem = false,
+                    )
+
+                    PreferenceSwitch(
+                        title = "Scan .nomedia folders",
+                        description = if (hasAllFilesAccess) {
+                            "Include videos in .nomedia folders"
+                        } else {
+                            "Requires 'All Files Access' permission"
+                        },
+                        icon = NextIcons.Folder,
+                        isChecked = preferences.scanNomediaFolders && hasAllFilesAccess,
+                        enabled = hasAllFilesAccess,
+                        onClick = { onEvent(MediaLibraryPreferencesUiEvent.ToggleScanNomediaFolders) },
+                        isFirstItem = false,
+                        isLastItem = false,
+                    )
+
+                    PreferenceSwitch(
+                        title = "Scan hidden files and folders",
+                        description = if (hasAllFilesAccess) {
+                            "Include hidden files and folders starting with (.)"
+                        } else {
+                            "Requires 'All Files Access' permission"
+                        },
+                        icon = NextIcons.Visibility,
+                        isChecked = preferences.scanHiddenFiles && hasAllFilesAccess,
+                        enabled = hasAllFilesAccess,
+                        onClick = { onEvent(MediaLibraryPreferencesUiEvent.ToggleScanHiddenFiles) },
+                        isFirstItem = false,
                         isLastItem = true,
                     )
                 }
             }
-
 
             ListSectionTitle(text = stringResource(id = R.string.thumbnail))
             Column(

@@ -1,10 +1,13 @@
 package dev.anilbeesetti.nextplayer.core.media.services
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
 import android.database.ContentObserver
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.provider.MediaStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.anilbeesetti.nextplayer.core.common.di.ApplicationScope
@@ -17,13 +20,16 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -37,6 +43,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class MediaStoreMediaService @Inject constructor(
     @ApplicationContext private val context: Context,
     @ApplicationScope private val applicationScope: CoroutineScope,
+    private val scannerSettingsProvider: ScannerSettingsProvider,
 ) : MediaService {
 
     companion object {
@@ -53,6 +60,9 @@ class MediaStoreMediaService @Inject constructor(
             MediaStore.Video.Media.DATE_MODIFIED,
         )
     }
+
+    private val videosFlowCache = ConcurrentHashMap<String, Flow<List<MediaVideo>>>()
+    private val foldersFlowCache = ConcurrentHashMap<String, Flow<List<MediaFolder>>>()
 
     /**
      * A single, shared signal of MediaStore changes.
@@ -78,7 +88,7 @@ class MediaStoreMediaService @Inject constructor(
             started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
             replay = 1,
         )
-
+/*
     override fun observeFolders(folderPath: String?): Flow<List<MediaFolder>> {
         return mediaChanges
             .map { fetchFolders(folderPath) }
@@ -91,6 +101,46 @@ class MediaStoreMediaService @Inject constructor(
             .map { fetchVideos(folderPath) }
             .flowOn(Dispatchers.IO)
             .distinctUntilChanged()
+    }
+*/
+    override fun observeFolders(folderPath: String?): Flow<List<MediaFolder>> {
+        val cacheKey = folderPath ?: "ROOT_FOLDER"
+
+        return foldersFlowCache.computeIfAbsent(cacheKey) {
+            combine(
+                mediaChanges,
+                scannerSettingsProvider.observeSettings()
+            ) { _, _ ->
+                fetchFolders(folderPath)
+            }
+                .flowOn(Dispatchers.IO)
+                .distinctUntilChanged()
+                .shareIn(
+                    scope = applicationScope,
+                    started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
+                    replay = 1
+                )
+        }
+    }
+
+    override fun observeVideos(folderPath: String?): Flow<List<MediaVideo>> {
+        val cacheKey = folderPath ?: "ROOT_FOLDER"
+
+        return videosFlowCache.computeIfAbsent(cacheKey) {
+            combine(
+                mediaChanges,
+                scannerSettingsProvider.observeSettings()
+            ) { _, settings ->
+                fetchVideosInternal(folderPath, settings)
+            }
+                .flowOn(Dispatchers.IO)
+                .distinctUntilChanged()
+                .shareIn(
+                    scope = applicationScope,
+                    started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
+                    replay = 1
+                )
+        }
     }
 
     override suspend fun fetchFolders(folderPath: String?): List<MediaFolder> = withContext(Dispatchers.IO) {
@@ -112,7 +162,7 @@ class MediaStoreMediaService @Inject constructor(
             }
         }
     }
-
+/*
     override suspend fun fetchVideos(folderPath: String?): List<MediaVideo> = withContext(Dispatchers.IO) {
         val mediaVideos = mutableListOf<MediaVideo>()
 
@@ -136,7 +186,56 @@ class MediaStoreMediaService @Inject constructor(
         }
         return@withContext mediaVideos
     }
+*/
+    override suspend fun fetchVideos(folderPath: String?): List<MediaVideo> {
+        val settings = scannerSettingsProvider.observeSettings().first()
+        return fetchVideosInternal(folderPath, settings)
+    }
 
+    private suspend fun fetchVideosInternal(
+        folderPath: String?,
+        settings: ScannerSettings
+    ): List<MediaVideo> = withContext(Dispatchers.IO) {
+        val mediaVideos = mutableListOf<MediaVideo>()
+
+        // A null folderPath scans every storage volume (e.g. SD cards / USB OTG). For a specific
+        // folder, match it and its descendants, escaping LIKE metacharacters ('%', '_') in the path.
+        val selection = if (folderPath == null) null else "${MediaStore.Video.Media.DATA} LIKE ? ESCAPE '\\'"
+        val selectionArgs = if (folderPath == null) null else arrayOf("${folderPath.escapeLike()}/%")
+        val sortOrder = "${MediaStore.Video.Media.DISPLAY_NAME} ASC"
+
+        context.contentResolver.query(
+            VIDEO_COLLECTION_URI,
+            VIDEO_PROJECTION,
+            selection,
+            selectionArgs,
+            sortOrder,
+        )?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val video = cursor.toMediaVideo() ?: continue
+                mediaVideos.add(video)
+            }
+        }
+
+        if (settings.scanNomedia || settings.scanHidden) {
+            val hiddenVideos = scanFilesWithJavaFileApi(
+                folderPath = folderPath,
+                scanNomedia = settings.scanNomedia,
+                scanHidden = settings.scanHidden
+            )
+
+            val existingPaths = mediaVideos.map { it.path }.toMutableSet()
+
+            hiddenVideos.forEach { hiddenVideo ->
+                if (existingPaths.add(hiddenVideo.path)) {
+                    mediaVideos.add(hiddenVideo)
+                }
+            }
+        }
+
+        return@withContext mediaVideos
+    }
+/*
     override suspend fun findVideo(uri: Uri): MediaVideo? = withContext(Dispatchers.IO) {
         return@withContext try {
             context.contentResolver.query(
@@ -155,6 +254,48 @@ class MediaStoreMediaService @Inject constructor(
             // MediaStore row for it is the correct outcome, not a crash.
             null
         }
+    }
+*/
+    override suspend fun findVideo(uri: Uri): MediaVideo? = withContext(Dispatchers.IO) {
+        if (uri.scheme == ContentResolver.SCHEME_CONTENT) {
+            val selection = "${MediaStore.Video.Media._ID} = ?"
+            val selectionArgs = arrayOf(uri.lastPathSegment ?: return@withContext null)
+
+            context.contentResolver.query(
+                VIDEO_COLLECTION_URI,
+                VIDEO_PROJECTION,
+                selection,
+                selectionArgs,
+                null,
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return@withContext cursor.toMediaVideo()
+                }
+            }
+        }
+
+        if (uri.scheme == ContentResolver.SCHEME_FILE) {
+            val path = uri.path ?: return@withContext null
+            val file = File(path)
+
+            if (file.exists() && file.isFile) {
+                return@withContext MediaVideo(
+                    id = file.absolutePath.toStableId(),
+                    path = file.absolutePath,
+                    title = file.nameWithoutExtension,
+                    parentPath = file.parent ?: "/",
+                    uri = uri,
+                    displayName = file.name,
+                    duration = 0L,
+                    width = 0,
+                    height = 0,
+                    size = file.length(),
+                    dateModified = file.lastModified() / 1000
+                )
+            }
+        }
+
+        return@withContext null
     }
 
     override suspend fun findFolder(path: String): MediaFolder? = withContext(Dispatchers.IO) {
@@ -233,5 +374,83 @@ class MediaStoreMediaService @Inject constructor(
             size = getLong(sizeIndex),
             dateModified = getLong(dateModifiedIndex),
         )
+    }
+
+    private suspend fun scanFilesWithJavaFileApi(
+        folderPath: String?,
+        scanNomedia: Boolean,
+        scanHidden: Boolean,
+    ): List<MediaVideo> = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            return@withContext emptyList()
+        }
+
+        val hiddenVideos = mutableListOf<MediaVideo>()
+
+        val skipFolders = setOf("android", "cache", "temp", "logs", "obb", ".trash")
+        val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "webm", "ts", "m2ts", "flv", "wmv", "asf")
+
+        val searchRoots = if (folderPath != null) {
+            listOf(File(folderPath))
+        } else {
+            context.getExternalFilesDirs(null).mapNotNull { file ->
+                val rootPath = file?.absolutePath?.substringBefore("/Android")
+                rootPath?.let { File(it) }
+            }
+                .distinctBy { it.absolutePath }
+                .ifEmpty {
+                    listOf(Environment.getExternalStorageDirectory())
+                }
+        }
+
+        searchRoots.forEach { root ->
+            if (root.exists() && root.isDirectory) {
+                root.walkTopDown()
+                    .onEnter { dir ->
+                        val dirName = dir.name.lowercase()
+                        if (dirName in skipFolders) return@onEnter false
+
+                        val isHiddenDir = dir.name.startsWith(".")
+                        if (isHiddenDir && !scanHidden) {
+                            return@onEnter false
+                        }
+
+                        val hasNomedia = File(dir, ".nomedia").exists()
+                        if (hasNomedia && !scanNomedia) {
+                            return@onEnter false
+                        }
+
+                        true
+                    }
+                    .forEach { file ->
+                        if (file.isFile && file.extension.lowercase() in videoExtensions) {
+                            val isHiddenFile = file.name.startsWith(".")
+                            if (isHiddenFile && !scanHidden) return@forEach
+
+                            hiddenVideos.add(
+                                MediaVideo(
+                                    id = file.absolutePath.toStableId(),
+                                    path = file.absolutePath,
+                                    title = file.nameWithoutExtension,
+                                    parentPath = file.parent ?: "/",
+                                    uri = Uri.fromFile(file),
+                                    displayName = file.name,
+                                    duration = 0L,
+                                    width = 0,
+                                    height = 0,
+                                    size = file.length(),
+                                    dateModified = file.lastModified() / 1000
+                                )
+                            )
+                        }
+                    }
+            }
+        }
+
+        return@withContext hiddenVideos
+    }
+
+    private fun String.toStableId(): Long {
+        return this.hashCode().toLong() and 0xFFFFFFFFL
     }
 }

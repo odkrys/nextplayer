@@ -78,7 +78,15 @@ class MediaPickerViewModel @Inject constructor(
             is MediaPickerAction.Refresh -> refresh()
             is MediaPickerAction.RenameVideo -> renameVideo(action.uri, action.to)
             is MediaPickerAction.UpdateMenu -> updateMenu(action.preferences)
-            is MediaPickerAction.OnPermissionAccepted -> collectMedia()
+            //is MediaPickerAction.OnPermissionAccepted -> collectMedia()
+            is MediaPickerAction.OnPermissionAccepted -> {
+                viewModelScope.launch {
+                    preferencesRepository.updateApplicationPreferences { prefs ->
+                        prefs.copy(forceScanTrigger = System.currentTimeMillis())
+                    }
+                }
+                collectMedia()
+            }
             is MediaPickerAction.PlaySelectedItems -> playSelectedItems(action.selectionItems)
             is MediaPickerAction.DeleteSelectedItems -> deleteSelectedItems(action.selectionItems)
             is MediaPickerAction.ShareSelectedItems -> shareSelectedItems(action.selectionItems)

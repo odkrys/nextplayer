@@ -35,4 +35,8 @@ data class MediumStateEntity(
     val subtitleSpeed: Float = 1f,
     @ColumnInfo(name = "duration_ms")
     val durationMs: Long? = null,
+    @ColumnInfo(name = "width")
+    val width: Int? = null,
+    @ColumnInfo(name = "height")
+    val height: Int? = null,
 )

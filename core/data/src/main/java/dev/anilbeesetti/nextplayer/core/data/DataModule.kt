@@ -4,6 +4,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import dev.anilbeesetti.nextplayer.core.data.repository.DefaultScannerSettingsProvider
 import dev.anilbeesetti.nextplayer.core.data.repository.LocalMediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.LocalPlaylistRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.LocalPreferencesRepository
@@ -12,6 +13,7 @@ import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PlaylistRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.SearchHistoryRepository
+import dev.anilbeesetti.nextplayer.core.media.services.ScannerSettingsProvider
 import javax.inject.Singleton
 
 @Module
@@ -40,4 +42,9 @@ interface DataModule {
     abstract fun bindPlaylistRepository(
         localPlaylistRepository: LocalPlaylistRepository,
     ): PlaylistRepository
+
+    @Binds
+    abstract fun bindScannerSettingsProvider(
+        impl: DefaultScannerSettingsProvider,
+    ): ScannerSettingsProvider
 }

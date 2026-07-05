@@ -271,6 +271,7 @@ class PlayerActivity : ComponentActivity() {
 
     private suspend fun playVideo(uri: Uri) = withContext(Dispatchers.Default) {
         val mediaContentUri = getMediaContentUri(uri)
+/*
         val playlist = playerApi.getPlaylist().takeIf { it.isNotEmpty() }
             ?: mediaContentUri?.let { mediaUri ->
                 viewModel.getPlaylistFromUri(mediaUri)
@@ -286,13 +287,36 @@ class PlayerActivity : ComponentActivity() {
         val mediaItemIndexToPlay = playlist.indexOfFirst {
             it == (mediaContentUri ?: uri).toString()
         }.takeIf { it >= 0 } ?: 0
+*/
+        val targetUri = mediaContentUri ?: uri
+
+        val playlist = playerApi.getPlaylist().takeIf { it.isNotEmpty() }
+            ?: viewModel.getPlaylistFromUri(targetUri)
+                .map { it.uriString }
+                .takeIf { it.isNotEmpty() }
+                ?.toMutableList()
+                ?.apply {
+                    if (!contains(targetUri.toString())) {
+                        add(index = 0, element = targetUri.toString())
+                    }
+                }
+            ?: listOf(uri.toString())
+
+        val mediaItemIndexToPlay = playlist.indexOfFirst {
+            it == targetUri.toString()
+        }.takeIf { it >= 0 } ?: 0
 
         val playlistId = intent.getLongExtra("EXTRA_PLAYLIST_ID", -1L)
-
+/*
         val mediaItems = playlist.mapIndexed { index, uri ->
             MediaItem.Builder().apply {
                 setUri(uri)
                 setMediaId(uri)
+*/
+        val mediaItems = playlist.mapIndexed { index, itemUri ->
+            MediaItem.Builder().apply {
+                setUri(itemUri)
+                setMediaId(itemUri)
 
                 val baseMetadata = if (index == mediaItemIndexToPlay) {
                     MediaMetadata.Builder().apply {

@@ -270,6 +270,11 @@ class WebdavBrowserViewModel @Inject constructor(
 
             val files = rawFiles.filterHidden(_uiState.value.scanHiddenFiles)
 
+            val sortedFiles = files.sortedWith(
+                compareBy<WebdavFile> { !it.isDirectory }
+                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            )
+
             if (shouldScrollToLastPlayed) {
                 val pathSegments = folderPath.split("/").filter { it.isNotEmpty() }
                 val newPathStack = mutableListOf("/")
@@ -283,7 +288,7 @@ class WebdavBrowserViewModel @Inject constructor(
                     currentState.copy(
                         currentPath = folderPath,
                         pathStack = newPathStack,
-                        files = files,
+                        files = sortedFiles,
                         targetScrollUrl = lastUrl,
                         isLoading = false
                     )
@@ -292,9 +297,8 @@ class WebdavBrowserViewModel @Inject constructor(
                 refreshProgress()
             }
 
-            val playableFiles = files
+            val playableFiles = sortedFiles
                 .filter { isPlayable(it) }
-                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
 
             if (playableFiles.isEmpty()) {
                 onPlay(listOf(lastUrl), 0)

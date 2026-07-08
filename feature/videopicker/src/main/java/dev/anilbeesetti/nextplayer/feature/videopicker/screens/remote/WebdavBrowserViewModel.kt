@@ -1,6 +1,7 @@
 package dev.anilbeesetti.nextplayer.feature.videopicker.screens.remote
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -51,6 +52,7 @@ class WebdavBrowserViewModel @Inject constructor(
     private val listWebdavFilesUseCase: ListWebdavFilesUseCase,
     private val mediaRepository: MediaRepository,
     private val preferencesRepository: PreferencesRepository,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WebdavBrowserUiState())
@@ -86,11 +88,14 @@ class WebdavBrowserViewModel @Inject constructor(
 
             getWebdavServerByIdUseCase(serverId)
                 .onSuccess { server ->
+                    val restoredPath = savedStateHandle.get<String>("current_path") ?: "/"
+                    val restoredStack = savedStateHandle.get<Array<String>>("path_stack")?.toList() ?: listOf("/")
+
                     _uiState.update {
                         it.copy(
                             server = server,
-                            currentPath = "/",
-                            pathStack = listOf("/"),
+                            currentPath = restoredPath,
+                            pathStack = restoredStack,
                             files = emptyList(),
                             isLoading = false,
 
@@ -99,7 +104,7 @@ class WebdavBrowserViewModel @Inject constructor(
                             playbackProgress = emptyMap()
                         )
                     }
-                    loadFiles("/")
+                    loadFiles(restoredPath)
                 }
                 .onFailure { e ->
                     _uiState.update {
@@ -338,8 +343,13 @@ class WebdavBrowserViewModel @Inject constructor(
 
     fun navigateTo(directory: WebdavFile) {
         check(directory.isDirectory) { "You can only browse folders." }
+
+        val newStack = _uiState.value.pathStack + directory.path
+        savedStateHandle["current_path"] = directory.path
+        savedStateHandle["path_stack"] = newStack.toTypedArray()
+
         _uiState.update { state ->
-            state.copy(pathStack = state.pathStack + directory.path)
+            state.copy(pathStack = newStack)
         }
         loadFiles(directory.path)
     }
@@ -350,6 +360,10 @@ class WebdavBrowserViewModel @Inject constructor(
 
         val newStack = stack.dropLast(1)
         val prevPath = newStack.last()
+
+        savedStateHandle["current_path"] = prevPath
+        savedStateHandle["path_stack"] = newStack.toTypedArray()
+
         _uiState.update { it.copy(pathStack = newStack) }
         loadFiles(prevPath)
         return true

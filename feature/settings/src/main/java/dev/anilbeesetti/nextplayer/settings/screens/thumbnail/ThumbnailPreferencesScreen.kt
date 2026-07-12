@@ -125,7 +125,8 @@ private fun ThumbnailPreferencesContent(
                 )
                 SingleSelectablePreference(
                     title = stringResource(id = R.string.hybrid),
-                    description = stringResource(id = R.string.hybrid_desc),
+                    //description = stringResource(id = R.string.hybrid_desc),
+                    description = stringResource(id = R.string.hybrid_desc2),
                     selected = preferences.thumbnailGenerationStrategy == ThumbnailGenerationStrategy.HYBRID,
                     onClick = {
                         if (preferences.thumbnailGenerationStrategy == ThumbnailGenerationStrategy.HYBRID) return@SingleSelectablePreference

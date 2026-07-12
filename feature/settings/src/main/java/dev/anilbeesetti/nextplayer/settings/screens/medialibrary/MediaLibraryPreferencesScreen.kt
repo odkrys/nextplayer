@@ -258,7 +258,7 @@ private fun MediaLibraryPreferencesContent(
                     isLastItem = false,
                 )
                 ClickablePreferenceItem(
-                    title = "WebDAV Thumbnails",
+                    title = "WebDAV thumbnail generation",
                     description = when (preferences.webdavThumbnailMode) {
                         WebdavThumbnailMode.OFF -> "Off"
                         WebdavThumbnailMode.WIFI_ONLY -> "Wi-Fi only"
@@ -297,7 +297,7 @@ private fun MediaLibraryPreferencesContent(
     if (showWebdavThumbnailDialog) {
         AlertDialog(
             onDismissRequest = { showWebdavThumbnailDialog = false },
-            title = { Text("WebDAV Thumbnails") },
+            title = { Text("Generation mode") },
             text = {
                 Column {
                     listOf(

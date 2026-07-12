@@ -321,7 +321,7 @@
     <string name="show_buffer">Show Buffer</string>
     <string name="show_buffer_desc">Display the buffer next to the playback time and on the seekbar</string>
     <string name="scroll_to_last_played_media">Move to the last played media location</string>
-    <string name="scroll_to_last_played_media_desc">Automatically scrolls to the file location of the last played media</string>
+    <string name="scroll_to_last_played_media_desc">Automatically scrolls to the last played media when using the floating button</string>
     <string name="misc">Misc</string>
     <string name="dolby_vision_fallback">Dolby Vision profile 7 fallback</string>
     <string name="dolby_vision_fallback_desc">Play Dolby Vision profile 7 content in HDR</string>

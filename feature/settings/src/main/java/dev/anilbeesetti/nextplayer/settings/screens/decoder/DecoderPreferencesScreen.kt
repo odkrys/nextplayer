@@ -27,6 +27,7 @@ import dev.anilbeesetti.nextplayer.core.ui.R
 import dev.anilbeesetti.nextplayer.core.ui.components.ClickablePreferenceItem
 import dev.anilbeesetti.nextplayer.core.ui.components.ListSectionTitle
 import dev.anilbeesetti.nextplayer.core.ui.components.NextTopAppBar
+import dev.anilbeesetti.nextplayer.core.ui.components.PreferenceSwitch
 import dev.anilbeesetti.nextplayer.core.ui.components.RadioTextButton
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
 import dev.anilbeesetti.nextplayer.core.ui.theme.NextPlayerTheme
@@ -88,6 +89,20 @@ private fun DecoderPreferencesContent(
                     description = preferences.decoderPriority.name(),
                     icon = NextIcons.Priority,
                     onClick = { onEvent(DecoderPreferencesUiEvent.ShowDialog(DecoderPreferenceDialog.DecoderPriorityDialog)) },
+                    isFirstItem = true,
+                    isLastItem = true,
+                )
+            }
+            ListSectionTitle(text = stringResource(id = R.string.misc))
+            Column(
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+            ) {
+                PreferenceSwitch(
+                    title = stringResource(R.string.dolby_vision_fallback),
+                    description = stringResource(R.string.dolby_vision_fallback_desc),
+                    icon = NextIcons.Video,
+                    isChecked = preferences.forceDolbyVisionFallback,
+                    onClick = { onEvent(DecoderPreferencesUiEvent.ToggleDolbyVisionFallback) },
                     isFirstItem = true,
                     isLastItem = true,
                 )

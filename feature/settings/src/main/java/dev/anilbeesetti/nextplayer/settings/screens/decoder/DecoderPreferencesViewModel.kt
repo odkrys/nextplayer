@@ -39,6 +39,7 @@ class DecoderPreferencesViewModel @Inject constructor(
         when (event) {
             is DecoderPreferencesUiEvent.ShowDialog -> showDialog(event.value)
             is DecoderPreferencesUiEvent.UpdateDecoderPriority -> updateDecoderPriority(event.value)
+            DecoderPreferencesUiEvent.ToggleDolbyVisionFallback -> toggleDolbyVisionFallback()
         }
     }
 
@@ -52,6 +53,14 @@ class DecoderPreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
                 it.copy(decoderPriority = value)
+            }
+        }
+    }
+
+    private fun toggleDolbyVisionFallback() {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(forceDolbyVisionFallback = !it.forceDolbyVisionFallback)
             }
         }
     }
@@ -70,4 +79,5 @@ sealed interface DecoderPreferenceDialog {
 sealed interface DecoderPreferencesUiEvent {
     data class ShowDialog(val value: DecoderPreferenceDialog?) : DecoderPreferencesUiEvent
     data class UpdateDecoderPriority(val value: DecoderPriority) : DecoderPreferencesUiEvent
+    data object ToggleDolbyVisionFallback : DecoderPreferencesUiEvent
 }

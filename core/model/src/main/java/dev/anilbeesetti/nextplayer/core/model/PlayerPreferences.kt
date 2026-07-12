@@ -73,6 +73,7 @@ data class PlayerPreferences(
 
     // Decoder Preferences
     val decoderPriority: DecoderPriority = DecoderPriority.PREFER_DEVICE,
+    val forceDolbyVisionFallback: Boolean = false,
 ) {
 
     companion object {

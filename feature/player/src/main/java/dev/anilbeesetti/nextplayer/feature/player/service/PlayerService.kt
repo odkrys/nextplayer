@@ -1137,7 +1137,10 @@ class PlayerService : MediaSessionService() {
                 },
             )
 */
-        val renderersFactory = object : NextRenderersFactory(applicationContext) {
+        val renderersFactory = object : NextRenderersFactory(
+            applicationContext,
+            initialPrefs.forceDolbyVisionFallback
+        ) {
             override fun buildAudioSink(
                 context: Context,
                 enableFloatOutput: Boolean,

@@ -9,8 +9,10 @@ import dev.anilbeesetti.nextplayer.core.data.repository.MediaRepository
 import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServerByIdUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.ListWebdavFilesUseCase
+import dev.anilbeesetti.nextplayer.core.domain.webdav.UpdateWebdavSortOptionUseCase
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
+import dev.anilbeesetti.nextplayer.core.model.WebdavSortOption
 import dev.anilbeesetti.nextplayer.core.model.WebdavThumbnailMode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -44,12 +46,14 @@ data class WebdavBrowserUiState(
     val showOnlyPlayable: Boolean = false,
     val scanHiddenFiles: Boolean = false,
     val webdavThumbnailMode: WebdavThumbnailMode = WebdavThumbnailMode.OFF,
+    val sortOption: WebdavSortOption = WebdavSortOption.NAME_ASC,
 )
 
 @HiltViewModel
 class WebdavBrowserViewModel @Inject constructor(
     private val getWebdavServerByIdUseCase: GetWebdavServerByIdUseCase,
     private val listWebdavFilesUseCase: ListWebdavFilesUseCase,
+    private val updateWebdavSortOptionUseCase: UpdateWebdavSortOptionUseCase,
     private val mediaRepository: MediaRepository,
     private val preferencesRepository: PreferencesRepository,
     private val savedStateHandle: SavedStateHandle,
@@ -90,12 +94,15 @@ class WebdavBrowserViewModel @Inject constructor(
                 .onSuccess { server ->
                     val restoredPath = savedStateHandle.get<String>("current_path") ?: "/"
                     val restoredStack = savedStateHandle.get<Array<String>>("path_stack")?.toList() ?: listOf("/")
+                    val savedSort = runCatching { WebdavSortOption.valueOf(server.sortOption) }
+                        .getOrDefault(WebdavSortOption.NAME_ASC)
 
                     _uiState.update {
                         it.copy(
                             server = server,
                             currentPath = restoredPath,
                             pathStack = restoredStack,
+                            sortOption = savedSort,
                             files = emptyList(),
                             isLoading = false,
 
@@ -111,6 +118,20 @@ class WebdavBrowserViewModel @Inject constructor(
                         it.copy(isLoading = false, errorMessage = e.message ?: "Failed to load server")
                     }
                 }
+        }
+    }
+
+    fun updateSortOption(newOption: WebdavSortOption) {
+        val serverId = _uiState.value.server?.id ?: return
+
+        _uiState.update { it.copy(sortOption = newOption) }
+
+        viewModelScope.launch {
+            try {
+                updateWebdavSortOptionUseCase(serverId, newOption.name)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -419,9 +440,12 @@ class WebdavBrowserViewModel @Inject constructor(
         server: WebdavServer,
         files: List<WebdavFile>,
         scanHidden: Boolean,
+        sortOption: WebdavSortOption,
     ): List<WebdavFile> {
         val result = mutableListOf<WebdavFile>()
-        for (file in files) {
+        val sortedFiles = files.sortWithFoldersFirst(sortOption)
+
+        for (file in sortedFiles) {
             currentCoroutineContext().ensureActive()
             if (file.isDirectory) {
                 val rawChildren = listWebdavFilesUseCase(server, file.path)
@@ -429,9 +453,9 @@ class WebdavBrowserViewModel @Inject constructor(
 
                 val children = rawChildren
                     .filterHidden(scanHidden)
-                    .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
+                    .sortWithFoldersFirst(sortOption)
 
-                result += collectPlayableFiles(server, children, scanHidden)
+                result += collectPlayableFiles(server, children, scanHidden, sortOption)
             } else if (isPlayable(file)) {
                 result += file
             }
@@ -442,6 +466,7 @@ class WebdavBrowserViewModel @Inject constructor(
     fun prepareMediaForPlaylist(
         server: WebdavServer,
         selectedFiles: List<WebdavFile>,
+        sortOption: WebdavSortOption,
     ) {
         playlistJob?.cancel()
         playlistJob = viewModelScope.launch {
@@ -451,6 +476,7 @@ class WebdavBrowserViewModel @Inject constructor(
                     server = server,
                     files = selectedFiles,
                     scanHidden = _uiState.value.scanHiddenFiles,
+                    sortOption = sortOption,
                 )
 
                 val mediaPairs = collectedFiles.map { file ->
@@ -489,4 +515,19 @@ class WebdavBrowserViewModel @Inject constructor(
     private fun List<WebdavFile>.filterHidden(scanHidden: Boolean): List<WebdavFile> {
         return if (scanHidden) this else this.filter { !it.name.startsWith(".") }
     }
+}
+
+fun List<WebdavFile>.sortWithFoldersFirst(sortOption: WebdavSortOption): List<WebdavFile> {
+    val folders = this.filter { it.isDirectory }.sortedBy { it.name.lowercase() }
+    val files = this.filter { !it.isDirectory }.let { list ->
+        when (sortOption) {
+            WebdavSortOption.NAME_ASC -> list.sortedBy { it.name.lowercase() }
+            WebdavSortOption.NAME_DESC -> list.sortedByDescending { it.name.lowercase() }
+            WebdavSortOption.DATE_ASC -> list.sortedBy { it.lastModified }
+            WebdavSortOption.DATE_DESC -> list.sortedByDescending { it.lastModified }
+            WebdavSortOption.SIZE_ASC -> list.sortedBy { it.size }
+            WebdavSortOption.SIZE_DESC -> list.sortedByDescending { it.size }
+        }
+    }
+    return folders + files
 }

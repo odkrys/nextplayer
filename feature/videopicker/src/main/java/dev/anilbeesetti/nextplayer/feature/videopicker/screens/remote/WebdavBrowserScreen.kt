@@ -201,10 +201,9 @@ private fun WebdavBrowserContent(
     val currentPath = viewModel.breadcrumb()
 
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
-    var webdavSortOption by rememberSaveable { mutableStateOf(WebdavSortOption.NAME_ASC) }
 
     val listState = rememberSaveable(
-        webdavSortOption,
+        uiState.sortOption,
         uiState.showOnlyPlayable,
         saver = LazyListState.Saver,
     ) {
@@ -213,7 +212,8 @@ private fun WebdavBrowserContent(
 
     fun applySort(newOption: WebdavSortOption) {
         showSortMenu = false
-        webdavSortOption = newOption
+        if (newOption == uiState.sortOption) return
+        viewModel.updateSortOption(newOption)
     }
 
     fun toggleShowOnlyPlayable() {
@@ -221,25 +221,14 @@ private fun WebdavBrowserContent(
         viewModel.toggleShowOnlyPlayable()
     }
 
-    val displayedFiles = remember(uiState.files, uiState.showOnlyPlayable, webdavSortOption) {
+    val displayedFiles = remember(uiState.files, uiState.showOnlyPlayable, uiState.sortOption) {
         val filtered = if (uiState.showOnlyPlayable) {
             uiState.files.filter { viewModel.isPlayable(it) || it.isDirectory }
         } else {
             uiState.files
         }
 
-        val folders = filtered.filter { it.isDirectory }.sortedBy { it.name.lowercase() }
-        val files = filtered.filter { !it.isDirectory }.let { list ->
-            when (webdavSortOption) {
-                WebdavSortOption.NAME_ASC -> list.sortedBy { it.name.lowercase() }
-                WebdavSortOption.NAME_DESC -> list.sortedByDescending { it.name.lowercase() }
-                WebdavSortOption.DATE_ASC -> list.sortedBy { it.lastModified }
-                WebdavSortOption.DATE_DESC -> list.sortedByDescending { it.lastModified }
-                WebdavSortOption.SIZE_ASC -> list.sortedBy { it.size }
-                WebdavSortOption.SIZE_DESC -> list.sortedByDescending { it.size }
-            }
-        }
-        folders + files
+        filtered.sortWithFoldersFirst(uiState.sortOption)
     }
 
     var showClearDialog by rememberSaveable { mutableStateOf(false) }
@@ -371,7 +360,10 @@ private fun WebdavBrowserContent(
 
                             IconButton(
                                 onClick = {
-                                    viewModel.prepareMediaForPlaylist(server, selectedFiles.toList())
+                                    viewModel.prepareMediaForPlaylist(
+                                        server,
+                                        selectedFiles.toList(),
+                                        sortOption = uiState.sortOption)
                                 },
                                 enabled = selectedFiles.isNotEmpty() && !uiState.isPreparingPlaylist,
                             ) {
@@ -436,7 +428,7 @@ private fun WebdavBrowserContent(
                                         text = { Text("Name (A-Z)") },
                                         onClick = { applySort(WebdavSortOption.NAME_ASC) },
                                         trailingIcon = {
-                                            if (webdavSortOption == WebdavSortOption.NAME_ASC) {
+                                            if (uiState.sortOption == WebdavSortOption.NAME_ASC) {
                                                 Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
@@ -445,7 +437,7 @@ private fun WebdavBrowserContent(
                                         text = { Text("Name (Z-A)") },
                                         onClick = { applySort(WebdavSortOption.NAME_DESC) },
                                         trailingIcon = {
-                                            if (webdavSortOption == WebdavSortOption.NAME_DESC) {
+                                            if (uiState.sortOption == WebdavSortOption.NAME_DESC) {
                                                 Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
@@ -454,7 +446,7 @@ private fun WebdavBrowserContent(
                                         text = { Text("Date (Oldest)") },
                                         onClick = { applySort(WebdavSortOption.DATE_ASC) },
                                         trailingIcon = {
-                                            if (webdavSortOption == WebdavSortOption.DATE_ASC) {
+                                            if (uiState.sortOption == WebdavSortOption.DATE_ASC) {
                                                 Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
@@ -463,7 +455,7 @@ private fun WebdavBrowserContent(
                                         text = { Text("Date (Newest)") },
                                         onClick = { applySort(WebdavSortOption.DATE_DESC) },
                                         trailingIcon = {
-                                            if (webdavSortOption == WebdavSortOption.DATE_DESC) {
+                                            if (uiState.sortOption == WebdavSortOption.DATE_DESC) {
                                                 Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
@@ -472,7 +464,7 @@ private fun WebdavBrowserContent(
                                         text = { Text("Size (Smallest)") },
                                         onClick = { applySort(WebdavSortOption.SIZE_ASC) },
                                         trailingIcon = {
-                                            if (webdavSortOption == WebdavSortOption.SIZE_ASC) {
+                                            if (uiState.sortOption == WebdavSortOption.SIZE_ASC) {
                                                 Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
@@ -481,7 +473,7 @@ private fun WebdavBrowserContent(
                                         text = { Text("Size (Largest)") },
                                         onClick = { applySort(WebdavSortOption.SIZE_DESC) },
                                         trailingIcon = {
-                                            if (webdavSortOption == WebdavSortOption.SIZE_DESC) {
+                                            if (uiState.sortOption == WebdavSortOption.SIZE_DESC) {
                                                 Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
@@ -583,7 +575,7 @@ private fun WebdavBrowserContent(
                                             isSelectionMode = false
                                         }
                                     } else {
-                                        val playableFiles = uiState.files.filter { viewModel.isPlayable(it) }
+                                        val playableFiles = displayedFiles.filter { viewModel.isPlayable(it) }
                                         val urls = playableFiles.map { viewModel.buildFileUrl(server, it) }
                                         val selectedIndex = playableFiles.indexOf(file).coerceAtLeast(0)
                                         onPlayFile(urls, selectedIndex, server)

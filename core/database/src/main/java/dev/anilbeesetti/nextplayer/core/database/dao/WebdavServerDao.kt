@@ -34,6 +34,9 @@ interface WebdavServerDao {
     @Query("SELECT COUNT(*) FROM webdav_servers")
     suspend fun getServerCount(): Int
 
+    @Query("UPDATE webdav_servers SET sortOption = :sortOption WHERE id = :id")
+    suspend fun updateSortOption(id: Long, sortOption: String)
+
     @Query("UPDATE webdav_servers SET position = :position WHERE id = :id")
     suspend fun updatePosition(id: Long, position: Int)
 

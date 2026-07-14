@@ -30,6 +30,10 @@ class WebdavServerRepository @Inject constructor(
     suspend fun getServerById(id: Long): WebdavServer? =
         dao.getServerById(id)?.toDomain()
 
+    suspend fun updateSortOption(id: Long, sortOption: String) {
+        dao.updateSortOption(id, sortOption)
+    }
+
     suspend fun reorderServers(ids: List<Long>) {
         dao.updatePositionsInTransaction(ids)
     }
@@ -46,6 +50,7 @@ class WebdavServerRepository @Inject constructor(
         allowSelfSigned = allowSelfSigned,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        sortOption = sortOption,
         position = position
     )
 
@@ -61,6 +66,7 @@ class WebdavServerRepository @Inject constructor(
         allowSelfSigned = allowSelfSigned,
         createdAt = createdAt,
         updatedAt = System.currentTimeMillis(),
+        sortOption = sortOption,
         position = position
     )
 }

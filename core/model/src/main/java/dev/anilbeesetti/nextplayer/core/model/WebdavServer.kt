@@ -12,6 +12,7 @@ data class WebdavServer(
     val allowSelfSigned: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    val sortOption: String = "NAME_ASC",
     val position: Int = 0
 ) {
     val baseUrl: String

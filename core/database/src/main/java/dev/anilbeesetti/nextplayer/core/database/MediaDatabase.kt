@@ -20,7 +20,7 @@ import dev.anilbeesetti.nextplayer.core.database.entities.WebdavServerEntity
         PlaylistMediumCrossEntity::class,
     ],
     //version = 5,
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 abstract class MediaDatabase : RoomDatabase() {
@@ -434,6 +434,14 @@ abstract class MediaDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase)  {
                 db.execSQL("ALTER TABLE media_state ADD COLUMN width INTEGER")
                 db.execSQL("ALTER TABLE media_state ADD COLUMN height INTEGER")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE webdav_servers ADD COLUMN sortOption TEXT NOT NULL DEFAULT 'NAME_ASC'"
+                )
             }
         }
     }

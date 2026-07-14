@@ -113,7 +113,8 @@ fun CastingControllerView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)
-                        .padding(horizontal = 32.dp, vertical = 16.dp)
+                        .padding(horizontal = 32.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = title,
@@ -124,7 +125,10 @@ fun CastingControllerView(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Row(modifier = Modifier.align(Alignment.End)) {
+                    Row(
+                        modifier = Modifier.align(Alignment.End),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         PlayerButton(
                             onClick = { onInteraction(); onToggleAutoplay() }
                         ) {

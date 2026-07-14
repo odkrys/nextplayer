@@ -314,10 +314,12 @@ data class PlaylistDetailUiState(
 ) {
     val sortedVideos: List<Video>
         get() = when (sortOption) {
-            PlaylistSortOption.ADDED_ASC -> videos
-            PlaylistSortOption.ADDED_DESC -> videos.reversed()
             PlaylistSortOption.NAME_ASC -> videos.sortedBy { it.displayName.lowercase() }
             PlaylistSortOption.NAME_DESC -> videos.sortedByDescending { it.displayName.lowercase() }
+            PlaylistSortOption.ADDED_ASC -> videos
+            PlaylistSortOption.ADDED_DESC -> videos.reversed()
+            PlaylistSortOption.SIZE_ASC -> videos.sortedBy { it.size }
+            PlaylistSortOption.SIZE_DESC -> videos.sortedByDescending { it.size }
         }
 }
 

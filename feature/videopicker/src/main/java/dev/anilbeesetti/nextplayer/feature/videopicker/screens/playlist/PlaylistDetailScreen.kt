@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -272,20 +273,58 @@ fun PlaylistDetailScreen(
                                     onDismissRequest = { showSortMenu = false }
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text("Date added (Oldest)") },
-                                        onClick = { applySort(PlaylistSortOption.ADDED_ASC) }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Date added (Newest)") },
-                                        onClick = { applySort(PlaylistSortOption.ADDED_DESC) }
-                                    )
-                                    DropdownMenuItem(
                                         text = { Text("Name (A-Z)") },
-                                        onClick = { applySort(PlaylistSortOption.NAME_ASC) }
+                                        onClick = { applySort(PlaylistSortOption.NAME_ASC) },
+                                        trailingIcon = {
+                                            if (uiState.sortOption == PlaylistSortOption.NAME_ASC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Name (Z-A)") },
-                                        onClick = { applySort(PlaylistSortOption.NAME_DESC) }
+                                        onClick = { applySort(PlaylistSortOption.NAME_DESC) },
+                                        trailingIcon = {
+                                            if (uiState.sortOption == PlaylistSortOption.NAME_DESC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Date added (Oldest)") },
+                                        onClick = { applySort(PlaylistSortOption.ADDED_ASC) },
+                                        trailingIcon = {
+                                            if (uiState.sortOption == PlaylistSortOption.ADDED_ASC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Date added (Newest)") },
+                                        onClick = { applySort(PlaylistSortOption.ADDED_DESC) },
+                                        trailingIcon = {
+                                            if (uiState.sortOption == PlaylistSortOption.ADDED_DESC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Size (Smallest)") },
+                                        onClick = { applySort(PlaylistSortOption.SIZE_ASC) },
+                                        trailingIcon = {
+                                            if (uiState.sortOption == PlaylistSortOption.SIZE_ASC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Size (Largest)") },
+                                        onClick = { applySort(PlaylistSortOption.SIZE_DESC) },
+                                        trailingIcon = {
+                                            if (uiState.sortOption == PlaylistSortOption.SIZE_DESC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
                                     )
                                 }
                             }

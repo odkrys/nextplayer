@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -30,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -76,6 +77,7 @@ import coil3.size.Precision
 import coil3.size.Scale
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
+import dev.anilbeesetti.nextplayer.core.model.WebdavSortOption
 import dev.anilbeesetti.nextplayer.core.model.WebdavThumbnailMode
 import dev.anilbeesetti.nextplayer.core.model.WebdavVideoRequest
 import dev.anilbeesetti.nextplayer.core.ui.designsystem.NextIcons
@@ -198,12 +200,46 @@ private fun WebdavBrowserContent(
     val saveableStateHolder = rememberSaveableStateHolder()
     val currentPath = viewModel.breadcrumb()
 
-    val displayedFiles = remember(uiState.files, uiState.showOnlyPlayable) {
-        if (uiState.showOnlyPlayable) {
+    var showSortMenu by rememberSaveable { mutableStateOf(false) }
+    var webdavSortOption by rememberSaveable { mutableStateOf(WebdavSortOption.NAME_ASC) }
+
+    val listState = rememberSaveable(
+        webdavSortOption,
+        uiState.showOnlyPlayable,
+        saver = LazyListState.Saver,
+    ) {
+        LazyListState()
+    }
+
+    fun applySort(newOption: WebdavSortOption) {
+        showSortMenu = false
+        webdavSortOption = newOption
+    }
+
+    fun toggleShowOnlyPlayable() {
+        showSortMenu = false
+        viewModel.toggleShowOnlyPlayable()
+    }
+
+    val displayedFiles = remember(uiState.files, uiState.showOnlyPlayable, webdavSortOption) {
+        val filtered = if (uiState.showOnlyPlayable) {
             uiState.files.filter { viewModel.isPlayable(it) || it.isDirectory }
         } else {
             uiState.files
         }
+
+        val folders = filtered.filter { it.isDirectory }.sortedBy { it.name.lowercase() }
+        val files = filtered.filter { !it.isDirectory }.let { list ->
+            when (webdavSortOption) {
+                WebdavSortOption.NAME_ASC -> list.sortedBy { it.name.lowercase() }
+                WebdavSortOption.NAME_DESC -> list.sortedByDescending { it.name.lowercase() }
+                WebdavSortOption.DATE_ASC -> list.sortedBy { it.lastModified }
+                WebdavSortOption.DATE_DESC -> list.sortedByDescending { it.lastModified }
+                WebdavSortOption.SIZE_ASC -> list.sortedBy { it.size }
+                WebdavSortOption.SIZE_DESC -> list.sortedByDescending { it.size }
+            }
+        }
+        folders + files
     }
 
     var showClearDialog by rememberSaveable { mutableStateOf(false) }
@@ -388,12 +424,84 @@ private fun WebdavBrowserContent(
                             }
                         },
                         actions = {
-                            IconButton(onClick = viewModel::toggleShowOnlyPlayable) {
-                                Icon(
-                                    imageVector = if (uiState.showOnlyPlayable) NextIcons.FilterListOff else NextIcons.FilterList,
-                                    contentDescription = "Show Playable Files Only",
-                                    tint = if (uiState.showOnlyPlayable) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                                )
+                            Box {
+                                IconButton(onClick = { showSortMenu = true }) {
+                                    Icon(NextIcons.Sort, contentDescription = "Sort and Filter")
+                                }
+                                DropdownMenu(
+                                    expanded = showSortMenu,
+                                    onDismissRequest = { showSortMenu = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Name (A-Z)") },
+                                        onClick = { applySort(WebdavSortOption.NAME_ASC) },
+                                        trailingIcon = {
+                                            if (webdavSortOption == WebdavSortOption.NAME_ASC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Name (Z-A)") },
+                                        onClick = { applySort(WebdavSortOption.NAME_DESC) },
+                                        trailingIcon = {
+                                            if (webdavSortOption == WebdavSortOption.NAME_DESC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Date (Oldest)") },
+                                        onClick = { applySort(WebdavSortOption.DATE_ASC) },
+                                        trailingIcon = {
+                                            if (webdavSortOption == WebdavSortOption.DATE_ASC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Date (Newest)") },
+                                        onClick = { applySort(WebdavSortOption.DATE_DESC) },
+                                        trailingIcon = {
+                                            if (webdavSortOption == WebdavSortOption.DATE_DESC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Size (Smallest)") },
+                                        onClick = { applySort(WebdavSortOption.SIZE_ASC) },
+                                        trailingIcon = {
+                                            if (webdavSortOption == WebdavSortOption.SIZE_ASC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Size (Largest)") },
+                                        onClick = { applySort(WebdavSortOption.SIZE_DESC) },
+                                        trailingIcon = {
+                                            if (webdavSortOption == WebdavSortOption.SIZE_DESC) {
+                                                Icon(NextIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    )
+
+                                    HorizontalDivider()
+
+                                    DropdownMenuItem(
+                                        text = { Text("Playable Only") },
+                                        trailingIcon = {
+                                            Icon(
+                                                imageVector = if (uiState.showOnlyPlayable) NextIcons.CheckBox else NextIcons.CheckBoxOutline,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp),
+                                                tint = if (uiState.showOnlyPlayable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        },
+                                        onClick = { toggleShowOnlyPlayable() }
+                                    )
+                                }
                             }
                             IconButton(onClick = { showClearDialog = true }) {
                                 Icon(NextIcons.History, contentDescription = "Clear Playback History")
@@ -483,6 +591,7 @@ private fun WebdavBrowserContent(
                                 },
                                 isPlayable = viewModel::isPlayable,
                                 buildFileUrl = { viewModel.buildFileUrl(server, it) },
+                                listState = listState,
                             )
                         }
                     }
@@ -551,10 +660,9 @@ private fun FileList(
     onFileClick: (WebdavFile) -> Unit,
     isPlayable: (WebdavFile) -> Boolean,
     buildFileUrl: (WebdavFile) -> String,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
-
     LaunchedEffect(targetScrollUrl, files) {
         if (targetScrollUrl != null && files.isNotEmpty()) {
             val targetIndex = files.indexOfFirst { file ->

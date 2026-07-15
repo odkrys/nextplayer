@@ -937,7 +937,8 @@ private fun WebdavFile.icon(): ImageVector {
 
     return when {
         mime.startsWith("video/") || ext in setOf(
-            "mp4", "mkv", "avi", "mov", "webm", "ts", "m2ts", "flv", "wmv", "asf"
+            "mp4", "m4v", "mkv", "webm", "avi", "mov", "wmv", "flv", "mpeg", "mpg",
+            "3gp", "ts", "m2ts", "mts", "vob", "ogv", "rmvb", "asf", "divx", "f4v",
         ) -> NextIcons.Movie1
 
         mime.startsWith("audio/") || ext in setOf(

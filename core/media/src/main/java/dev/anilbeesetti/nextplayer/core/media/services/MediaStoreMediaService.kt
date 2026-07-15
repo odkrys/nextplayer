@@ -388,7 +388,10 @@ class MediaStoreMediaService @Inject constructor(
         val hiddenVideos = mutableListOf<MediaVideo>()
 
         val skipFolders = setOf("android", "cache", "temp", "logs", "obb", ".trash")
-        val videoExtensions = setOf("mp4", "mkv", "avi", "mov", "webm", "ts", "m2ts", "flv", "wmv", "asf")
+        val videoExtensions = setOf(
+            "mp4", "m4v", "mkv", "webm", "avi", "mov", "wmv", "flv", "mpeg", "mpg",
+            "3gp", "ts", "m2ts", "mts", "vob", "ogv", "rmvb", "asf", "divx", "f4v",
+        )
 
         val searchRoots = if (folderPath != null) {
             listOf(File(folderPath))

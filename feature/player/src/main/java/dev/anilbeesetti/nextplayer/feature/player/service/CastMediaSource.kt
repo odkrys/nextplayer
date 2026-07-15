@@ -30,11 +30,16 @@ sealed class CastMediaSource {
 }
 
 fun mimeTypeFromExt(ext: String) = when (ext.lowercase()) {
-    "mp4" -> "video/mp4"
+    "mp4", "m4v" -> "video/mp4"
     "mkv" -> "video/x-matroska"
     "webm" -> "video/webm"
     "avi" -> "video/x-msvideo"
-    "ts" -> "video/mp2t"
+    "mov" -> "video/quicktime"
+    "wmv" -> "video/x-ms-wmv"
+    "flv" -> "video/x-flv"
+    "mpeg", "mpg" -> "video/mpeg"
+    "3gp" -> "video/3gpp"
+    "ts", "m2ts", "mts" -> "video/mp2t"
     "mp3" -> "audio/mpeg"
     "flac" -> "audio/flac"
     "aac" -> "audio/aac"

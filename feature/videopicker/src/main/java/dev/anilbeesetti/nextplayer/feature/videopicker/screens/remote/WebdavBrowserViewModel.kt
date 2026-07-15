@@ -398,7 +398,8 @@ class WebdavBrowserViewModel @Inject constructor(
         if (file.isDirectory) return false
         val ext = file.name.substringAfterLast('.', "").lowercase()
         val playableExt = setOf(
-            "mp4", "mkv", "avi", "mov", "webm", "ts", "m2ts", "flv", "wmv", "asf",
+            "mp4", "m4v", "mkv", "webm", "avi", "mov", "wmv", "flv", "mpeg", "mpg",
+            "3gp", "ts", "m2ts", "mts", "vob", "ogv", "rmvb", "asf", "divx", "f4v",
             "mp3", "flac", "wav", "m4a", "aac", "ogg", "wma", "ape", "opus",
         )
         return ext in playableExt

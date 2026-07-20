@@ -18,6 +18,7 @@ android {
         applicationId = "test.anilbeesetti.nextplayer"
         versionCode = 56
         versionName = "0.16.3"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {

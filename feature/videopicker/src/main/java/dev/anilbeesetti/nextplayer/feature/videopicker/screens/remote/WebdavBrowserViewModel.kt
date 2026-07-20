@@ -10,6 +10,7 @@ import dev.anilbeesetti.nextplayer.core.data.repository.PreferencesRepository
 import dev.anilbeesetti.nextplayer.core.domain.webdav.GetWebdavServerByIdUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.ListWebdavFilesUseCase
 import dev.anilbeesetti.nextplayer.core.domain.webdav.UpdateWebdavSortOptionUseCase
+import dev.anilbeesetti.nextplayer.core.model.Sort
 import dev.anilbeesetti.nextplayer.core.model.WebdavFile
 import dev.anilbeesetti.nextplayer.core.model.WebdavServer
 import dev.anilbeesetti.nextplayer.core.model.WebdavSortOption
@@ -519,11 +520,15 @@ class WebdavBrowserViewModel @Inject constructor(
 }
 
 fun List<WebdavFile>.sortWithFoldersFirst(sortOption: WebdavSortOption): List<WebdavFile> {
-    val folders = this.filter { it.isDirectory }.sortedBy { it.name.lowercase() }
+    val naturalNameComparator = Comparator<WebdavFile> { f1, f2 ->
+        Sort.stringComparator.compare(f1.name.lowercase(), f2.name.lowercase())
+    }
+
+    val folders = this.filter { it.isDirectory }.sortedWith(naturalNameComparator)
     val files = this.filter { !it.isDirectory }.let { list ->
         when (sortOption) {
-            WebdavSortOption.NAME_ASC -> list.sortedBy { it.name.lowercase() }
-            WebdavSortOption.NAME_DESC -> list.sortedByDescending { it.name.lowercase() }
+            WebdavSortOption.NAME_ASC -> list.sortedWith(naturalNameComparator)
+            WebdavSortOption.NAME_DESC -> list.sortedWith(naturalNameComparator.reversed())
             WebdavSortOption.DATE_ASC -> list.sortedBy { it.lastModified }
             WebdavSortOption.DATE_DESC -> list.sortedByDescending { it.lastModified }
             WebdavSortOption.SIZE_ASC -> list.sortedBy { it.size }

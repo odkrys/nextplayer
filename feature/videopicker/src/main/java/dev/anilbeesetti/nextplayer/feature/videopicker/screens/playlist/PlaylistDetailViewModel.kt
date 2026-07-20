@@ -21,6 +21,7 @@ import dev.anilbeesetti.nextplayer.core.model.ApplicationPreferences
 import dev.anilbeesetti.nextplayer.core.model.LinkErrorType
 import dev.anilbeesetti.nextplayer.core.model.Playlist
 import dev.anilbeesetti.nextplayer.core.model.PlaylistSortOption
+import dev.anilbeesetti.nextplayer.core.model.Sort
 import dev.anilbeesetti.nextplayer.core.model.Video
 import dev.anilbeesetti.nextplayer.core.ui.base.DataState
 import dev.anilbeesetti.nextplayer.feature.videopicker.navigation.PlaylistArgs
@@ -305,6 +306,10 @@ class PlaylistDetailViewModel @Inject constructor(
     }
 }
 
+private val naturalNameComparator = Comparator<Video> { v1, v2 ->
+    Sort.stringComparator.compare(v1.displayName.lowercase(), v2.displayName.lowercase())
+}
+
 @Stable
 data class PlaylistDetailUiState(
     val dataState: DataState<Playlist?> = DataState.Loading,
@@ -314,8 +319,8 @@ data class PlaylistDetailUiState(
 ) {
     val sortedVideos: List<Video>
         get() = when (sortOption) {
-            PlaylistSortOption.NAME_ASC -> videos.sortedBy { it.displayName.lowercase() }
-            PlaylistSortOption.NAME_DESC -> videos.sortedByDescending { it.displayName.lowercase() }
+            PlaylistSortOption.NAME_ASC -> videos.sortedWith(naturalNameComparator)
+            PlaylistSortOption.NAME_DESC -> videos.sortedWith(naturalNameComparator.reversed())
             PlaylistSortOption.ADDED_ASC -> videos
             PlaylistSortOption.ADDED_DESC -> videos.reversed()
             PlaylistSortOption.SIZE_ASC -> videos.sortedBy { it.size }

@@ -18,7 +18,7 @@ data class Sort(
         ASCENDING,
         DESCENDING,
     }
-
+/*
     private val stringComparator = Comparator<String> { str1, str2 ->
         var str1Marker = 0
         var str2Marker = 0
@@ -60,6 +60,74 @@ data class Sort(
         }
 
         return@Comparator str1Length - str2Length
+    }
+*/
+    companion object {
+        val stringComparator = Comparator<String> { str1, str2 ->
+            var str1Marker = 0
+            var str2Marker = 0
+            val str1Length = str1.length
+            val str2Length = str2.length
+
+            while (str1Marker < str1Length && str2Marker < str2Length) {
+                val thisChunk = getChunk(str1, str1Length, str1Marker)
+                str1Marker += thisChunk.length
+
+                val thatChunk = getChunk(str2, str2Length, str2Marker)
+                str2Marker += thatChunk.length
+
+                val result: Int
+                if (thisChunk[0].isAsciiDigit() && thatChunk[0].isAsciiDigit()) {
+                    val thisChunkLength = thisChunk.length
+                    val lengthDiff = thisChunkLength - thatChunk.length
+                    if (lengthDiff == 0) {
+                        for (i in 0 until thisChunkLength) {
+                            val charDiff = thisChunk[i] - thatChunk[i]
+                            if (charDiff != 0) {
+                                return@Comparator charDiff
+                            }
+                        }
+                        result = 0
+                    } else {
+                        result = lengthDiff
+                    }
+                } else {
+                    result = thisChunk.compareTo(thatChunk)
+                }
+
+                if (result != 0) {
+                    return@Comparator result
+                }
+            }
+
+            return@Comparator str1Length - str2Length
+        }
+
+        private fun getChunk(string: String, length: Int, marker: Int): String {
+            var current = marker
+            val chunk = StringBuilder()
+            var c = string[current]
+            chunk.append(c)
+            current++
+            if (c.isAsciiDigit()) {
+                while (current < length) {
+                    c = string[current]
+                    if (!c.isAsciiDigit()) break
+                    chunk.append(c)
+                    current++
+                }
+            } else {
+                while (current < length) {
+                    c = string[current]
+                    if (c.isAsciiDigit()) break
+                    chunk.append(c)
+                    current++
+                }
+            }
+            return chunk.toString()
+        }
+
+        private fun Char.isAsciiDigit(): Boolean = this in '0'..'9'
     }
 
     fun videoComparator(): Comparator<Video> {
@@ -119,7 +187,7 @@ data class Sort(
             Order.DESCENDING -> comparator.reversedCompat()
         }
     }
-
+/*
     private fun getChunk(string: String, length: Int, marker: Int): String {
         var current = marker
         val chunk = StringBuilder()
@@ -147,9 +215,10 @@ data class Sort(
         }
         return chunk.toString()
     }
+*/
 }
-
+/*
 // The length-based numeric ordering is contract-safe only for the contiguous ASCII digit range.
 private fun Char.isAsciiDigit(): Boolean = this in '0'..'9'
-
+*/
 fun <T> Comparator<T>.reversedCompat(): Comparator<T> = kotlinReversed()
